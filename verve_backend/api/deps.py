@@ -6,7 +6,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from pydantic import ValidationError
-from sqlmodel import Session
+from sqlmodel import Session, text
 
 from verve_backend.core import security
 from verve_backend.core.config import settings
@@ -47,3 +47,15 @@ def get_current_user(session: SessionDep, token: TokenDep) -> User:
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+def get_user_session(user: CurrentUser) -> Generator[tuple[str, Session], None, None]:
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    with Session(get_engine(rls=True, echo=True)) as session:
+        session.exec(text(f"SET verve_user.curr_user = '{user.id}'"))  # type: ignore
+        session.commit()
+        yield str(user.id), session
+
+
+UserSession = Annotated[tuple[str, Session], Depends(get_user_session)]

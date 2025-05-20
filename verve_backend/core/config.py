@@ -30,9 +30,12 @@ class Settings(BaseSettings):
     POSTGRES_SERVER: str
     POSTGRES_PORT: int = 5432
     POSTGRES_USER: str
-    POSTGRES_PASSWORD: str = ""
+    POSTGRES_PASSWORD: str = "changethis"
     POSTGRES_DB: str = ""
     POSTGRES_SCHEMA_NAME: str = "verve"
+
+    POSTGRES_RLS_USER: str = "verve_user"
+    POSTGRES_RLS_PASSWORD: str = "changethis"
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -41,6 +44,18 @@ class Settings(BaseSettings):
             scheme="postgresql+psycopg2",
             username=self.POSTGRES_USER,
             password=self.POSTGRES_PASSWORD,
+            host=self.POSTGRES_SERVER,
+            port=self.POSTGRES_PORT,
+            path=self.POSTGRES_DB,
+        )
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def SQLALCHEMY_RLS_DATABASE_URI(self) -> PostgresDsn:  # noqa: N802
+        return MultiHostUrl.build(  # type: ignore
+            scheme="postgresql+psycopg2",
+            username=self.POSTGRES_RLS_USER,
+            password=self.POSTGRES_RLS_PASSWORD,
             host=self.POSTGRES_SERVER,
             port=self.POSTGRES_PORT,
             path=self.POSTGRES_DB,
@@ -69,7 +84,8 @@ class Settings(BaseSettings):
     def _enforce_non_default_secrets(self) -> Self:
         self._check_default_secret("SECRET_KEY", self.SECRET_KEY)
         self._check_default_secret("POSTGRES_PASSWORD", self.POSTGRES_PASSWORD)
-        # self._check_default_secret(
+        self._check_default_secret("POSTGRES_RLS_PASSWORD", self.POSTGRES_RLS_PASSWORD)
+        # elf._check_default_secret(
         #     "FIRST_SUPERUSER_PASSWORD", self.FIRST_SUPERUSER_PASSWORD
         # )
 

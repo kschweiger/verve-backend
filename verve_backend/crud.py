@@ -1,7 +1,15 @@
 from sqlmodel import Session, select
 
 from verve_backend.core.security import get_password_hash, verify_password
-from verve_backend.models import User, UserCreate
+from verve_backend.models import (
+    Activity,
+    ActivityCreate,
+    ActivityType,
+    ActivityTypeCreate,
+    User,
+    UserCreate,
+    UserPublic,
+)
 
 
 def create_user(*, session: Session, user_create: UserCreate) -> User:
@@ -27,3 +35,26 @@ def authenticate(*, session: Session, email: str, password: str) -> User | None:
     if not verify_password(password, db_user.hashed_password):
         return None
     return db_user
+
+
+def create_activity(
+    *,
+    session: Session,
+    create: ActivityCreate,
+    user: UserPublic,
+) -> Activity:
+    db_obj = Activity.model_validate(create, update={"user_id": user.id})
+    session.add(db_obj)
+    session.commit()
+    session.refresh(db_obj)
+    return db_obj
+
+
+def create_activity_type(
+    *, session: Session, create: ActivityTypeCreate
+) -> ActivityType:
+    db_obj = ActivityType.model_validate(create)
+    session.add(db_obj)
+    session.commit()
+    session.refresh(db_obj)
+    return db_obj
