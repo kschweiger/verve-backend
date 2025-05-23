@@ -3,8 +3,11 @@ from datetime import datetime, timedelta
 from typing import Annotated, TypeVar
 
 from pydantic import AfterValidator, EmailStr
+from geoalchemy2 import Geography, Geometry
 from sqlalchemy import JSON, Column
 from sqlmodel import Field, SQLModel, UniqueConstraint
+
+from verve_backend.enums import GoalAggregation, GoalType, TemportalType
 
 T = TypeVar("T", bound=int | float)
 
@@ -97,11 +100,19 @@ class ActivitySubType(ActivitySubTypeBase, table=True):
 
 class ActivityBase(SQLModel):
     start: datetime
+
     duration: timedelta
+    distance: float
+    moving_duration: timedelta | None = None
+    elevation_change_up: float | None = None
+    elevation_change_down: float | None = None
+    avg_speed: float | None = None
+    avg_heartrate: float | None = None
+    avg_power: float | None = None
 
     type_id: PositiveNumber[int] = Field(foreign_key="activity_type.id", nullable=False)
-    sub_type_id: PositiveNumber[int] = Field(
-        foreign_key="sub_activity_type.id", nullable=False
+    sub_type_id: PositiveNumber[int] | None = Field(
+        foreign_key="sub_activity_type.id", nullable=True
     )
 
     meta_data: dict = Field(sa_column=Column(JSON), default_factory=dict)
@@ -128,4 +139,75 @@ class Activity(ActivityBase, table=True):
 
 class ActivitiesPublic(SQLModel):
     data: list[ActivityPublic]
+    count: int
+
+
+class TrackPoint(SQLModel, table=True):
+    __tablename__ = "track_points"  # type: ignore
+
+    id: int | None = Field(default=None, primary_key=True)
+    activity_id: uuid.UUID = Field(
+        foreign_key="activities.id", nullable=False, index=True
+    )
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", nullable=False, ondelete="CASCADE", index=True
+    )
+    segment_id: int = Field(...)
+    geography: str = Field(sa_column=Column(Geography("POINT", 4326)))
+    geometry: str = Field(sa_column=Column(Geometry("POINT")))
+    elevation: float | None = Field(default=None)
+    time: datetime | None = Field(default=None)
+
+    heartrate: Annotated[int | None, "is_extension"] = Field(default=None)
+    cadence: Annotated[int | None, "is_extension"] = Field(default=None)
+    power: Annotated[int | None, "is_extension"] = Field(default=None)
+
+    extensions: dict = Field(sa_column=Column(JSON), default_factory=dict)
+
+    __table_args__ = (
+        UniqueConstraint("id", "activity_id", name="uix_track_points_id_activity_id"),
+    )
+
+
+class GoalBase(SQLModel):
+    name: str
+    description: str | None = None
+
+    current: float = 0
+    target: PositiveNumber[float] = Field()
+    upper_bound: bool = Field(default=True)
+    active: bool = Field(default=True)
+
+    temporal_type: TemportalType = Field(default=TemportalType.YEARLY)
+    year: int = Field(default=datetime.now().year)
+    month: int | None = Field(default=None)
+
+    type: GoalType = Field()
+    aggregation: GoalAggregation = Field()
+
+    constraints: dict = Field(sa_column=Column(JSON), default_factory=dict)
+
+
+class GoalCreate(GoalBase):
+    pass
+
+
+class GoalPublic(GoalBase):
+    id: uuid.UUID
+    reached: bool
+    progress: float
+
+
+class Goal(GoalBase, table=True):
+    __tablename__: str = "goals"  # type: ignore
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", nullable=False, ondelete="CASCADE"
+    )
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
+class GoalsPublic(SQLModel):
+    data: list[GoalPublic]
     count: int

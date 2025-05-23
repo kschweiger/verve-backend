@@ -52,7 +52,7 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 def get_user_session(user: CurrentUser) -> Generator[tuple[str, Session], None, None]:
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    with Session(get_engine(rls=True, echo=True)) as session:
+    with Session(get_engine(rls=True, echo=False)) as session:
         session.exec(text(f"SET verve_user.curr_user = '{user.id}'"))  # type: ignore
         session.commit()
         yield str(user.id), session

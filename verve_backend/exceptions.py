@@ -1,0 +1,2 @@
+class InvalidCombinationError(Exception):
+    pass

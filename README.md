@@ -7,7 +7,12 @@ Assuming you have working POSTGRES instance ready:
 - Create a schema: `CREATE SCHEMA verve;`
 - Create a role for RLS: `CREATE ROLE verve_user LOGIN PASSWORD 'changeme' NOINHERIT;`
 - Grand usage on schema: `GRANT USAGE ON SCHEMA verve TO verve_user;`
-- Set privileges: `ALTER DEFAULT PRIVILEGES IN SCHEMA verve GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO verve_user;`
+- Set privileges:
+
+```sql
+ALTER DEFAULT PRIVILEGES IN SCHEMA verve GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO verve_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA verve GRANT USAGE ON SEQUENCES TO verve_user;
+```
 
 RLS (Row-Level Security) is enabled as follows:
 

@@ -134,10 +134,9 @@ dmypy.json
 .DS_Store
 *.*~
 .#*
-.idea
-.vscode
-experiments
 .ruff_cache
 .coveragerc
 cov.xml
 *.html
+scripts/tracks/
+*.png
