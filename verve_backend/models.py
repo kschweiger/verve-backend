@@ -1,11 +1,12 @@
+import re
 import uuid
 from datetime import datetime, timedelta
 from typing import Annotated, TypeVar
 
-from pydantic import AfterValidator, EmailStr
 from geoalchemy2 import Geography, Geometry
+from pydantic import AfterValidator, EmailStr
 from sqlalchemy import JSON, Column
-from sqlmodel import Field, SQLModel, UniqueConstraint
+from sqlmodel import Field, Index, SQLModel, UniqueConstraint
 
 from verve_backend.enums import GoalAggregation, GoalType, TemportalType
 
@@ -166,7 +167,20 @@ class TrackPoint(SQLModel, table=True):
 
     __table_args__ = (
         UniqueConstraint("id", "activity_id", name="uix_track_points_id_activity_id"),
+        # Multi-column index for common query patterns
+        Index("idx_track_points_user_activity", "user_id", "activity_id"),
+        Index("idx_track_points_activity_segment", "activity_id", "segment_id"),
     )
+
+
+class RawTrackData(SQLModel, table=True):
+    __tablename__: str = "raw_track_data"  # type: ignore
+
+    activity_id: uuid.UUID = Field(foreign_key="activities.id", primary_key=True)
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", nullable=False, ondelete="CASCADE", index=True
+    )
+    store_path: str = Field(...)
 
 
 class GoalBase(SQLModel):
@@ -211,3 +225,61 @@ class Goal(GoalBase, table=True):
 class GoalsPublic(SQLModel):
     data: list[GoalPublic]
     count: int
+
+
+class LocationBase(SQLModel):
+    name: str
+    description: str | None = None
+
+    loc: str = Field(sa_column=Column(Geography("POINT", 4326)))
+
+
+class LocationCreate(LocationBase):
+    pass
+
+
+class LocationPublic(LocationBase):
+    id: uuid.UUID
+    created_at: datetime
+
+
+class Location(LocationBase, table=True):
+    __tablename__: str = "locations"  # type: ignore
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", nullable=False, ondelete="CASCADE"
+    )
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
+def is_hex_color_code(value: str) -> str:
+    if not re.match(r"^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$", value):
+        raise ValueError("Invalid hex color format. Must be #RRGGBB or #RGB")
+    return value
+
+
+class ZoneIntervalBase(SQLModel):
+    metric: str
+    name: str
+    start: float | None
+    end: float | None
+    color: Annotated[str, AfterValidator(is_hex_color_code)]
+
+
+class ZoneIntervalCreate(ZoneIntervalBase):
+    pass
+
+
+class ZoneIntervalPublic(ZoneIntervalBase):
+    id: uuid.UUID
+
+
+class ZoneInterval(ZoneIntervalBase, table=True):
+    __tablename__: str = "zone_intervals"  # type: ignore
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", nullable=False, ondelete="CASCADE"
+    )
+    created_at: datetime = Field(default_factory=datetime.now)

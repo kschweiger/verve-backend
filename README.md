@@ -1,5 +1,11 @@
 # Backend for Verve Outdoors
 
+
+## Dependencies
+
+- A postgrSQL instance with enables postgis extension
+- Some kind of boto3 compatible object store (e.g. minio)
+
 ## Database setup
 
 Assuming you have working POSTGRES instance ready:
@@ -24,7 +30,9 @@ CREATE POLICY activity_isolation_policy ON verve.activities
 
 and in the beginning of the db session something like this has to be done (when using the `verve_user` role for connecting)
 
-```
 ```sql
 SET verve_user.curr_user = '{user.id}'`
 ```
+
+
+

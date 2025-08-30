@@ -1,7 +1,5 @@
 from datetime import datetime, timedelta
-from pathlib import Path
 
-from geo_track_analyzer import FITTrack
 from sqlalchemy import text
 from sqlmodel import Session, SQLModel
 
@@ -42,6 +40,7 @@ with Session(engine) as session:
         ("activity", "activities"),
         ("track_point", "track_points"),
         ("goal", "goals"),
+        ("raw_track_data", "raw_track_data"),
     ]:
         session.exec(
             text(f"""
@@ -136,33 +135,72 @@ with Session(engine) as session:
         user_id=created_users[1].id,
     )
     i_track_added = 1
-    for _file in Path("scripts/tracks").iterdir():
-        if i_track_added > 3:
-            break
-        if _file.is_file() and _file.name.endswith(".fit"):
-            with open(_file, "rb") as f:
-                track = FITTrack(f)
 
-            overview = track.get_track_overview()
-
-            _activity = crud.create_activity(
-                session=session,
-                create=models.ActivityCreate(
-                    start=datetime(year=2025, month=1, day=i_track_added, hour=12),
-                    duration=timedelta(days=0, seconds=overview.total_time_seconds),
-                    distance=overview.total_distance,
-                    type_id=1,
-                    sub_type_id=1,
-                ),
-                user=created_users[0],
-            )
-
-            crud.insert_track(
-                session=session,
-                track=track,
-                activity_id=_activity.id,
+    session.add_all(
+        [
+            models.ZoneInterval(
+                name="Zone 1",
+                metric="heart_rate",
+                start=None,
+                end=100,
                 user_id=created_users[0].id,
-                batch_size=500,
-            )
-            print("Added track %s" % i_track_added)
-            i_track_added += 1
+                color="#FF0000",
+            ),
+            models.ZoneInterval(
+                name="Zone 2",
+                metric="heart_rate",
+                start=100,
+                end=150,
+                user_id=created_users[0].id,
+                color="#00FF00",
+            ),
+            models.ZoneInterval(
+                name="Zone 3",
+                metric="heart_rate",
+                start=150,
+                end=None,
+                user_id=created_users[0].id,
+                color="#0000FF",
+            ),
+        ]
+    )
+    session.commit()
+    # _path = "/Users/korbinian/iCloud/Cycling Tracks/2025/Road"
+    # # _path = "scripts/tracks"
+    # _month = 1
+    # _day = 0
+    # for _file in Path(_path).iterdir():
+    #     # if i_track_added > 3:
+    #     #     break
+    #     if _file.is_file() and _file.name.endswith(".fit"):
+    #         with open(_file, "rb") as f:
+    #             track = FITTrack(f)
+    #
+    #         if _day > 20:
+    #             _day = 1
+    #             _month += 1
+    #         else:
+    #             _day += 1
+    #         overview = track.get_track_overview()
+    #
+    #         _activity = crud.create_activity(
+    #             session=session,
+    #             create=models.ActivityCreate(
+    #                 start=datetime(year=2025, month=_month, day=_day, hour=12),
+    #                 duration=timedelta(days=0, seconds=overview.total_time_seconds),
+    #                 distance=overview.total_distance,
+    #                 type_id=1,
+    #                 sub_type_id=1,
+    #             ),
+    #             user=created_users[0],
+    #         )
+    #
+    #         crud.insert_track(
+    #             session=session,
+    #             track=track,
+    #             activity_id=_activity.id,
+    #             user_id=created_users[0].id,
+    #             batch_size=500,
+    #         )
+    #         print("Added track %s" % i_track_added)
+    #         i_track_added += 1

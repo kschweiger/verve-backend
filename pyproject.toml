@@ -1,3 +1,4 @@
+
 [project]
 name = "verve-backend"
 version = "0.1.0"
@@ -6,6 +7,8 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "bcrypt==4.0.1",
+    "boto3>=1.40.14",
+    "boto3-stubs[s3]>=1.40.21",
     "fastapi[standard]>=0.115.12",
     "geo-track-analyzer>=1.7.0",
     "geoalchemy2>=0.17.1",
@@ -55,3 +58,21 @@ ignore = [
   "RUF009",
   "E731",
 ]
+
+[dependency-groups]
+dev = [
+    "matplotlib>=3.10.3",
+    "pandas>=2.2.3",
+    "plotly>=5.24.1",
+    "seaborn>=0.13.2",
+]
+[tool.uv]
+package = true
+
+[build-system]
+requires = ["uv_build>=0.8.13,<0.9.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "verve_backend"
+module-root = ""

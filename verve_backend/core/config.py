@@ -37,6 +37,12 @@ class Settings(BaseSettings):
     POSTGRES_RLS_USER: str = "verve_user"
     POSTGRES_RLS_PASSWORD: str = "changethis"
 
+    BOTO3_ENDPOINT: str = "localhost:9000"
+    BOTO3_ACCESS: str
+    BOTO3_SECRET: str
+    BOTO3_SIGNATURE: str = "s3v4"
+    BOTO3_REGION: str = "us-east-1"
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> PostgresDsn:  # noqa: N802
@@ -85,6 +91,8 @@ class Settings(BaseSettings):
         self._check_default_secret("SECRET_KEY", self.SECRET_KEY)
         self._check_default_secret("POSTGRES_PASSWORD", self.POSTGRES_PASSWORD)
         self._check_default_secret("POSTGRES_RLS_PASSWORD", self.POSTGRES_RLS_PASSWORD)
+        self._check_default_secret("BOTO3_ACCESS", self.BOTO3_ACCESS)
+        self._check_default_secret("BOTO3_SECRET", self.BOTO3_SECRET)
         # elf._check_default_secret(
         #     "FIRST_SUPERUSER_PASSWORD", self.FIRST_SUPERUSER_PASSWORD
         # )

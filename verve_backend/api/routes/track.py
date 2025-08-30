@@ -1,5 +1,6 @@
 import logging
 import uuid
+from io import BytesIO
 from time import perf_counter
 from typing import Any
 
@@ -16,8 +17,8 @@ from starlette.status import (
 )
 
 from verve_backend import crud
-from verve_backend.api.deps import UserSession
-from verve_backend.models import Activity, ActivitySubType, ActivityType
+from verve_backend.api.deps import ObjectStoreClient, UserSession
+from verve_backend.models import Activity, ActivitySubType, ActivityType, RawTrackData
 
 # logger = logging.getLogger(__name__)
 logger = logging.getLogger("uvicorn.error")
@@ -27,15 +28,23 @@ router = APIRouter(prefix="/track", tags=["track"])
 
 @router.put("/")
 def add_track(
-    user_session: UserSession, activity_id: uuid.UUID, file: UploadFile
+    user_session: UserSession,
+    obj_store_client: ObjectStoreClient,
+    activity_id: uuid.UUID,
+    file: UploadFile,
 ) -> Any:
     user_id, session = user_session
     file_name = file.filename
     assert file_name is not None, "Could not retrieve file name"
+    # Read file content into memory
+    file_content = file.file.read()
+
     if file_name.endswith(".fit"):
-        track = FITTrack(file.file)  # type: ignore
+        track = FITTrack(BytesIO(file_content))  # type: ignore
+        orig_file_type = "fit"
     elif file_name.endswith(".gpx"):
-        track = ByteTrack(file.file)  # type: ignore
+        track = ByteTrack(BytesIO(file_content))  # type: ignore
+        orig_file_type = "gpx"
     else:
         raise HTTPException(
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
@@ -50,6 +59,31 @@ def add_track(
             status_code=HTTP_400_BAD_REQUEST,
             detail="Activity id not found",
         )
+
+    obj_path = f"tracks/{uuid.uuid4()}"
+
+    obj_store_client.upload_fileobj(
+        BytesIO(file_content),
+        Bucket="verve",
+        Key=obj_path,
+        ExtraArgs={
+            "ContentType": file.content_type,  # Preserve the MIME type
+            "Metadata": {
+                "original_filename": file.filename,
+                "uploaded_by": str(user_id),
+                "activity_id": str(activity_id),
+                "file_type": orig_file_type,
+            },
+        },
+    )
+
+    raw_data = RawTrackData(
+        activity_id=activity_id,
+        user_id=user_id,  # type: ignore
+        store_path=obj_path,
+    )
+    session.add(raw_data)
+    session.commit()
 
     pre = perf_counter()
     n_points = crud.insert_track(
