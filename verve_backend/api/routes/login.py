@@ -5,12 +5,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 
 from verve_backend import crud
+from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import CurrentUser, SessionDep
 from verve_backend.core import security
 from verve_backend.core.config import settings
 from verve_backend.models import Token, UserPublic
 
-router = APIRouter(tags=["login"])
+router = APIRouter(tags=[Tag.AUTH])
 
 
 @router.post("/login/access-token")

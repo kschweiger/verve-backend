@@ -183,6 +183,15 @@ class RawTrackData(SQLModel, table=True):
     store_path: str = Field(...)
 
 
+class Image(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", nullable=False, ondelete="CASCADE", index=True
+    )
+
+    activity_id: uuid.UUID | None = Field(foreign_key="activities.id", index=True)
+
+
 class GoalBase(SQLModel):
     name: str
     description: str | None = None

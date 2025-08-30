@@ -1,12 +1,12 @@
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
-from sqlmodel import func, select
+from fastapi import APIRouter
 
-from verve_backend.api.deps import CurrentUser, SessionDep
+from verve_backend.api.definitions import Tag
+from verve_backend.api.deps import CurrentUser
 from verve_backend.models import UserPublic
 
-router = APIRouter(prefix="/users", tags=["users"])
+router = APIRouter(prefix="/users", tags=[Tag.USER])
 
 
 @router.get("/me", response_model=UserPublic)

@@ -41,6 +41,7 @@ with Session(engine) as session:
         ("track_point", "track_points"),
         ("goal", "goals"),
         ("raw_track_data", "raw_track_data"),
+        ("image", "image"),
     ]:
         session.exec(
             text(f"""

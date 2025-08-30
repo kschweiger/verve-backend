@@ -14,6 +14,7 @@ from starlette.status import (
 )
 
 from verve_backend import crud
+from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import UserSession
 from verve_backend.enums import GoalType
 from verve_backend.exceptions import InvalidCombinationError
@@ -22,7 +23,7 @@ from verve_backend.models import Goal, GoalCreate, GoalPublic, GoalsPublic
 # logger = logging.getLogger(__name__)
 logger = logging.getLogger("uvicorn.error")
 
-router = APIRouter(prefix="/goal", tags=["goal"])
+router = APIRouter(prefix="/goal", tags=[Tag.GOAL])
 
 
 def get_public_goal(goal: Goal) -> GoalPublic:
@@ -110,7 +111,8 @@ def modify_manual_goal(
     if goal.type != GoalType.MANUAL:
         raise HTTPException(
             status_code=HTTP_405_METHOD_NOT_ALLOWED,
-            detail=f"Route is only allowed for manual goals but {id} is of type {goal.type}",
+            detail=f"Route is only allowed for manual goals but {id} is "
+            "of type {goal.type}",
         )
 
     update_amout = goal.current
@@ -145,7 +147,8 @@ def update_goal(
         except ValueError:
             raise HTTPException(
                 status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"New value must be a number if *target* is passed as attribute. Got: {value}",
+                detail="New value must be a number if *target* is passed "
+                f"as attribute. Got: {value}",
             )
 
     _, session = user_session

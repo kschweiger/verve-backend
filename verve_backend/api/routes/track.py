@@ -17,16 +17,17 @@ from starlette.status import (
 )
 
 from verve_backend import crud
+from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import ObjectStoreClient, UserSession
 from verve_backend.models import Activity, ActivitySubType, ActivityType, RawTrackData
 
 # logger = logging.getLogger(__name__)
 logger = logging.getLogger("uvicorn.error")
 
-router = APIRouter(prefix="/track", tags=["track"])
+router = APIRouter(prefix="/track", tags=[Tag.TRACK])
 
 
-@router.put("/")
+@router.put("/", tags=[Tag.UPLOAD])
 def add_track(
     user_session: UserSession,
     obj_store_client: ObjectStoreClient,
