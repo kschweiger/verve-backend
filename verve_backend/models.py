@@ -292,3 +292,17 @@ class ZoneInterval(ZoneIntervalBase, table=True):
         foreign_key="users.id", nullable=False, ondelete="CASCADE"
     )
     created_at: datetime = Field(default_factory=datetime.now)
+
+
+class UserSettings(SQLModel, table=True):
+    __tablename__: str = "user_settings"  # type: ignore
+
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", primary_key=True, ondelete="CASCADE"
+    )
+    default_type_id: PositiveNumber[int] = Field(
+        foreign_key="activity_type.id", nullable=False
+    )
+    defautl_sub_type_id: PositiveNumber[int] | None = Field(
+        foreign_key="sub_activity_type.id", nullable=True
+    )

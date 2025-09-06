@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta
+from pathlib import Path
 
+from geo_track_analyzer import FITTrack
 from sqlalchemy import text
 from sqlmodel import Session, SQLModel
 
@@ -42,6 +44,7 @@ with Session(engine) as session:
         ("goal", "goals"),
         ("raw_track_data", "raw_track_data"),
         ("image", "image"),
+        ("user_setting", "user_settings"),
     ]:
         session.exec(
             text(f"""
@@ -166,42 +169,42 @@ with Session(engine) as session:
         ]
     )
     session.commit()
-    # _path = "/Users/korbinian/iCloud/Cycling Tracks/2025/Road"
-    # # _path = "scripts/tracks"
-    # _month = 1
-    # _day = 0
-    # for _file in Path(_path).iterdir():
-    #     # if i_track_added > 3:
-    #     #     break
-    #     if _file.is_file() and _file.name.endswith(".fit"):
-    #         with open(_file, "rb") as f:
-    #             track = FITTrack(f)
-    #
-    #         if _day > 20:
-    #             _day = 1
-    #             _month += 1
-    #         else:
-    #             _day += 1
-    #         overview = track.get_track_overview()
-    #
-    #         _activity = crud.create_activity(
-    #             session=session,
-    #             create=models.ActivityCreate(
-    #                 start=datetime(year=2025, month=_month, day=_day, hour=12),
-    #                 duration=timedelta(days=0, seconds=overview.total_time_seconds),
-    #                 distance=overview.total_distance,
-    #                 type_id=1,
-    #                 sub_type_id=1,
-    #             ),
-    #             user=created_users[0],
-    #         )
-    #
-    #         crud.insert_track(
-    #             session=session,
-    #             track=track,
-    #             activity_id=_activity.id,
-    #             user_id=created_users[0].id,
-    #             batch_size=500,
-    #         )
-    #         print("Added track %s" % i_track_added)
-    #         i_track_added += 1
+    _path = "/Users/korbinian/iCloud/Cycling Tracks/2025/Road"
+    # _path = "scripts/tracks"
+    _month = 1
+    _day = 0
+    for _file in Path(_path).iterdir():
+        if i_track_added > 2:
+            break
+        if _file.is_file() and _file.name.endswith(".fit"):
+            with open(_file, "rb") as f:
+                track = FITTrack(f)
+
+            if _day > 20:
+                _day = 1
+                _month += 1
+            else:
+                _day += 1
+            overview = track.get_track_overview()
+
+            _activity = crud.create_activity(
+                session=session,
+                create=models.ActivityCreate(
+                    start=datetime(year=2025, month=_month, day=_day, hour=12),
+                    duration=timedelta(days=0, seconds=overview.total_time_seconds),
+                    distance=overview.total_distance,
+                    type_id=1,
+                    sub_type_id=1,
+                ),
+                user=created_users[0],
+            )
+
+            crud.insert_track(
+                session=session,
+                track=track,
+                activity_id=_activity.id,
+                user_id=created_users[0].id,
+                batch_size=500,
+            )
+            print("Added track %s" % i_track_added)
+            i_track_added += 1

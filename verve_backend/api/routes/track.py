@@ -12,11 +12,11 @@ from sqlmodel import select, text
 from starlette.status import (
     HTTP_201_CREATED,
     HTTP_400_BAD_REQUEST,
-    HTTP_404_NOT_FOUND,
     HTTP_422_UNPROCESSABLE_ENTITY,
 )
 
 from verve_backend import crud
+from verve_backend.api.common.db_utils import check_and_raise_primary_key
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import ObjectStoreClient, UserSession
 from verve_backend.models import Activity, ActivitySubType, ActivityType, RawTrackData
@@ -115,27 +115,13 @@ def get_heatmap(
 ) -> Any:
     user_id, session = user_session
 
-    if (
-        activity_type_id is not None
-        and session.get(ActivityType, activity_type_id) is None
-    ):
-        raise HTTPException(
-            status_code=HTTP_404_NOT_FOUND,
-            detail=f"Activity with id {activity_type_id} not found",
-        )
+    check_and_raise_primary_key(session, ActivityType, activity_type_id)
     if activity_type_id is None and activity_sub_type_id is not None:
         raise HTTPException(
             status_code=HTTP_400_BAD_REQUEST,
             detail="Sub Activity must be set together with Activity",
         )
-    if (
-        activity_sub_type_id is not None
-        and session.get(ActivitySubType, activity_sub_type_id) is None
-    ):
-        raise HTTPException(
-            status_code=HTTP_404_NOT_FOUND,
-            detail=f"Sub Activity  with id {activity_sub_type_id} not found",
-        )
+    check_and_raise_primary_key(session, ActivitySubType, activity_sub_type_id)
 
     sel_ids = None
     if activity_type_id or limit:

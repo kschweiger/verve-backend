@@ -7,6 +7,7 @@ from geo_track_analyzer.processing import get_extension_value
 from pyproj import Transformer
 from sqlmodel import Session, insert, select, text
 
+from verve_backend.core.config import settings
 from verve_backend.core.security import get_password_hash, verify_password
 from verve_backend.enums import GoalAggregation, GoalType
 from verve_backend.exceptions import InvalidCombinationError
@@ -21,6 +22,7 @@ from verve_backend.models import (
     User,
     UserCreate,
     UserPublic,
+    UserSettings,
 )
 
 
@@ -31,6 +33,16 @@ def create_user(*, session: Session, user_create: UserCreate) -> User:
     session.add(db_obj)
     session.commit()
     session.refresh(db_obj)
+
+    defaults = settings.DEFAULTSETTINGS
+
+    settings_obj = UserSettings(
+        user_id=db_obj.id,
+        default_type_id=defaults.activity_type,
+        defautl_sub_type_id=defaults.activity_sub_type,
+    )
+    session.add(settings_obj)
+    session.commit()
     return db_obj
 
 
@@ -99,7 +111,7 @@ def get_points(
     current_batch = []
     # Create transformer for WGS84 to UTM conversion
     # EPSG:4326 is WGS84 (lat/lon), utm_srid is your target UTM zone
-    transformer = Transformer.from_crs(f"EPSG:4326", f"EPSG:{utm_srid}", always_xy=True)
+    transformer = Transformer.from_crs("EPSG:4326", f"EPSG:{utm_srid}", always_xy=True)
 
     for i, segment in enumerate(track.track.segments):
         for point in segment.points:

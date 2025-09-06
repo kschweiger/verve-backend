@@ -3,6 +3,7 @@ import warnings
 from typing import Literal
 
 from pydantic import (
+    BaseModel,
     HttpUrl,
     PostgresDsn,
     computed_field,
@@ -11,6 +12,11 @@ from pydantic import (
 from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Self
+
+
+class DefautlSettings(BaseModel):
+    activity_type: int
+    activity_sub_type: int | None
 
 
 class Settings(BaseSettings):
@@ -42,6 +48,10 @@ class Settings(BaseSettings):
     BOTO3_SECRET: str
     BOTO3_SIGNATURE: str = "s3v4"
     BOTO3_REGION: str = "us-east-1"
+
+    DEFAULTSETTINGS: DefautlSettings = DefautlSettings(
+        activity_type=1, activity_sub_type=None
+    )
 
     @computed_field  # type: ignore[prop-decorator]
     @property
