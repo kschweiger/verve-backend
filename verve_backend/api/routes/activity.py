@@ -1,3 +1,4 @@
+import datetime
 import logging
 import uuid
 from typing import Any
@@ -7,6 +8,7 @@ from fastapi.responses import JSONResponse
 from sqlmodel import func, select
 from starlette.status import HTTP_200_OK, HTTP_415_UNSUPPORTED_MEDIA_TYPE
 
+from verve_backend.api.common.track import add_track
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import ObjectStoreClient, UserSession
 from verve_backend.models import (
@@ -15,6 +17,7 @@ from verve_backend.models import (
     ActivityCreate,
     ActivityPublic,
     Image,
+    UserSettings,
 )
 
 router = APIRouter(prefix="/activity", tags=[Tag.ACTIVITY])
@@ -52,6 +55,62 @@ def create_activity(*, user_session: UserSession, data: ActivityCreate) -> Any:
     session.add(activity)
     session.commit()
     session.refresh(activity)
+    return activity
+
+
+@router.post("/auto/", response_model=ActivityPublic)
+def create_auto_activity(
+    *,
+    user_session: UserSession,
+    obj_store_client: ObjectStoreClient,
+    file: UploadFile,
+):
+    user_id, session = user_session
+
+    settings = session.get(UserSettings, user_id)
+    assert settings
+
+    activity = Activity(
+        user_id=user_id,
+        start=datetime.datetime.now(),
+        created_at=datetime.datetime.now(),
+        duration=datetime.timedelta(seconds=1),
+        distance=1,
+        type_id=settings.default_type_id,
+        sub_type_id=settings.defautl_sub_type_id,
+    )
+
+    session.add(activity)
+    session.commit()
+    session.refresh(activity)
+
+    # TODO: Add error handling that removes the activity again
+    track, n_points = add_track(
+        activity_id=activity.id,
+        user_id=user_id,
+        session=session,
+        obj_store_client=obj_store_client,
+        file=file,
+    )
+
+    logger.debug("Getting actuivity infos from track ")
+    overview = track.get_track_overview()
+    first_point_time = track.track.segments[0].points[0].time
+    if first_point_time:
+        activity.start = first_point_time
+    activity.distance = overview.total_distance_km
+    activity.duration = datetime.timedelta(days=0, seconds=overview.total_time_seconds)
+    activity.elevation_change_up = overview.uphill_elevation
+    activity.elevation_change_down = overview.downhill_elevation
+    activity.moving_duration = datetime.timedelta(
+        days=0, seconds=overview.moving_time_seconds
+    )
+    activity.avg_speed = overview.avg_velocity_kmh
+
+    session.add(activity)
+    session.commit()
+    session.refresh(activity)
+
     return activity
 
 

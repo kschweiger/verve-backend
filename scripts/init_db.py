@@ -192,7 +192,7 @@ with Session(engine) as session:
                 create=models.ActivityCreate(
                     start=datetime(year=2025, month=_month, day=_day, hour=12),
                     duration=timedelta(days=0, seconds=overview.total_time_seconds),
-                    distance=overview.total_distance,
+                    distance=overview.total_distance_km,
                     type_id=1,
                     sub_type_id=1,
                 ),
