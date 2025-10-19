@@ -66,7 +66,6 @@ def get_user_session(user: CurrentUser) -> Generator[tuple[str, Session], None, 
 UserSession = Annotated[tuple[str, Session], Depends(get_user_session)]
 
 
-# TODO: Maybe we wrap this into a ObjectStore class with some abstract methods
 def get_s3_client() -> S3Client:
     client = boto3.client(
         "s3",
@@ -76,17 +75,26 @@ def get_s3_client() -> S3Client:
         config=Config(signature_version=settings.BOTO3_SIGNATURE),
         region_name=settings.BOTO3_REGION,
     )
+    return client
+
+
+def ensure_bucket_exists(client: S3Client, bucket_name: str = "verve") -> None:
     all_buckets = set(
         [b["Name"] for b in client.list_buckets()["Buckets"]]  # type: ignore
     )
-    if "verve" not in all_buckets:
+    if bucket_name not in all_buckets:
         try:
-            client.create_bucket(Bucket="verve")
+            client.create_bucket(Bucket=bucket_name)
             print("Bucket created successfully")
         except Exception as e:
             logger.error(f"Bucket creation error: {e}")
             raise e
+
+
+def get_and_init_s3_client() -> S3Client:
+    client = get_s3_client()
+    ensure_bucket_exists(client, bucket_name=settings.BOTO3_BUCKET)
     return client
 
 
-ObjectStoreClient = Annotated[S3Client, Depends(get_s3_client)]
+ObjectStoreClient = Annotated[S3Client, Depends(get_and_init_s3_client)]

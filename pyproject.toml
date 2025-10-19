@@ -6,20 +6,20 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "bcrypt==4.0.1",
-    "boto3>=1.40.14",
-    "boto3-stubs[s3]>=1.40.21",
-    "fastapi[standard]>=0.115.12",
-    "geo-track-analyzer>=1.7.0",
-    "geoalchemy2>=0.17.1",
-    "passlib>=1.7.4",
-    "psycopg2>=2.9.10",
-    "pydantic>=2.11.4",
-    "pydantic-settings>=2.9.1",
-    "pyjwt>=2.10.1",
-    "pyproj>=3.7.1",
-    "sqlalchemy>=2.0.41",
-    "sqlmodel>=0.0.24",
+  "bcrypt==4.0.1",
+  "boto3>=1.40.14",
+  "boto3-stubs[s3]>=1.40.21",
+  "fastapi[standard]>=0.115.12",
+  "geo-track-analyzer>=1.7.0",
+  "geoalchemy2>=0.17.1",
+  "passlib>=1.7.4",
+  "psycopg2>=2.9.10",
+  "pydantic>=2.11.4",
+  "pydantic-settings>=2.9.1",
+  "pyjwt>=2.10.1",
+  "pyproj>=3.7.1",
+  "sqlalchemy>=2.0.41",
+  "sqlmodel>=0.0.24",
 ]
 
 [tool.ruff]
@@ -61,11 +61,13 @@ ignore = [
 
 [dependency-groups]
 dev = [
-    "matplotlib>=3.10.3",
-    "pandas>=2.2.3",
-    "plotly>=5.24.1",
-    "seaborn>=0.13.2",
+  "matplotlib>=3.10.3",
+  "pandas>=2.2.3",
+  "plotly>=5.24.1",
+  "seaborn>=0.13.2",
+  { include-group = "test" },
 ]
+test = ["pytest>=8.4.2", "pytest-mock>=3.15.1", "pytest-sugar>=1.1.1"]
 [tool.uv]
 package = true
 

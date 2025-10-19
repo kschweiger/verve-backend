@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str = secrets.token_urlsafe(32)
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
-    ENVIRONMENT: Literal["local", "staging", "production"] = "local"
+    ENVIRONMENT: Literal["local", "staging", "production", "testing"] = "local"
 
     PROJECT_NAME: str
     SENTRY_DSN: HttpUrl | None = None
@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     BOTO3_SECRET: str
     BOTO3_SIGNATURE: str = "s3v4"
     BOTO3_REGION: str = "us-east-1"
+    BOTO3_BUCKET_NAME: str = "verve"
 
     DEFAULTSETTINGS: DefautlSettings = DefautlSettings(
         activity_type=1, activity_sub_type=None
@@ -83,6 +84,14 @@ class Settings(BaseSettings):
         name = self.POSTGRES_SCHEMA_NAME
         if self.ENVIRONMENT == "testing":
             name = f"{name}_testing"
+        return name
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def BOTO3_BUCKET(self) -> str:  # noqa: N802
+        name = self.BOTO3_BUCKET_NAME
+        if self.ENVIRONMENT == "testing":
+            name = f"{name}-testing"
         return name
 
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
