@@ -6,8 +6,16 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from sqlmodel import func, select
-from starlette.status import HTTP_200_OK, HTTP_415_UNSUPPORTED_MEDIA_TYPE
+from starlette.status import (
+    HTTP_200_OK,
+    HTTP_400_BAD_REQUEST,
+    HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+)
 
+from verve_backend.api.common.db_utils import (
+    check_and_raise_primary_key,
+    validate_sub_type_id,
+)
 from verve_backend.api.common.track import add_track
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import ObjectStoreClient, UserSession
@@ -16,6 +24,8 @@ from verve_backend.models import (
     Activity,
     ActivityCreate,
     ActivityPublic,
+    ActivitySubType,
+    ActivityType,
     Image,
     UserSettings,
 )
@@ -64,20 +74,36 @@ def create_auto_activity(
     user_session: UserSession,
     obj_store_client: ObjectStoreClient,
     file: UploadFile,
-):
+    type_id: int | None = None,
+    sub_type_id: int | None = None,
+) -> Any:
     user_id, session = user_session
 
     settings = session.get(UserSettings, user_id)
     assert settings
 
+    check_and_raise_primary_key(session, ActivityType, type_id)
+    check_and_raise_primary_key(session, ActivitySubType, sub_type_id)
+    if type_id is None and sub_type_id is not None:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail="Sub Activity must be set together with Activity",
+        )
+    if type_id is not None and sub_type_id is not None:
+        validate_sub_type_id(session, type_id, sub_type_id)
+
+    _type_id = settings.default_type_id if type_id is None else type_id
+    # Use the default sub_type if the type is not passed. otherwise the sub_type is
+    # passed as well or None
+    _sub_type_id = settings.defautl_sub_type_id if type_id is None else sub_type_id
     activity = Activity(
         user_id=user_id,
         start=datetime.datetime.now(),
         created_at=datetime.datetime.now(),
         duration=datetime.timedelta(seconds=1),
         distance=1,
-        type_id=settings.default_type_id,
-        sub_type_id=settings.defautl_sub_type_id,
+        type_id=_type_id,
+        sub_type_id=_sub_type_id,
     )
 
     session.add(activity)
