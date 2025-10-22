@@ -54,6 +54,8 @@ class Settings(BaseSettings):
         activity_type=1, activity_sub_type=None
     )
 
+    FRONTEND_HOST: str
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> PostgresDsn:  # noqa: N802
@@ -112,6 +114,7 @@ class Settings(BaseSettings):
         self._check_default_secret("POSTGRES_RLS_PASSWORD", self.POSTGRES_RLS_PASSWORD)
         self._check_default_secret("BOTO3_ACCESS", self.BOTO3_ACCESS)
         self._check_default_secret("BOTO3_SECRET", self.BOTO3_SECRET)
+        self._check_default_secret("FRONTEND_HOST", self.FRONTEND_HOST)
         # elf._check_default_secret(
         #     "FIRST_SUPERUSER_PASSWORD", self.FIRST_SUPERUSER_PASSWORD
         # )

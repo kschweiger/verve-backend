@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 
 from verve_backend.api.main import api_router
@@ -15,5 +16,12 @@ app = FastAPI(
     generate_unique_id_function=custom_generate_unique_id,
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[settings.FRONTEND_HOST],  # Allow specific origin
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allow all headers
+)
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
