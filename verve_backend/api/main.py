@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from sqlmodel import text
 
 from verve_backend.api.deps import SessionDep
-from verve_backend.api.routes import activity, goal, login, track, users
+from verve_backend.api.routes import activity, goal, login, resolver, track, users
 from verve_backend.core.config import settings
 
 api_router = APIRouter()
@@ -14,6 +14,7 @@ api_router.include_router(login.router)
 api_router.include_router(activity.router)
 api_router.include_router(track.router)
 api_router.include_router(goal.router)
+api_router.include_router(resolver.router)
 # api_router.include_router(statistics.router)
 
 if settings.ENVIRONMENT == "local":
