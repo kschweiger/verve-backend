@@ -102,14 +102,30 @@ class ActivitySubType(ActivitySubTypeBase, table=True):
 class ActivityBase(SQLModel):
     start: datetime
 
-    duration: timedelta
-    distance: float
-    moving_duration: timedelta | None = None
+    duration: timedelta = Field(
+        description="Duration of the activity. If string, encoded as ISO8601"
+    )
+    distance: float = Field(description="Distance traveled in kilometers")
+    moving_duration: timedelta | None = Field(
+        default=None,
+        description="Duration of the activity excluding all points w/o movement."
+        " If string, encoded as ISO8601",
+    )
     elevation_change_up: float | None = None
     elevation_change_down: float | None = None
-    avg_speed: float | None = None
-    avg_heartrate: float | None = None
-    avg_power: float | None = None
+    avg_speed: float | None = Field(
+        default=None,
+        description="Average speed over the duration of the activity in km/h",
+    )
+    avg_heartrate: float | None = Field(
+        default=None,
+        description="Average heartrate over the duration of the activity in bpm",
+    )
+
+    avg_power: float | None = Field(
+        default=None,
+        description="Average power over the duration of the activity in watt",
+    )
 
     type_id: PositiveNumber[int] = Field(foreign_key="activity_type.id", nullable=False)
     sub_type_id: PositiveNumber[int] | None = Field(

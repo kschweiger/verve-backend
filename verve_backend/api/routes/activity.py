@@ -49,7 +49,7 @@ def get_activities(user_session: UserSession, limit: int = 100) -> Any:
     _, session = user_session
     count_stmt = select(func.count()).select_from(Activity)
     count = session.exec(count_stmt).one()
-    stmt = select(Activity).limit(limit)
+    stmt = select(Activity).limit(limit).order_by(Activity.start.desc())  # type: ignore
 
     activities = session.exec(stmt).all()
 
