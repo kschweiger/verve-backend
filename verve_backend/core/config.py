@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
     ENVIRONMENT: Literal["local", "staging", "production", "testing"] = "local"
 
-    PROJECT_NAME: str
+    PROJECT_NAME: str = "Verve Outdoors Backend"
     SENTRY_DSN: HttpUrl | None = None
     POSTGRES_SERVER: str
     POSTGRES_PORT: int = 5432
