@@ -1,9 +1,9 @@
 import datetime
 import logging
 import uuid
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException, UploadFile
+from fastapi import APIRouter, HTTPException, Query, UploadFile
 from fastapi.responses import JSONResponse
 from sqlmodel import func, select
 from starlette.status import (
@@ -45,16 +45,49 @@ def read_activity(user_session: UserSession, id: uuid.UUID) -> Any:
 
 
 @router.get("/", response_model=ActivitiesPublic)
-def get_activities(user_session: UserSession, limit: int = 100) -> Any:
+def get_activities(
+    user_session: UserSession,
+    limit: int = 100,
+    offset: int | None = None,
+    year: Annotated[int | None, Query(ge=2000)] = None,
+    month: Annotated[int | None, Query(ge=1, lt=13)] = None,
+    type_id: int | None = None,
+    sub_type_id: int | None = None,
+) -> Any:
     _, session = user_session
-    count_stmt = select(func.count()).select_from(Activity)
-    count = session.exec(count_stmt).one()
+
+    if type_id is None and sub_type_id is not None:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail="Sub Activity must be set together with Activity",
+        )
+    if type_id is not None and sub_type_id is not None:
+        validate_sub_type_id(session, type_id, sub_type_id)
+
+    if year is None and month is not None:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail="Year must be set when month is set",
+        )
+
     stmt = select(Activity).limit(limit).order_by(Activity.start.desc())  # type: ignore
+    if offset is not None:
+        stmt = stmt.offset(offset)
+    if year is not None:
+        stmt = stmt.where(func.extract("year", Activity.start) == year)  # type: ignore
+        if month is not None:
+            stmt = stmt.where(func.extract("month", Activity.start) == month)  # type: ignore
+
+    if type_id is not None:
+        stmt = stmt.where(Activity.type_id == type_id)
+        if sub_type_id is not None:
+            stmt = stmt.where(Activity.sub_type_id == sub_type_id)
 
     activities = session.exec(stmt).all()
-
+    _data = [ActivityPublic.model_validate(a) for a in activities]
     return ActivitiesPublic(
-        data=[ActivityPublic.model_validate(a) for a in activities], count=count
+        data=_data,
+        count=len(_data),
     )
 
 
