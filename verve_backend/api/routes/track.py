@@ -1,3 +1,4 @@
+import importlib.resources
 import logging
 import uuid
 from typing import Any
@@ -15,7 +16,14 @@ from verve_backend.api.common.db_utils import check_and_raise_primary_key
 from verve_backend.api.common.track import add_track as upload_track
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import ObjectStoreClient, UserSession
-from verve_backend.models import Activity, ActivitySubType, ActivityType
+from verve_backend.models import (
+    Activity,
+    ActivitySubType,
+    ActivityType,
+    ListResponse,
+    TrackPoint,
+    TrackPointResponse,
+)
 
 # logger = logging.getLogger(__name__)
 logger = logging.getLogger("uvicorn.error")
@@ -48,6 +56,51 @@ def add_track(
             "number of points": n_points,
         },
     )
+
+
+@router.get("/{activity_id}", response_model=ListResponse[TrackPointResponse])
+def get_track_data(user_session: UserSession, activity_id: uuid.UUID) -> Any:
+    # TODO: Add extensions
+    _, session = user_session
+    if not session.get(Activity, activity_id):
+        raise HTTPException(status_code=404, detail="Activity not found")
+
+    check_stmt = (
+        select(TrackPoint.id).where(TrackPoint.activity_id == activity_id).limit(1)
+    )
+    if not session.exec(check_stmt).first():
+        return ListResponse(data=[])
+
+    stmt = (
+        importlib.resources.files("verve_backend.queries")
+        .joinpath("select_track_data.sql")
+        .read_text()
+    )
+    res = session.exec(
+        text(stmt),  # type: ignore
+        params={"activity_id": activity_id, "min_distance": 1},
+    ).all()
+    track_points = [
+        TrackPointResponse(
+            segment_id=row.segment_id,
+            latitude=row.latitude,
+            longitude=row.longitude,
+            time=row.time,
+            elevation=row.elevation,
+            diff_time=row.time_diff_seconds,
+            diff_distance=row.distance_from_previous,
+            cum_distance=0
+            if (i == 0 and row.cumulative_distance_m is None)
+            else row.cumulative_distance_m,
+            heartrate=row.heartrate,
+            cadence=row.cadence,
+            power=row.power,
+            # add_extensions=row.extensions,
+        )
+        for i, row in enumerate(res)
+    ]
+
+    return ListResponse(data=track_points)
 
 
 class HeatMapResponse(BaseModel):

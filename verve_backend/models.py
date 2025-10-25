@@ -1,10 +1,10 @@
 import re
 import uuid
 from datetime import datetime, timedelta
-from typing import Annotated, TypeVar
+from typing import Annotated, Generic, TypeVar
 
 from geoalchemy2 import Geography, Geometry
-from pydantic import AfterValidator, EmailStr
+from pydantic import AfterValidator, BaseModel, EmailStr
 from sqlalchemy import JSON, Column
 from sqlmodel import Field, Index, SQLModel, UniqueConstraint
 
@@ -19,6 +19,12 @@ def postitive(v: T) -> T:
 
 
 PositiveNumber = Annotated[T, AfterValidator(postitive)]
+
+T = TypeVar("T")
+
+
+class ListResponse(BaseModel, Generic[T]):
+    data: list[T]
 
 
 # Shared properties
@@ -187,6 +193,24 @@ class TrackPoint(SQLModel, table=True):
         Index("idx_track_points_user_activity", "user_id", "activity_id"),
         Index("idx_track_points_activity_segment", "activity_id", "segment_id"),
     )
+
+
+class TrackPointResponse(BaseModel):
+    segment_id: int
+    latitude: float
+    longitude: float
+    time: datetime
+    elevation: float | None
+
+    diff_time: float | None
+    diff_distance: float | None
+    cum_distance: float
+
+    heartrate: int | None
+    cadence: int | None
+    power: int | None
+
+    add_extensions: dict[str, int | float] | None = None
 
 
 class RawTrackData(SQLModel, table=True):
