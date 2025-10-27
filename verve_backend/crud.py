@@ -5,8 +5,10 @@ from geo_track_analyzer import Track
 from geo_track_analyzer.exceptions import GPXPointExtensionError
 from geo_track_analyzer.processing import get_extension_value
 from pyproj import Transformer
-from sqlmodel import Session, insert, select, text
+from sqlmodel import Session, insert, select
 
+from verve_backend.api.common.locale import get_activity_name
+from verve_backend.api.deps import SupportedLocale
 from verve_backend.core.config import settings
 from verve_backend.core.security import get_password_hash, verify_password
 from verve_backend.enums import GoalAggregation, GoalType
@@ -14,6 +16,7 @@ from verve_backend.exceptions import InvalidCombinationError
 from verve_backend.models import (
     Activity,
     ActivityCreate,
+    ActivityName,
     ActivityType,
     ActivityTypeCreate,
     Goal,
@@ -66,12 +69,31 @@ def create_activity(
     session: Session,
     create: ActivityCreate,
     user: UserPublic,
-) -> Activity:
+    name: str | None = None,
+    locale: SupportedLocale = SupportedLocale.DE,
+) -> tuple[Activity, str]:
     db_obj = Activity.model_validate(create, update={"user_id": user.id})
     session.add(db_obj)
     session.commit()
     session.refresh(db_obj)
-    return db_obj
+    if name is None:
+        activity_type = session.get(ActivityType, db_obj.type_id)
+        assert activity_type is not None
+        name = get_activity_name(
+            activity_type.name.lower().replace(" ", "_"),
+            db_obj.start,
+            locale,
+        )
+    session.add(
+        ActivityName(
+            user_id=db_obj.user_id,
+            activity_id=db_obj.id,
+            name=name,
+        )
+    )
+    session.commit()
+
+    return db_obj, name
 
 
 def create_activity_type(

@@ -1,11 +1,12 @@
 import logging
 from collections.abc import Generator
+from enum import StrEnum
 from typing import Annotated
 
 import boto3
 import jwt
 from botocore.config import Config
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from mypy_boto3_s3.client import S3Client
@@ -98,3 +99,16 @@ def get_and_init_s3_client() -> S3Client:
 
 
 ObjectStoreClient = Annotated[S3Client, Depends(get_and_init_s3_client)]
+
+
+class SupportedLocale(StrEnum):
+    DE = "de"
+    EN = "en"
+
+
+LocaleQuery = Annotated[
+    SupportedLocale,
+    Query(
+        description="Language code (ISO 639-1)",
+    ),
+]

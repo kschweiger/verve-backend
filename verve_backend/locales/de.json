@@ -1,0 +1,22 @@
+{
+  "activity_name": {
+    "default": {
+      "morning": "Aktivität am Morgen",
+      "afternoon": "Aktivität am Nachmittag",
+      "evening": "Aktivität am Abend",
+      "night": "Aktivität in der Nacht"
+    },
+    "cycling": {
+      "morning": "Fahrt am Morgen",
+      "afternoon": "Fahrt am Nachmittag",
+      "evening": "Fahrt am Abend",
+      "night": "Fahrt in der Nacht"
+    },
+    "foot_sports": {
+      "morning": "Lauf am Morgen",
+      "afternoon": "Lauf am Nachmittag",
+      "evening": "Lauf am Abend",
+      "night": "Lauf in der Nacht"
+    }
+  }
+}

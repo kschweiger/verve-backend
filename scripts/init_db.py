@@ -2,10 +2,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from geo_track_analyzer import FITTrack
-from sqlalchemy import text
 from sqlmodel import Session, SQLModel
 
 from verve_backend import crud, models
+from verve_backend.cli.setup_db import setup_db
 from verve_backend.core.db import get_engine
 from verve_backend.enums import GoalAggregation, GoalType, TemportalType
 
@@ -13,47 +13,8 @@ engine = get_engine(echo=True)
 SQLModel.metadata.drop_all(engine)  # DANGERZONE:
 SQLModel.metadata.create_all(engine)
 
-activity_types = {
-    "Cycling": [
-        "Road",
-        "Mountain Bike",
-        "Gravel",
-        "Cyclocross",
-        "Indoor",
-        "E-Mountain Bike",
-    ],
-    "Foot Sports": ["Run", "Hike", "Trail Run", "Nordic Walking"],
-    "Winter Sports": ["Cross-country Skiing", "Snowshoeing", "Downhill Skiing"],
-    "Other": ["Climbing", "Skateboarding", "Other"],
-}
-
 with Session(engine) as session:
-    for _type, sub_types in activity_types.items():
-        atype = models.ActivityType(name=_type)
-        session.add(atype)
-        session.commit()
-        session.refresh(atype)
-        for sub_type in sub_types:
-            stype = models.ActivitySubType(name=sub_type, type_id=atype.id)
-            session.add(stype)
-            session.commit()
-
-    for a, b in [
-        ("activity", "activities"),
-        ("track_point", "track_points"),
-        ("goal", "goals"),
-        ("raw_track_data", "raw_track_data"),
-        ("image", "image"),
-        ("user_setting", "user_settings"),
-    ]:
-        session.exec(
-            text(f"""
-            ALTER TABLE verve.{b} ENABLE ROW LEVEL SECURITY;
-            CREATE POLICY {a}_isolation_policy ON verve.{b}
-            FOR ALL USING (user_id = current_setting('verve_user.curr_user')::uuid);
-            """)  # type: ignore
-        )
-        session.commit()
+    setup_db(session)
 
 # Testing data.
 with Session(engine) as session:
@@ -70,7 +31,7 @@ with Session(engine) as session:
                 ),
             )
         )
-    activity_1 = crud.create_activity(
+    activity_1, _ = crud.create_activity(
         session=session,
         create=models.ActivityCreate(
             start=datetime(year=2025, month=1, day=1, hour=12),
@@ -82,7 +43,7 @@ with Session(engine) as session:
         user=created_users[0],
     )
 
-    activity_2 = crud.create_activity(
+    activity_2, _ = crud.create_activity(
         session=session,
         create=models.ActivityCreate(
             start=datetime(year=2025, month=1, day=2, hour=13),
@@ -187,7 +148,7 @@ with Session(engine) as session:
                 _day += 1
             overview = track.get_track_overview()
 
-            _activity = crud.create_activity(
+            _activity, _ = crud.create_activity(
                 session=session,
                 create=models.ActivityCreate(
                     start=datetime(year=2025, month=_month, day=_day, hour=12),

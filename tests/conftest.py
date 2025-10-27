@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timedelta
 from typing import Generator
 
 import pytest
@@ -23,8 +24,32 @@ def db():  # noqa: ANN201
     SQLModel.metadata.drop_all(engine)
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
-        # generate_data(session)
+        generate_data(session)
         yield session
+
+
+@pytest.fixture(scope="session")
+def user2_token(client: TestClient) -> str:
+    response = client.post(
+        "/login/access-token",
+        data={"username": "user2@mail.com", "password": "12345678"},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    return data["access_token"]
+
+
+@pytest.fixture(scope="session")
+def user1_token(client: TestClient) -> str:
+    response = client.post(
+        "/login/access-token",
+        data={"username": "user1@mail.com", "password": "12345678"},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    return data["access_token"]
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -34,7 +59,7 @@ def object_store():  # noqa: ANN201
     return get_and_init_s3_client()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def client() -> Generator[TestClient, None, None]:
     from verve_backend.core.config import settings
     from verve_backend.main import app
@@ -46,3 +71,52 @@ def client() -> Generator[TestClient, None, None]:
         base_url=f"http://testserver{settings.API_V1_STR}",
     ) as c:
         yield c
+
+
+def generate_data(session: Session) -> None:
+    from verve_backend import (
+        crud,
+        models,
+    )
+    from verve_backend.cli.setup_db import setup_db
+
+    setup_db(session, "verve_testing")
+    created_users = []
+    for name, pw, email, full_name in [
+        ("username1", "12345678", "user1@mail.com", "User Name"),
+        ("username2", "12345678", "user2@mail.com", None),
+    ]:
+        created_users.append(
+            crud.create_user(
+                session=session,
+                user_create=models.UserCreate(
+                    name=name,
+                    password=pw,
+                    email=email,
+                    full_name=full_name,
+                ),
+            )
+        )
+    activity_1, _ = crud.create_activity(
+        session=session,
+        create=models.ActivityCreate(
+            start=datetime(year=2025, month=1, day=1, hour=12),
+            duration=timedelta(days=0, seconds=60 * 60 * 2),
+            distance=10.0,
+            type_id=1,
+            sub_type_id=1,
+        ),
+        user=created_users[0],
+    )
+
+    activity_2, _ = crud.create_activity(
+        session=session,
+        create=models.ActivityCreate(
+            start=datetime(year=2025, month=1, day=2, hour=13),
+            duration=timedelta(days=0, seconds=60 * 60 * 1),
+            distance=30.0,
+            type_id=1,
+            sub_type_id=2,
+        ),
+        user=created_users[1],
+    )

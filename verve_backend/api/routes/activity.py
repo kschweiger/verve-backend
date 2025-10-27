@@ -16,13 +16,20 @@ from verve_backend.api.common.db_utils import (
     check_and_raise_primary_key,
     validate_sub_type_id,
 )
+from verve_backend.api.common.locale import get_activity_name
 from verve_backend.api.common.track import add_track
 from verve_backend.api.definitions import Tag
-from verve_backend.api.deps import ObjectStoreClient, UserSession
+from verve_backend.api.deps import (
+    LocaleQuery,
+    ObjectStoreClient,
+    SupportedLocale,
+    UserSession,
+)
 from verve_backend.models import (
     ActivitiesPublic,
     Activity,
     ActivityCreate,
+    ActivityName,
     ActivityPublic,
     ActivitySubType,
     ActivityType,
@@ -41,7 +48,12 @@ def read_activity(user_session: UserSession, id: uuid.UUID) -> Any:
     activity = session.get(Activity, id)
     if not activity:
         raise HTTPException(status_code=404, detail="Activity not found")
-    return activity
+    name = session.get(ActivityName, activity.id)
+    public_activity = ActivityPublic.model_validate(
+        activity, update={"name": name.name if name else None}
+    )
+
+    return public_activity
 
 
 @router.get("/", response_model=ActivitiesPublic)
@@ -84,7 +96,17 @@ def get_activities(
             stmt = stmt.where(Activity.sub_type_id == sub_type_id)
 
     activities = session.exec(stmt).all()
-    _data = [ActivityPublic.model_validate(a) for a in activities]
+    name_stmt = select(ActivityName).where(
+        ActivityName.activity_id.in_(list(map(str, [a.id for a in activities])))
+    )
+    names = session.exec(name_stmt).all()
+    _name = {name.activity_id: name.name for name in names}
+
+    _data = [
+        ActivityPublic.model_validate(a, update={"name": _name.get(a.id, None)})
+        for a in activities
+    ]
+
     return ActivitiesPublic(
         data=_data,
         count=len(_data),
@@ -92,13 +114,35 @@ def get_activities(
 
 
 @router.post("/", response_model=ActivityPublic)
-def create_activity(*, user_session: UserSession, data: ActivityCreate) -> Any:
+def create_activity(
+    *,
+    user_session: UserSession,
+    name: Annotated[str | None, Query(max_length=100)] = None,
+    locale: LocaleQuery = SupportedLocale.DE,
+    data: ActivityCreate,
+) -> Any:
     user_id, session = user_session
     activity = Activity.model_validate(data, update={"user_id": user_id})
     session.add(activity)
     session.commit()
     session.refresh(activity)
-    return activity
+    if name is None:
+        activity_type = session.get(ActivityType, activity.type_id)
+        assert activity_type is not None
+        name = get_activity_name(
+            activity_type.name.lower().replace(" ", "_"),
+            activity.start,
+            locale,
+        )
+    session.add(
+        ActivityName(
+            user_id=activity.user_id,
+            activity_id=activity.id,
+            name=name,
+        )
+    )
+    session.commit()
+    return ActivityPublic.model_validate(activity, update={"name": name})
 
 
 @router.post("/auto/", response_model=ActivityPublic)

@@ -1,0 +1,22 @@
+{
+  "activity_name": {
+    "default": {
+      "morning": "Morning Activity",
+      "afternoon": "Afternoon Activity",
+      "evening": "Evening Activity",
+      "night": "Night Activity"
+    },
+    "cycling": {
+      "morning": "Morning Ride",
+      "afternoon": "Afternoon Ride",
+      "evening": "Evening Ride",
+      "night": "Night Ride"
+    },
+    "foot_sports": {
+      "morning": "Morning Run",
+      "afternoon": "Afternoon Run",
+      "evening": "Evening Run",
+      "night": "Night Run"
+    }
+  }
+}
