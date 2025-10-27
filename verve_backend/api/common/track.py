@@ -31,10 +31,10 @@ def add_track(
     file_content = file.file.read()
 
     if file_name.endswith(".fit"):
-        track = FITTrack(BytesIO(file_content))  # type: ignore
+        track = FITTrack(BytesIO(file_content), max_speed_percentile=99)  # type: ignore
         orig_file_type = "fit"
     elif file_name.endswith(".gpx"):
-        track = ByteTrack(BytesIO(file_content))  # type: ignore
+        track = ByteTrack(BytesIO(file_content), max_speed_percentile=99)  # type: ignore
         orig_file_type = "gpx"
     else:
         raise HTTPException(
