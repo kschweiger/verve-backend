@@ -209,6 +209,7 @@ def create_auto_activity(
         days=0, seconds=overview.moving_time_seconds
     )
     activity.avg_speed = overview.avg_velocity_kmh
+    activity.max_speed = overview.max_velocity_kmh
 
     session.add(activity)
     session.commit()

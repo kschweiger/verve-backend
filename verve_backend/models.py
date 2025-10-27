@@ -127,10 +127,21 @@ class ActivityBase(SQLModel):
         default=None,
         description="Average heartrate over the duration of the activity in bpm",
     )
-
     avg_power: float | None = Field(
         default=None,
         description="Average power over the duration of the activity in watt",
+    )
+    max_speed: float | None = Field(
+        default=None,
+        description="Max speed over the duration of the activity in km/h",
+    )
+    max_heartrate: float | None = Field(
+        default=None,
+        description="Max heartrate over the duration of the activity in bpm",
+    )
+    max_power: float | None = Field(
+        default=None,
+        description="Max power over the duration of the activity in watt",
     )
 
     type_id: PositiveNumber[int] = Field(foreign_key="activity_type.id", nullable=False)

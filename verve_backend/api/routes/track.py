@@ -12,6 +12,7 @@ from starlette.status import (
     HTTP_400_BAD_REQUEST,
 )
 
+from verve_backend import crud
 from verve_backend.api.common.db_utils import check_and_raise_primary_key
 from verve_backend.api.common.track import add_track as upload_track
 from verve_backend.api.definitions import Tag
@@ -40,13 +41,25 @@ def add_track(
 ) -> Any:
     user_id, session = user_session
 
-    _, n_points = upload_track(
+    track, n_points = upload_track(
         activity_id=activity_id,
         user_id=user_id,
         session=session,
         obj_store_client=obj_store_client,
         file=file,
     )
+
+    try:
+        crud.update_activity_with_track_data(
+            session=session,
+            track=track,
+            activity_id=activity_id,
+        )
+    except Exception as e:
+        logger.error(f"Failed to update activity {activity_id} with track data")
+        logger.exception(e)
+        logger.info("Removing track data")
+        # TODO: Implment
 
     return JSONResponse(
         status_code=HTTP_201_CREATED,

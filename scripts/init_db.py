@@ -167,5 +167,10 @@ with Session(engine) as session:
                 user_id=created_users[0].id,
                 batch_size=500,
             )
+            crud.update_activity_with_track_data(
+                session=session,
+                activity_id=_activity.id,
+                track=track,
+            )
             print("Added track %s" % i_track_added)
             i_track_added += 1

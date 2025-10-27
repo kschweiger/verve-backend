@@ -1,4 +1,6 @@
+import logging
 import uuid
+from datetime import date, timedelta
 from typing import Generator
 
 from geo_track_analyzer import Track
@@ -235,6 +237,33 @@ def insert_track(
         n_points += len(batch)
 
     return n_points
+
+
+def update_activity_with_track_data(
+    *,
+    session: Session,
+    track: Track,
+    activity_id: uuid.UUID | str,
+):
+    activity = session.get(Activity, activity_id)
+    assert activity is not None, (
+        "Function expects that activity is valid (exists and belongs to user)"
+    )
+
+    overview = track.get_track_overview()
+    first_point_time = track.track.segments[0].points[0].time
+    if first_point_time:
+        activity.start = first_point_time
+    activity.distance = overview.total_distance_km
+    activity.duration = timedelta(days=0, seconds=overview.total_time_seconds)
+    activity.elevation_change_up = overview.uphill_elevation
+    activity.elevation_change_down = overview.downhill_elevation
+    activity.moving_duration = timedelta(days=0, seconds=overview.moving_time_seconds)
+    activity.avg_speed = overview.avg_velocity_kmh
+    activity.max_speed = overview.max_velocity_kmh
+    session.add(activity)
+    session.commit()
+    session.refresh(activity)
 
 
 def create_goal(
