@@ -1,3 +1,4 @@
+import importlib.resources
 import logging
 from typing import Annotated, Any
 
@@ -41,7 +42,7 @@ def get_heatmap(
     activity_sub_type_id: int | None = None,
     limit: int | None = None,
 ) -> Any:
-    user_id, session = user_session
+    _, session = user_session
 
     check_and_raise_primary_key(session, ActivityType, activity_type_id)
     if activity_type_id is None and activity_sub_type_id is not None:
@@ -71,33 +72,19 @@ def get_heatmap(
         query = query.order_by(Activity.start.desc())
         if limit:
             query = query.limit(limit)
-        _sel_ids = session.exec(query).all()
-        if not _sel_ids:
+        sel_ids = session.exec(query).all()
+        if not sel_ids:
             return HeatMapResponse(points=[], center=None)
-        sel_ids = f"WHERE activity_id in ('{"','".join(map(str, _sel_ids))}')"
-    stmt = f"""
-    WITH grid_clusters AS (
-    SELECT
-        FLOOR(ST_X(geometry) / 10) * 10 as grid_x,
-        FLOOR(ST_Y(geometry) / 10) * 10 as grid_y,
-        COUNT(DISTINCT activity_id) as activity_count,  -- Count unique activities
-        COUNT(*) as total_point_count,                  -- Total points (for reference)
-        ST_Centroid(ST_Collect(geometry)) as centroid_geom,
-        -- Collect original lat/long for any point in the cluster
-        array_agg(ST_Y(geography::geometry)) as cluster_latitudes,
-        array_agg(ST_X(geography::geometry)) as cluster_longitudes
-    FROM verve.track_points
-    {sel_ids if sel_ids else ""}
-    GROUP BY grid_x, grid_y
+    stmt = (
+        importlib.resources.files("verve_backend.queries")
+        .joinpath("aggregate_activity_heatmap.sql")
+        .read_text()
     )
-    SELECT
-        ST_Y(ST_Transform(centroid_geom, 4326)) as latitude,
-        ST_X(ST_Transform(centroid_geom, 4326)) as longitude,
-        activity_count as point_count
-    FROM grid_clusters
-    ORDER BY point_count DESC;
-        """
-    data = session.exec(text(stmt)).all()
+
+    data = session.exec(
+        text(stmt),  # type: ignore
+        params={"activity_ids": sel_ids},
+    ).all()
 
     return HeatMapResponse(
         points=data,
