@@ -153,6 +153,7 @@ def create_auto_activity(
     file: UploadFile,
     type_id: int | None = None,
     sub_type_id: int | None = None,
+    locale: LocaleQuery = SupportedLocale.DE,
 ) -> Any:
     user_id, session = user_session
 
@@ -215,7 +216,22 @@ def create_auto_activity(
     session.commit()
     session.refresh(activity)
 
-    return activity
+    activity_type = session.get(ActivityType, activity.type_id)
+    assert activity_type is not None
+    name = get_activity_name(
+        activity_type.name.lower().replace(" ", "_"),
+        activity.start,
+        locale,
+    )
+    session.add(
+        ActivityName(
+            user_id=activity.user_id,
+            activity_id=activity.id,
+            name=name,
+        )
+    )
+    session.commit()
+    return ActivityPublic.model_validate(activity, update={"name": name})
 
 
 @router.put("/add_image", tags=[Tag.IMAGE, Tag.UPLOAD])
