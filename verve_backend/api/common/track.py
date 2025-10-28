@@ -13,6 +13,7 @@ from starlette.status import (
 
 from verve_backend import crud
 from verve_backend.api.deps import ObjectStoreClient
+from verve_backend.core.config import settings
 from verve_backend.models import Activity, RawTrackData
 
 logger = logging.getLogger("uvicorn.error")
@@ -55,7 +56,7 @@ def add_track(
 
     obj_store_client.upload_fileobj(
         BytesIO(file_content),
-        Bucket="verve",
+        Bucket=settings.BOTO3_BUCKET,
         Key=obj_path,
         ExtraArgs={
             "ContentType": file.content_type,  # Preserve the MIME type

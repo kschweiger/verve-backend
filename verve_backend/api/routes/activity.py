@@ -25,6 +25,7 @@ from verve_backend.api.deps import (
     SupportedLocale,
     UserSession,
 )
+from verve_backend.core.config import settings
 from verve_backend.models import (
     ActivitiesPublic,
     Activity,
@@ -244,7 +245,7 @@ async def add_image(
 
     obj_store_client.upload_fileobj(
         file.file,
-        Bucket="verve",
+        Bucket=settings.BOTO3_BUCKET,
         Key=obj_path,
         ExtraArgs={
             "ContentType": file.content_type,  # Preserve the MIME type
