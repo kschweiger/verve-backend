@@ -1,13 +1,12 @@
 from datetime import datetime, timedelta
+from importlib import resources
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlmodel import Session
 
 from verve_backend.models import (
     ActivitiesPublic,
     ActivityCreate,
-    ActivityName,
     ActivityPublic,
 )
 
@@ -30,19 +29,19 @@ def test_get_activities(client: TestClient, user1_token: str) -> None:
 
 
 @pytest.mark.parametrize(
-    ("params", "type_id", "exp_name"),
+    ("params", "name", "type_id", "exp_name"),
     [
-        ({}, 1, "Fahrt am Morgen"),
-        ({}, 3, "Aktivität am Morgen"),
-        ({"locale": "en"}, 1, "Morning Ride"),
-        ({"locale": "de", "name": "Schöne Ausfahrt"}, 1, "Schöne Ausfahrt"),
+        ({}, None, 1, "Fahrt am Morgen"),
+        ({}, None, 3, "Aktivität am Morgen"),
+        ({"locale": "en"}, None, 1, "Morning Ride"),
+        ({"locale": "de"}, "Schöne Ausfahrt", 1, "Schöne Ausfahrt"),
     ],
 )
 def test_create_activity_wo_name(
     client: TestClient,
     user1_token: str,
-    db: Session,
     params: dict[str, str],
+    name: str | None,
     type_id: int,
     exp_name: str,
 ) -> None:
@@ -53,6 +52,7 @@ def test_create_activity_wo_name(
         moving_duration=timedelta(minutes=25),
         type_id=type_id,
         sub_type_id=None,
+        name=name,
     )
     response = client.post(
         "/activity",
@@ -63,7 +63,35 @@ def test_create_activity_wo_name(
 
     create_activity = ActivityPublic.model_validate(response.json())
     assert response.status_code == 200
+    assert create_activity.name == exp_name
 
-    name = db.get(ActivityName, create_activity.id)
-    assert name is not None
-    assert name.name == exp_name
+
+def test_auto_activity(
+    client: TestClient,
+    user1_token: str,
+) -> None:
+    with resources.files("tests.resources").joinpath("MyWhoosh_1.fit").open("rb") as f:
+        fit_content = f.read()
+
+    response = client.post(
+        "/activity/auto/",
+        headers={"Authorization": f"Bearer {user1_token}"},
+        files={"file": ("MyWhoosh_1.fit", fit_content, "application/octet-stream")},
+    )
+
+    assert response.status_code == 200
+    activity = ActivityPublic.model_validate(response.json())
+
+    # Verify that activity was created with data from the FIT file
+    assert activity.distance > 0
+    assert activity.duration.total_seconds() > 0
+
+    response_track = client.get(
+        f"track/{activity.id}",
+        headers={"Authorization": f"Bearer {user1_token}"},
+    )
+
+    assert response_track.status_code == 200
+    raw_data = response_track.json()
+    print(raw_data)
+    assert len(raw_data["data"]) > 0

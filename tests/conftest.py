@@ -97,7 +97,7 @@ def generate_data(session: Session) -> None:
                 ),
             )
         )
-    activity_1, _ = crud.create_activity(
+    activity_1 = crud.create_activity(
         session=session,
         create=models.ActivityCreate(
             start=datetime(year=2025, month=1, day=1, hour=12),
@@ -105,11 +105,12 @@ def generate_data(session: Session) -> None:
             distance=10.0,
             type_id=1,
             sub_type_id=1,
+            name=None,
         ),
         user=created_users[0],
     )
 
-    activity_2, _ = crud.create_activity(
+    activity_2 = crud.create_activity(
         session=session,
         create=models.ActivityCreate(
             start=datetime(year=2025, month=1, day=2, hour=13),
@@ -117,6 +118,7 @@ def generate_data(session: Session) -> None:
             distance=30.0,
             type_id=1,
             sub_type_id=2,
+            name=None,
         ),
         user=created_users[1],
     )

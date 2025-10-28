@@ -149,17 +149,18 @@ class ActivityBase(SQLModel):
         foreign_key="sub_activity_type.id", nullable=True
     )
 
+    name: str = Field(...)
     meta_data: dict = Field(sa_column=Column(JSON), default_factory=dict)
 
 
 class ActivityCreate(ActivityBase):
+    name: str | None
     pass
 
 
 class ActivityPublic(ActivityBase):
     id: uuid.UUID
     created_at: datetime
-    name: str | None
 
 
 class Activity(ActivityBase, table=True):
@@ -170,23 +171,6 @@ class Activity(ActivityBase, table=True):
         foreign_key="users.id", nullable=False, ondelete="CASCADE"
     )
     created_at: datetime = Field(default_factory=datetime.now)
-
-
-class ActivityName(SQLModel, table=True):
-    __tablename__ = "activity_names"  # type: ignore
-
-    user_id: uuid.UUID = Field(
-        foreign_key="users.id",
-        nullable=False,
-        ondelete="CASCADE",
-        index=True,
-    )
-    activity_id: uuid.UUID = Field(
-        foreign_key="activities.id",
-        nullable=False,
-        primary_key=True,
-    )
-    name: str = Field(...)
 
 
 class ActivitiesPublic(SQLModel):

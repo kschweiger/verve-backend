@@ -1,6 +1,5 @@
-import logging
 import uuid
-from datetime import date, timedelta
+from datetime import timedelta
 from typing import Generator
 
 from geo_track_analyzer import Track
@@ -18,7 +17,6 @@ from verve_backend.exceptions import InvalidCombinationError
 from verve_backend.models import (
     Activity,
     ActivityCreate,
-    ActivityName,
     ActivityType,
     ActivityTypeCreate,
     Goal,
@@ -71,31 +69,23 @@ def create_activity(
     session: Session,
     create: ActivityCreate,
     user: UserPublic,
-    name: str | None = None,
     locale: SupportedLocale = SupportedLocale.DE,
-) -> tuple[Activity, str]:
-    db_obj = Activity.model_validate(create, update={"user_id": user.id})
-    session.add(db_obj)
-    session.commit()
-    session.refresh(db_obj)
+) -> Activity:
+    name = create.name
     if name is None:
-        activity_type = session.get(ActivityType, db_obj.type_id)
+        activity_type = session.get(ActivityType, create.type_id)
         assert activity_type is not None
         name = get_activity_name(
             activity_type.name.lower().replace(" ", "_"),
-            db_obj.start,
+            create.start,
             locale,
         )
-    session.add(
-        ActivityName(
-            user_id=db_obj.user_id,
-            activity_id=db_obj.id,
-            name=name,
-        )
-    )
+    db_obj = Activity.model_validate(create, update={"user_id": user.id, "name": name})
+    session.add(db_obj)
     session.commit()
+    session.refresh(db_obj)
 
-    return db_obj, name
+    return db_obj
 
 
 def create_activity_type(

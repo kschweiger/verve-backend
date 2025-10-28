@@ -29,7 +29,6 @@ from verve_backend.models import (
     ActivitiesPublic,
     Activity,
     ActivityCreate,
-    ActivityName,
     ActivityPublic,
     ActivitySubType,
     ActivityType,
@@ -48,12 +47,8 @@ def read_activity(user_session: UserSession, id: uuid.UUID) -> Any:
     activity = session.get(Activity, id)
     if not activity:
         raise HTTPException(status_code=404, detail="Activity not found")
-    name = session.get(ActivityName, activity.id)
-    public_activity = ActivityPublic.model_validate(
-        activity, update={"name": name.name if name else None}
-    )
 
-    return public_activity
+    return activity
 
 
 @router.get("/", response_model=ActivitiesPublic)
@@ -96,16 +91,7 @@ def get_activities(
             stmt = stmt.where(Activity.sub_type_id == sub_type_id)
 
     activities = session.exec(stmt).all()
-    name_stmt = select(ActivityName).where(
-        ActivityName.activity_id.in_(list(map(str, [a.id for a in activities])))
-    )
-    names = session.exec(name_stmt).all()
-    _name = {name.activity_id: name.name for name in names}
-
-    _data = [
-        ActivityPublic.model_validate(a, update={"name": _name.get(a.id, None)})
-        for a in activities
-    ]
+    _data = [ActivityPublic.model_validate(a) for a in activities]
 
     return ActivitiesPublic(
         data=_data,
@@ -117,32 +103,24 @@ def get_activities(
 def create_activity(
     *,
     user_session: UserSession,
-    name: Annotated[str | None, Query(max_length=100)] = None,
     locale: LocaleQuery = SupportedLocale.DE,
     data: ActivityCreate,
 ) -> Any:
     user_id, session = user_session
-    activity = Activity.model_validate(data, update={"user_id": user_id})
-    session.add(activity)
-    session.commit()
-    session.refresh(activity)
+    name = data.name
     if name is None:
-        activity_type = session.get(ActivityType, activity.type_id)
+        activity_type = session.get(ActivityType, data.type_id)
         assert activity_type is not None
         name = get_activity_name(
             activity_type.name.lower().replace(" ", "_"),
-            activity.start,
+            data.start,
             locale,
         )
-    session.add(
-        ActivityName(
-            user_id=activity.user_id,
-            activity_id=activity.id,
-            name=name,
-        )
-    )
+    activity = Activity.model_validate(data, update={"user_id": user_id, "name": name})
+    session.add(activity)
     session.commit()
-    return ActivityPublic.model_validate(activity, update={"name": name})
+    session.refresh(activity)
+    return activity
 
 
 @router.post("/auto/", response_model=ActivityPublic)
@@ -182,12 +160,15 @@ def create_auto_activity(
         distance=1,
         type_id=_type_id,
         sub_type_id=_sub_type_id,
+        name="placeholder",
     )
 
     session.add(activity)
     session.commit()
     session.refresh(activity)
 
+    activity_type = session.get(ActivityType, activity.type_id)
+    assert activity_type is not None
     # TODO: Add error handling that removes the activity again
     track, n_points = add_track(
         activity_id=activity.id,
@@ -200,6 +181,7 @@ def create_auto_activity(
     logger.debug("Getting actuivity infos from track ")
     overview = track.get_track_overview()
     first_point_time = track.track.segments[0].points[0].time
+    assert first_point_time is not None
     if first_point_time:
         activity.start = first_point_time
     activity.distance = overview.total_distance_km
@@ -211,27 +193,17 @@ def create_auto_activity(
     )
     activity.avg_speed = overview.avg_velocity_kmh
     activity.max_speed = overview.max_velocity_kmh
-
+    activity.name = get_activity_name(
+        activity_type.name.lower().replace(" ", "_"),
+        first_point_time,
+        locale,
+    )
     session.add(activity)
     session.commit()
     session.refresh(activity)
 
-    activity_type = session.get(ActivityType, activity.type_id)
-    assert activity_type is not None
-    name = get_activity_name(
-        activity_type.name.lower().replace(" ", "_"),
-        activity.start,
-        locale,
-    )
-    session.add(
-        ActivityName(
-            user_id=activity.user_id,
-            activity_id=activity.id,
-            name=name,
-        )
-    )
     session.commit()
-    return ActivityPublic.model_validate(activity, update={"name": name})
+    return activity
 
 
 @router.put("/add_image", tags=[Tag.IMAGE, Tag.UPLOAD])

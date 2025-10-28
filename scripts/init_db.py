@@ -31,7 +31,7 @@ with Session(engine) as session:
                 ),
             )
         )
-    activity_1, _ = crud.create_activity(
+    activity_1 = crud.create_activity(
         session=session,
         create=models.ActivityCreate(
             start=datetime(year=2025, month=1, day=1, hour=12),
@@ -39,11 +39,12 @@ with Session(engine) as session:
             distance=10.0,
             type_id=1,
             sub_type_id=1,
+            name=None,
         ),
         user=created_users[0],
     )
 
-    activity_2, _ = crud.create_activity(
+    activity_2 = crud.create_activity(
         session=session,
         create=models.ActivityCreate(
             start=datetime(year=2025, month=1, day=2, hour=13),
@@ -51,6 +52,7 @@ with Session(engine) as session:
             distance=30.0,
             type_id=1,
             sub_type_id=2,
+            name=None,
         ),
         user=created_users[1],
     )
@@ -148,7 +150,7 @@ with Session(engine) as session:
                 _day += 1
             overview = track.get_track_overview()
 
-            _activity, _ = crud.create_activity(
+            _activity = crud.create_activity(
                 session=session,
                 create=models.ActivityCreate(
                     start=datetime(year=2025, month=_month, day=_day, hour=12),
@@ -156,6 +158,7 @@ with Session(engine) as session:
                     distance=overview.total_distance_km,
                     type_id=1,
                     sub_type_id=1,
+                    name=None,
                 ),
                 user=created_users[0],
             )

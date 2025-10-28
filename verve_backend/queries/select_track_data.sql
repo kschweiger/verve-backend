@@ -14,7 +14,7 @@ WITH filtered_points AS (
             geography,
             LAG(geography) OVER (ORDER BY time)
         ) as distance_from_previous
-    FROM verve.track_points
+    FROM track_points
     WHERE activity_id = :activity_id
 ),
 kept_points AS (
