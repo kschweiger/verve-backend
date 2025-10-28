@@ -5,6 +5,8 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query, UploadFile
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import func, select
 from starlette.status import (
     HTTP_200_OK,
@@ -37,6 +39,14 @@ from verve_backend.models import (
     UserSettings,
 )
 
+
+class ActivityUpdate(BaseModel):
+    type_id: int | None = None
+    sub_type_id: int | None = None
+    meta_data: dict | None = None
+    name: str | None = None
+
+
 router = APIRouter(prefix="/activity", tags=[Tag.ACTIVITY])
 
 logger = logging.getLogger("uvicorn.error")
@@ -49,6 +59,55 @@ def read_activity(user_session: UserSession, id: uuid.UUID) -> Any:
     if not activity:
         raise HTTPException(status_code=404, detail="Activity not found")
 
+    return activity
+
+
+@router.patch("/{id}", response_model=ActivityPublic)
+def update_activity(
+    user_session: UserSession,
+    id: uuid.UUID,
+    data: ActivityUpdate,
+) -> Any:
+    _, session = user_session
+
+    activity = session.get(Activity, id)
+    if not activity:
+        raise HTTPException(status_code=404, detail="Activity not found")
+
+    update_data = data.model_dump(exclude_unset=True)
+
+    if "type_id" in update_data:
+        if update_data["type_id"] is None:
+            raise HTTPException(
+                status_code=HTTP_400_BAD_REQUEST, detail="type_id cannot be set to null"
+            )
+        # Check that both fit together
+        if "sub_type_id" in update_data and update_data["sub_type_id"] is not None:
+            validate_sub_type_id(
+                session, update_data["type_id"], update_data["sub_type_id"]
+            )
+        if "sub_type_id" not in update_data and activity.sub_type_id is not None:
+            # Check that the current sub_type fits to the new type
+            validate_sub_type_id(session, update_data["type_id"], activity.sub_type_id)
+    # Check that ne new sub_id matches the current type_id
+    if (
+        "type_id" not in update_data
+        and "sub_type_id" in update_data
+        and update_data["sub_type_id"] is not None
+    ):
+        validate_sub_type_id(session, activity.type_id, update_data["sub_type_id"])
+    if "meta_data" in update_data and update_data["meta_data"] is None:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST, detail="meta_data cannot be set to null"
+        )
+    for field, value in update_data.items():
+        setattr(activity, field, value)
+
+    try:
+        session.commit()
+    except IntegrityError as e:
+        raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail=str(e)) from e
+    session.refresh(activity)
     return activity
 
 

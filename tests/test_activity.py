@@ -95,3 +95,117 @@ def test_auto_activity(
     raw_data = response_track.json()
     print(raw_data)
     assert len(raw_data["data"]) > 0
+
+
+@pytest.mark.parametrize(
+    ("update_data", "exp_values"),
+    [
+        (
+            {"name": "new name"},
+            {"name": "new name", "type_id": 1, "sub_type_id": 1, "meta_data": {}},
+        ),
+        (
+            {"sub_type_id": None},
+            {"name": "init name", "type_id": 1, "sub_type_id": None, "meta_data": {}},
+        ),
+        (
+            {"sub_type_id": 2},
+            {"name": "init name", "type_id": 1, "sub_type_id": 2, "meta_data": {}},
+        ),
+        (
+            {"type_id": 2, "sub_type_id": 7},
+            {"name": "init name", "type_id": 2, "sub_type_id": 7, "meta_data": {}},
+        ),
+        (
+            {"meta_data": {"key": "value"}},
+            {
+                "name": "init name",
+                "type_id": 1,
+                "sub_type_id": 1,
+                "meta_data": {"key": "value"},
+            },
+        ),
+    ],
+)
+def test_update_activity(
+    client: TestClient,
+    user1_token: str,
+    update_data: dict,
+    exp_values: dict,
+) -> None:
+    activity_create = ActivityCreate(
+        start=datetime(2024, 1, 1, 11),
+        duration=timedelta(minutes=32),
+        distance=1.0,
+        type_id=1,
+        sub_type_id=1,
+        name="init name",
+    )
+    init_acticity = ActivityPublic.model_validate(
+        client.post(
+            "/activity",
+            json=activity_create.model_dump(exclude_unset=True, mode="json"),
+            headers={"Authorization": f"Bearer {user1_token}"},
+        ).json()
+    )
+
+    response = client.patch(
+        f"/activity/{init_acticity.id}",
+        json=update_data,
+        headers={"Authorization": f"Bearer {user1_token}"},
+    )
+
+    assert response.status_code == 200
+
+    final_activity = ActivityPublic.model_validate(
+        client.get(
+            f"activity/{init_acticity.id}",
+            headers={"Authorization": f"Bearer {user1_token}"},
+        ).json()
+    )
+
+    for key, value in exp_values.items():
+        assert value == getattr(final_activity, key)
+
+
+@pytest.mark.parametrize(
+    ("update_data", "exp_status"),
+    [
+        ({"type_id": None}, 400),
+        ({"sub_type_id": 7}, 400),
+        ({"sub_type_id": 99999}, 404),
+        ({"type_id": 2, "sub_type_id": 1}, 400),
+        ({"type_id": 2}, 400),
+        ({"name": None}, 400),
+        ({"meta_data": None}, 400),
+    ],
+)
+def test_update_activity_errors(
+    client: TestClient,
+    user1_token: str,
+    update_data: dict,
+    exp_status: int,
+) -> None:
+    activity_create = ActivityCreate(
+        start=datetime(2024, 1, 1, 12),
+        duration=timedelta(minutes=30),
+        distance=1.0,
+        type_id=1,
+        sub_type_id=1,
+        name="init name",
+    )
+    init_acticity = ActivityPublic.model_validate(
+        client.post(
+            "/activity",
+            json=activity_create.model_dump(exclude_unset=True, mode="json"),
+            headers={"Authorization": f"Bearer {user1_token}"},
+        ).json()
+    )
+
+    response = client.patch(
+        f"/activity/{init_acticity.id}",
+        json=update_data,
+        headers={"Authorization": f"Bearer {user1_token}"},
+    )
+
+    assert response.status_code == exp_status
