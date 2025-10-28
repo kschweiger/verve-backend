@@ -1,3 +1,4 @@
+import importlib.resources
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -5,13 +6,16 @@ from typing import Annotated, Any, Generic, TypeVar, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlmodel import func, select
+from sqlmodel import func, select, text
 from starlette.status import (
+    HTTP_400_BAD_REQUEST,
     HTTP_501_NOT_IMPLEMENTED,
 )
 
+from verve_backend.api.common.db_utils import check_and_raise_primary_key
 from verve_backend.api.deps import UserSession
-from verve_backend.models import Activity
+from verve_backend.core.date_utils import get_week_date_range
+from verve_backend.models import Activity, ActivityType, UserSettings
 
 T = TypeVar("T")
 
@@ -39,6 +43,12 @@ class YearStatsResponse(BaseModel):
     distance: MetricSummary[float]
     duration: MetricSummary[int]
     count: MetricSummary[int]
+
+
+class WeekStatsResponse(BaseModel):
+    distance: dict[datetime, float | None]
+    elevation_gain: dict[datetime, float | None]
+    duration: dict[datetime, int | None]
 
 
 @router.get("/weekly")
@@ -112,3 +122,60 @@ def get_year_stats(
     )
 
     return resp
+
+
+@router.get("/week", response_model=WeekStatsResponse)
+def get_week_stats(
+    user_session: UserSession,
+    year: Annotated[int | None, Query(ge=2000)] = None,
+    week: Annotated[int | None, Query(ge=1, le=53)] = None,
+    activity_type_id: int | None = None,
+) -> Any:
+    user_id, session = user_session
+
+    settings = session.get(UserSettings, user_id)
+    assert settings
+
+    _activity_type_id = (
+        settings.default_type_id if activity_type_id is None else activity_type_id
+    )
+    check_and_raise_primary_key(session, ActivityType, _activity_type_id)
+
+    if year is None and week is None:
+        iso_cal = datetime.now().isocalendar()
+        week = iso_cal.week
+        year = iso_cal.year
+        logger.debug("Current week/year used: %d/%d", week, year)
+
+    if year is None or week is None:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail="Both year and week must be set.",
+        )
+
+    stmt = (
+        importlib.resources.files("verve_backend.queries")
+        .joinpath("select_weekly_activity_data.sql")
+        .read_text()
+    )
+
+    data = session.exec(
+        text(stmt),  # type: ignore
+        params={
+            "week": week,
+            "year": year,
+            "activity_type_id": _activity_type_id,
+        },
+    ).all()
+
+    week_start, _ = get_week_date_range(year, week)
+    _response = {
+        key: {week_start + timedelta(days=i): None for i in range(7)}
+        for key in ["distance", "elevation_gain", "duration"]
+    }
+    for date, _dist, _ele, _ts in data:
+        _response["distance"][date] = _dist
+        _response["elevation_gain"][date] = _ele
+        _response["duration"][date] = _ts.total_seconds()
+
+    return WeekStatsResponse.model_validate(_response)
