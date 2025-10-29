@@ -1,13 +1,15 @@
 SELECT
 	date(start),
-	distance,
-	elevation_change_up,
-	duration
+	sub_type_id,
+	SUM(distance),
+	SUM(elevation_change_up),
+	SUM(duration)
 FROM
 	verve.activities
 WHERE
-	extract(WEEK FROM start) = :week
-	AND extract(ISOYEAR FROM start) = :year
-  AND type_id = :activity_type_id
+	extract(WEEK FROM START) = :week
+	AND extract(ISOYEAR FROM START) = :year
+	AND type_id = 1
+GROUP BY sub_type_id, date(start)
 ORDER BY
-	START DESC;
+	date(START) DESC;

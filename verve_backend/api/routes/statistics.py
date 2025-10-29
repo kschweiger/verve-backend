@@ -1,7 +1,7 @@
 import importlib.resources
 import logging
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Annotated, Any, Generic, TypeVar, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -17,7 +17,7 @@ from verve_backend.api.deps import UserSession
 from verve_backend.core.date_utils import get_week_date_range
 from verve_backend.models import Activity, ActivityType, UserSettings
 
-T = TypeVar("T")
+T = TypeVar("T", int, float)
 
 
 # logger = logging.getLogger(__name__)
@@ -45,10 +45,39 @@ class YearStatsResponse(BaseModel):
     count: MetricSummary[int]
 
 
+class WeekMetric(BaseModel, Generic[T]):
+    per_day: dict[date, T | None]
+    pie_data: dict[int | None, float]
+    total: T
+
+
 class WeekStatsResponse(BaseModel):
-    distance: dict[datetime, float | None]
-    elevation_gain: dict[datetime, float | None]
-    duration: dict[datetime, int | None]
+    distance: WeekMetric[float]
+    elevation_gain: WeekMetric[float]
+    duration: WeekMetric[int]
+
+
+def process_metric_data(
+    per_day: dict[date, T | None],
+    pie_data: dict[int | None, float],
+) -> WeekMetric[T]:
+    """Convert pie data to percentages and calculate totals for a single metric."""
+    # Calculate total from per_day data
+    total = sum(v for v in per_day.values() if v is not None)
+
+    # Convert to percentages
+    pie_percentages = {}
+    if total > 0:
+        for sub_type_id, value in pie_data.items():
+            pie_percentages[sub_type_id] = (value / total) * 100
+    else:
+        pie_percentages = dict(pie_data)
+
+    return WeekMetric(
+        per_day=per_day,
+        pie_data=pie_percentages,
+        total=total,
+    )
 
 
 @router.get("/weekly")
@@ -169,13 +198,32 @@ def get_week_stats(
     ).all()
 
     week_start, _ = get_week_date_range(year, week)
-    _response = {
-        key: {week_start + timedelta(days=i): None for i in range(7)}
-        for key in ["distance", "elevation_gain", "duration"]
-    }
-    for date, _dist, _ele, _ts in data:
-        _response["distance"][date] = _dist
-        _response["elevation_gain"][date] = _ele
-        _response["duration"][date] = _ts.total_seconds()
 
-    return WeekStatsResponse.model_validate(_response)
+    distance_per_day: dict[date, float | None] = {
+        week_start + timedelta(days=i): None for i in range(7)
+    }
+    elevation_gain_per_day: dict[date, float | None] = {
+        week_start + timedelta(days=i): None for i in range(7)
+    }
+    duration_per_day: dict[date, int | None] = {
+        week_start + timedelta(days=i): None for i in range(7)
+    }
+
+    distance_pie: dict[int | None, float] = defaultdict(float)
+    elevation_gain_pie: dict[int | None, float] = defaultdict(float)
+    duration_pie: dict[int | None, float] = defaultdict(float)
+
+    for _date, _sub_type_id, _dist, _ele, _ts in data:
+        distance_per_day[_date] = _dist
+        elevation_gain_per_day[_date] = _ele
+        duration_per_day[_date] = round(_ts.total_seconds())
+
+        distance_pie[_sub_type_id] += _dist
+        elevation_gain_pie[_sub_type_id] += _ele
+        duration_pie[_sub_type_id] += _ts.total_seconds()
+
+    return WeekStatsResponse(
+        distance=process_metric_data(distance_per_day, distance_pie),
+        elevation_gain=process_metric_data(elevation_gain_per_day, elevation_gain_pie),
+        duration=process_metric_data(duration_per_day, duration_pie),
+    )
