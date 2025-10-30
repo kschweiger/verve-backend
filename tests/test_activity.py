@@ -31,8 +31,8 @@ def test_get_activities(client: TestClient, user1_token: str) -> None:
 @pytest.mark.parametrize(
     ("params", "name", "type_id", "exp_name"),
     [
-        ({}, None, 1, "Fahrt am Morgen"),
-        ({}, None, 3, "Aktivität am Morgen"),
+        ({}, None, 1, "Morning Ride"),
+        ({}, None, 3, "Morning Activity"),
         ({"locale": "en"}, None, 1, "Morning Ride"),
         ({"locale": "de"}, "Schöne Ausfahrt", 1, "Schöne Ausfahrt"),
     ],

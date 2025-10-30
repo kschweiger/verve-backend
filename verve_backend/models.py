@@ -1,6 +1,7 @@
 import re
 import uuid
 from datetime import datetime, timedelta
+from enum import StrEnum
 from typing import Annotated, Generic, TypeVar
 
 from geoalchemy2 import Geography, Geometry
@@ -23,6 +24,21 @@ PositiveNumber = Annotated[T, AfterValidator(postitive)]
 T = TypeVar("T")
 
 
+class SupportedLocale(StrEnum):
+    DE = "de"
+    EN = "en"
+
+
+class HeatmapSettings(BaseModel):
+    """Settings for the heatmap view."""
+
+    excluded_activity_types: list[tuple[int, int | None]] = Field(
+        default_factory=list,
+        description="List of (type_id, sub_type_id) tuples to exclude from heatmap. "
+        "sub_type_id can be None to exclude entire type.",
+    )
+
+
 class ListResponse(BaseModel, Generic[T]):
     data: list[T]
 
@@ -31,7 +47,6 @@ class ListResponse(BaseModel, Generic[T]):
 class UserBase(SQLModel):
     name: str = Field(unique=True, min_length=6)
     email: EmailStr = Field(unique=True, index=True, max_length=255)
-    is_active: bool = True
     full_name: str | None = Field(default=None, max_length=255)
 
 
@@ -50,6 +65,7 @@ class User(UserBase, table=True):
     __tablename__: str = "users"  # type: ignore
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    is_active: bool = True
     hashed_password: str
 
 
@@ -347,15 +363,27 @@ class ZoneInterval(ZoneIntervalBase, table=True):
     created_at: datetime = Field(default_factory=datetime.now)
 
 
-class UserSettings(SQLModel, table=True):
-    __tablename__: str = "user_settings"  # type: ignore
-
-    user_id: uuid.UUID = Field(
-        foreign_key="users.id", primary_key=True, ondelete="CASCADE"
-    )
+class UserSettingsBase(SQLModel):
     default_type_id: PositiveNumber[int] = Field(
         foreign_key="activity_type.id", nullable=False
     )
     defautl_sub_type_id: PositiveNumber[int] | None = Field(
         foreign_key="sub_activity_type.id", nullable=True
+    )
+    locale: SupportedLocale = Field(default=SupportedLocale.EN)
+    heatmap_settings: HeatmapSettings = Field(
+        sa_column=Column(JSON),
+        default_factory=lambda: HeatmapSettings().model_dump(mode="json"),
+    )
+
+
+class UserSettingsPublic(UserSettingsBase):
+    pass
+
+
+class UserSettings(UserSettingsBase, table=True):
+    __tablename__: str = "user_settings"  # type: ignore
+
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", primary_key=True, ondelete="CASCADE"
     )

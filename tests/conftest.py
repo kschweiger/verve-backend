@@ -1,6 +1,7 @@
 import os
 from datetime import datetime, timedelta
-from typing import Generator
+from typing import Any, Generator
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -50,6 +51,35 @@ def user1_token(client: TestClient) -> str:
     assert response.status_code == 200
     data = response.json()
     return data["access_token"]
+
+
+@pytest.fixture
+def temp_user_id() -> Generator[UUID, Any, Any]:
+    from verve_backend import (
+        crud,
+    )
+    from verve_backend.core.db import get_engine
+    from verve_backend.models import User, UserCreate, UserSettings
+
+    engine = get_engine(echo=False, rls=False)
+
+    _user = UserCreate(
+        name="temp_user",
+        email="temp@user.mail",
+        full_name="Temp User",
+        password="temporarypassword",
+    )
+    with Session(engine) as session:
+        user = crud.create_user(session=session, user_create=_user)
+        id = user.id
+    yield id
+
+    with Session(engine) as session:
+        settings = session.get(UserSettings, id)
+        user = session.get(User, id)
+        session.delete(settings)
+        session.delete(user)
+        session.commit()
 
 
 @pytest.fixture(scope="session", autouse=True)

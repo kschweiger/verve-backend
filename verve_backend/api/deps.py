@@ -1,6 +1,5 @@
 import logging
 from collections.abc import Generator
-from enum import StrEnum
 from typing import Annotated
 
 import boto3
@@ -16,7 +15,7 @@ from sqlmodel import Session, text
 from verve_backend.core import security
 from verve_backend.core.config import settings
 from verve_backend.core.db import get_engine
-from verve_backend.models import TokenPayload, User
+from verve_backend.models import SupportedLocale, TokenPayload, User
 
 logger = logging.getLogger("uvicorn.error")
 reusable_oauth2 = OAuth2PasswordBearer(
@@ -99,11 +98,6 @@ def get_and_init_s3_client() -> S3Client:
 
 
 ObjectStoreClient = Annotated[S3Client, Depends(get_and_init_s3_client)]
-
-
-class SupportedLocale(StrEnum):
-    DE = "de"
-    EN = "en"
 
 
 LocaleQuery = Annotated[

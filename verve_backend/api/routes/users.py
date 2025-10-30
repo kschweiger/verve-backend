@@ -1,8 +1,11 @@
 import logging
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
+from starlette.status import HTTP_400_BAD_REQUEST
 
 from verve_backend.api.common.db_utils import check_and_raise_primary_key
 from verve_backend.api.definitions import Tag
@@ -10,12 +13,24 @@ from verve_backend.api.deps import CurrentUser, UserSession
 from verve_backend.models import (
     ActivitySubType,
     ActivityType,
+    User,
     UserPublic,
     UserSettings,
+    UserSettingsPublic,
 )
 
 logger = logging.getLogger("uvicorn.error")
 router = APIRouter(prefix="/users", tags=[Tag.USER])
+
+
+class UserSettingsCollection(BaseModel):
+    settings: UserSettingsPublic
+
+
+class UserUpdate(BaseModel):
+    name: str | None = None
+    email: str | None = None
+    full_name: str | None = None
 
 
 @router.get("/me", response_model=UserPublic)
@@ -24,6 +39,27 @@ def read_user_me(current_user: CurrentUser) -> Any:
     Get current user.
     """
     return current_user
+
+
+@router.patch("/me", response_model=UserPublic)
+def update_user_details(
+    *,
+    user_session: UserSession,
+    data: UserUpdate,
+) -> Any:
+    user_id, session = user_session
+    user = session.get(User, user_id)
+    assert user is not None
+
+    update_data = data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(user, field, value)
+    try:
+        session.commit()
+    except IntegrityError as e:
+        raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail=str(e)) from e
+    session.refresh(user)
+    return user
 
 
 @router.put(
@@ -48,3 +84,19 @@ def set_default_activity_type(
     session.commit()
 
     return JSONResponse(content="Defautl activity types updated successfully")
+
+
+@router.get("/me/settings", response_model=UserSettingsCollection)
+def get_user_settings(
+    *,
+    user_session: UserSession,
+) -> Any:
+    user_id, session = user_session
+
+    settings = session.get(UserSettings, user_id)
+    # A valid user should have a setting
+    assert settings is not None
+
+    return UserSettingsCollection(
+        settings=UserSettingsPublic.model_validate(settings),
+    )

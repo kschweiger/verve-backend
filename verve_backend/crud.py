@@ -17,6 +17,7 @@ from verve_backend.exceptions import InvalidCombinationError
 from verve_backend.models import (
     Activity,
     ActivityCreate,
+    ActivitySubType,
     ActivityType,
     ActivityTypeCreate,
     Goal,
@@ -62,6 +63,13 @@ def authenticate(*, session: Session, email: str, password: str) -> User | None:
     if not verify_password(password, db_user.hashed_password):
         return None
     return db_user
+
+
+def get_sub_type_map(*, session: Session, type_id: int) -> dict[int, ActivitySubType]:
+    select_stmt = select(ActivitySubType).where(ActivitySubType.type_id == type_id)
+    sub_types = session.exec(select_stmt).all()
+
+    return {s.id: s for s in sub_types if s is not None and s.id is not None}
 
 
 def create_activity(

@@ -12,6 +12,7 @@ from starlette.status import (
     HTTP_200_OK,
     HTTP_400_BAD_REQUEST,
     HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+    HTTP_501_NOT_IMPLEMENTED,
 )
 
 from verve_backend.api.common.db_utils import (
@@ -24,7 +25,6 @@ from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import (
     LocaleQuery,
     ObjectStoreClient,
-    SupportedLocale,
     UserSession,
 )
 from verve_backend.core.config import settings
@@ -111,6 +111,26 @@ def update_activity(
     return activity
 
 
+@router.delete("/{id}")
+def delete_activity(
+    user_session: UserSession,
+    id: uuid.UUID,
+) -> Any:
+    _, session = user_session
+
+    activity = session.get(Activity, id)
+    if not activity:
+        raise HTTPException(status_code=404, detail="Activity not found")
+
+    # TODO: Delete track
+    # -> From DB
+    # -> From Store
+
+    # TODO: Delete Activity
+
+    raise HTTPException(status_code=HTTP_501_NOT_IMPLEMENTED)
+
+
 @router.get("/", response_model=ActivitiesPublic)
 def get_activities(
     user_session: UserSession,
@@ -163,7 +183,7 @@ def get_activities(
 def create_activity(
     *,
     user_session: UserSession,
-    locale: LocaleQuery = SupportedLocale.DE,
+    locale: LocaleQuery | None = None,
     data: ActivityCreate,
 ) -> Any:
     user_id, session = user_session
@@ -171,6 +191,11 @@ def create_activity(
     if name is None:
         activity_type = session.get(ActivityType, data.type_id)
         assert activity_type is not None
+        if locale is None:
+            settings = session.get(UserSettings, user_id)
+            assert settings is not None
+            locale = settings.locale
+
         name = get_activity_name(
             activity_type.name.lower().replace(" ", "_"),
             data.start,
@@ -191,7 +216,7 @@ def create_auto_activity(
     file: UploadFile,
     type_id: int | None = None,
     sub_type_id: int | None = None,
-    locale: LocaleQuery = SupportedLocale.DE,
+    locale: LocaleQuery | None = None,
 ) -> Any:
     user_id, session = user_session
 
@@ -256,7 +281,7 @@ def create_auto_activity(
     activity.name = get_activity_name(
         activity_type.name.lower().replace(" ", "_"),
         first_point_time,
-        locale,
+        locale or settings.locale,
     )
     session.add(activity)
     session.commit()
