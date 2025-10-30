@@ -20,6 +20,8 @@ def postitive(v: T) -> T:
 
 
 PositiveNumber = Annotated[T, AfterValidator(postitive)]
+UserPassword = Annotated[str, Field(min_length=8, max_length=40)]
+
 
 T = TypeVar("T")
 
@@ -52,7 +54,7 @@ class UserBase(SQLModel):
 
 # Properties to receive via API on creation
 class UserCreate(UserBase):
-    password: str = Field(min_length=8, max_length=40)
+    password: UserPassword
 
 
 # Properties to return via API, id is always required

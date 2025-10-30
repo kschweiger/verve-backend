@@ -48,3 +48,53 @@ def test_update_user_details(
             assert _response[attr] != value
         else:
             assert _response[attr] == value
+
+
+def test_update_password(
+    client: TestClient,
+    db: Session,
+    temp_user_id: UUID,
+) -> None:
+    user = db.get(User, temp_user_id)
+    assert user is not None
+    token = client.post(
+        "/login/access-token",
+        data={"username": user.email, "password": "temporarypassword"},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    ).json()["access_token"]
+
+    response = client.patch(
+        "/users/me/password",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"old_password": "temporarypassword", "new_password": "newtemppassword"},
+    )
+    assert response.status_code == 200
+
+
+@pytest.mark.parametrize(
+    "old_password",
+    [
+        "wrongpassword",
+        "newtemppassword",
+    ],
+)
+def test_update_password_error(
+    client: TestClient,
+    db: Session,
+    temp_user_id: UUID,
+    old_password: str,
+) -> None:
+    user = db.get(User, temp_user_id)
+    assert user is not None
+    token = client.post(
+        "/login/access-token",
+        data={"username": user.email, "password": "temporarypassword"},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    ).json()["access_token"]
+
+    response = client.patch(
+        "/users/me/password",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"old_password": old_password, "new_password": "newtemppassword"},
+    )
+    assert response.status_code == 400

@@ -10,10 +10,12 @@ from starlette.status import HTTP_400_BAD_REQUEST
 from verve_backend.api.common.db_utils import check_and_raise_primary_key
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import CurrentUser, UserSession
+from verve_backend.core.security import get_password_hash, verify_password
 from verve_backend.models import (
     ActivitySubType,
     ActivityType,
     User,
+    UserPassword,
     UserPublic,
     UserSettings,
     UserSettingsPublic,
@@ -31,6 +33,11 @@ class UserUpdate(BaseModel):
     name: str | None = None
     email: str | None = None
     full_name: str | None = None
+
+
+class PasswordChangeRequest(BaseModel):
+    old_password: str
+    new_password: UserPassword
 
 
 @router.get("/me", response_model=UserPublic)
@@ -62,8 +69,33 @@ def update_user_details(
     return user
 
 
+@router.patch("/me/password", response_model=UserPublic)
+def update_password(
+    *,
+    user_session: UserSession,
+    request: PasswordChangeRequest,
+) -> Any:
+    user_id, session = user_session
+    user = session.get(User, user_id)
+    assert user is not None
+    if not verify_password(request.old_password, user.hashed_password):
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST, detail="Old password is incorrect"
+        )
+
+    if request.old_password == request.new_password:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST, detail="New password must be different"
+        )
+
+    user.hashed_password = get_password_hash(request.new_password)
+    session.commit()
+
+    return user
+
+
 @router.put(
-    "/set_default_activity_type",
+    "/me/set_default_activity_type",
 )
 def set_default_activity_type(
     *,
