@@ -10,3 +10,4 @@ class Tag(StrEnum):
     IMAGE = auto()
     UPLOAD = auto()
     HEATMAP = auto()
+    EQUIPMENT = auto()

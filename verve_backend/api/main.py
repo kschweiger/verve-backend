@@ -6,6 +6,7 @@ from sqlmodel import text
 from verve_backend.api.deps import SessionDep
 from verve_backend.api.routes import (
     activity,
+    equipment,
     goal,
     heatmap,
     login,
@@ -26,6 +27,7 @@ api_router.include_router(heatmap.router)
 api_router.include_router(goal.router)
 api_router.include_router(resolver.router)
 api_router.include_router(statistics.router)
+api_router.include_router(equipment.router)
 
 if settings.ENVIRONMENT == "local":
     # api_router.include_router(private.router)

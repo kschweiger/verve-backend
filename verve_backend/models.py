@@ -1,13 +1,13 @@
 import re
 import uuid
 from datetime import datetime, timedelta
-from enum import StrEnum
+from enum import StrEnum, auto
 from typing import Annotated, Generic, TypeVar
 
 from geoalchemy2 import Geography, Geometry
 from pydantic import AfterValidator, BaseModel, EmailStr
 from sqlalchemy import JSON, Column
-from sqlmodel import Field, Index, SQLModel, UniqueConstraint
+from sqlmodel import Field, Index, Relationship, SQLModel, UniqueConstraint
 
 from verve_backend.enums import GoalAggregation, GoalType, TemportalType
 
@@ -31,6 +31,13 @@ class SupportedLocale(StrEnum):
     EN = "en"
 
 
+class EquipmentType(StrEnum):
+    BIKE = auto()
+    SHOES = auto()
+    SKIS = auto()
+    SNOWBOARD = auto()
+
+
 class HeatmapSettings(BaseModel):
     """Settings for the heatmap view."""
 
@@ -43,6 +50,23 @@ class HeatmapSettings(BaseModel):
 
 class ListResponse(BaseModel, Generic[T]):
     data: list[T]
+
+
+class ActivityEquipment(SQLModel, table=True):
+    __tablename__: str = "activity_equipment"  # type: ignore
+
+    activity_id: uuid.UUID = Field(
+        foreign_key="activities.id",
+        nullable=False,
+        ondelete="CASCADE",
+        primary_key=True,
+    )
+    equipment_id: uuid.UUID = Field(
+        foreign_key="equipment.id",
+        nullable=False,
+        ondelete="CASCADE",
+        primary_key=True,
+    )
 
 
 # Shared properties
@@ -173,7 +197,6 @@ class ActivityBase(SQLModel):
 
 class ActivityCreate(ActivityBase):
     name: str | None
-    pass
 
 
 class ActivityPublic(ActivityBase):
@@ -189,6 +212,45 @@ class Activity(ActivityBase, table=True):
         foreign_key="users.id", nullable=False, ondelete="CASCADE"
     )
     created_at: datetime = Field(default_factory=datetime.now)
+
+    equipment: list["Equipment"] = Relationship(
+        back_populates="activities",
+        link_model=ActivityEquipment,
+        sa_relationship_kwargs={
+            "lazy": "select",
+        },
+    )
+
+
+class EquipmentBase(SQLModel):
+    name: str
+    equipment_type: EquipmentType
+    brand: str | None = None
+    model: str | None = None
+    description: str | None = None
+    purchase_date: datetime | None = None
+
+
+class EquipmentCreate(EquipmentBase):
+    pass
+
+
+class EquipmentPublic(EquipmentBase):
+    id: uuid.UUID
+
+
+class Equipment(EquipmentBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", nullable=False, ondelete="CASCADE"
+    )
+    activities: list[Activity] = Relationship(
+        back_populates="equipment",
+        link_model=ActivityEquipment,
+        sa_relationship_kwargs={
+            "lazy": "select",
+        },
+    )
 
 
 class ActivitiesPublic(SQLModel):
