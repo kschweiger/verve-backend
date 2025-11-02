@@ -36,6 +36,7 @@ class EquipmentType(StrEnum):
     SHOES = auto()
     SKIS = auto()
     SNOWBOARD = auto()
+    HOMETRAINER = auto()
 
 
 class HeatmapSettings(BaseModel):

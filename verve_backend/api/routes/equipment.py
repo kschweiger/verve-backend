@@ -1,13 +1,12 @@
 import logging
-from typing import Any, TypeVar
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 from sqlmodel import select
 
 from verve_backend.api.definitions import Tag
-from verve_backend.api.deps import SessionDep, UserSession
+from verve_backend.api.deps import UserSession
 from verve_backend.models import (
     Activity,
     Equipment,
@@ -48,7 +47,6 @@ def get_equipment(*, user_session: UserSession) -> Any:
     _, session = user_session
 
     all_equipment = session.exec(select(Equipment)).all()
-    print(all_equipment)
 
     return ListResponse(data=[EquipmentPublic.model_validate(e) for e in all_equipment])
 
