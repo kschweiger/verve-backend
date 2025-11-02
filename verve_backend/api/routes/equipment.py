@@ -4,23 +4,28 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from sqlmodel import select
 
 from verve_backend.api.definitions import Tag
-from verve_backend.api.deps import UserSession
+from verve_backend.api.deps import SessionDep, UserSession
 from verve_backend.models import (
     Activity,
     Equipment,
     EquipmentCreate,
     EquipmentPublic,
+    EquipmentType,
+    ListResponse,
 )
-
-T = TypeVar("T", int, float)
-
 
 # logger = logging.getLogger(__name__)
 logger = logging.getLogger("uvicorn.error")
 
 router = APIRouter(prefix="/equipment", tags=[Tag.EQUIPMENT])
+
+
+@router.get("/types", response_model=ListResponse[EquipmentType])
+def get_equipment_types() -> Any:
+    return ListResponse(data=[e for e in EquipmentType])
 
 
 @router.post("/", response_model=EquipmentPublic)
@@ -38,11 +43,17 @@ def create_equipment(
     return equipment
 
 
-class ActivityEquipmentResponse(BaseModel):
-    equipment: list[EquipmentPublic]
+@router.get("/", response_model=ListResponse[EquipmentPublic])
+def get_equipment(*, user_session: UserSession) -> Any:
+    _, session = user_session
+
+    all_equipment = session.exec(select(Equipment)).all()
+    print(all_equipment)
+
+    return ListResponse(data=[EquipmentPublic.model_validate(e) for e in all_equipment])
 
 
-@router.get("/activity/{activity_id}", response_model=ActivityEquipmentResponse)
+@router.get("/activity/{activity_id}", response_model=ListResponse[EquipmentPublic])
 def get_equipment_for_activity(
     *,
     user_session: UserSession,
@@ -53,8 +64,8 @@ def get_equipment_for_activity(
     if not activity:
         raise HTTPException(status_code=404, detail="Activity not found")
 
-    return ActivityEquipmentResponse(
-        equipment=[EquipmentPublic.model_validate(e) for e in activity.equipment]
+    return ListResponse(
+        data=[EquipmentPublic.model_validate(e) for e in activity.equipment]
     )
 
 

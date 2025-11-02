@@ -13,6 +13,12 @@ engine = get_engine(echo=True)
 SQLModel.metadata.drop_all(engine)  # DANGERZONE:
 SQLModel.metadata.create_all(engine)
 
+print("---------------------------------------")
+print("---------------------------------------")
+print("---------------------------------------")
+print("---------------------------------------")
+print("---------------------------------------")
+print("---------------------------------------")
 with Session(engine) as session:
     setup_db(session)
 
@@ -55,6 +61,37 @@ with Session(engine) as session:
             name=None,
         ),
         user=created_users[1],
+    )
+
+    crud.create_equipment(
+        session=session,
+        data=models.EquipmentCreate(
+            name="Road Bike",
+            equipment_type=models.EquipmentType.BIKE,
+            brand="Trek",
+            model="Domane 5 (2024)",
+        ),
+        user_id=created_users[0].id,
+        activity_ids=[activity_1.id],
+    )
+    crud.create_equipment(
+        session=session,
+        data=models.EquipmentCreate(
+            name="Road Shoes",
+            equipment_type=models.EquipmentType.SHOES,
+        ),
+        user_id=created_users[0].id,
+        activity_ids=None,  # [activity_1.id],
+    )
+    crud.create_equipment(
+        session=session,
+        data=models.EquipmentCreate(
+            name="Cross-Country skies",
+            equipment_type=models.EquipmentType.SKIS,
+            brand="Fischer",
+            model="Speedmax 3D",
+        ),
+        user_id=created_users[1].id,
     )
 
     crud.create_goal(

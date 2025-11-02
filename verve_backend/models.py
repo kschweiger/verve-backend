@@ -23,7 +23,7 @@ PositiveNumber = Annotated[T, AfterValidator(postitive)]
 UserPassword = Annotated[str, Field(min_length=8, max_length=40)]
 
 
-T = TypeVar("T")
+U = TypeVar("U")
 
 
 class SupportedLocale(StrEnum):
@@ -48,8 +48,8 @@ class HeatmapSettings(BaseModel):
     )
 
 
-class ListResponse(BaseModel, Generic[T]):
-    data: list[T]
+class ListResponse(BaseModel, Generic[U]):
+    data: list[U]
 
 
 class ActivityEquipment(SQLModel, table=True):

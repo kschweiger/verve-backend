@@ -7,7 +7,6 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, select, text
 
 from verve_backend import crud
-from verve_backend.api.routes.equipment import ActivityEquipmentResponse
 from verve_backend.models import (
     Activity,
     ActivityCreate,
@@ -15,6 +14,7 @@ from verve_backend.models import (
     EquipmentCreate,
     EquipmentPublic,
     EquipmentType,
+    ListResponse,
     User,
 )
 
@@ -165,8 +165,8 @@ def test_get_equipment_for_activity(
     )
     print(response.json())
     assert response.status_code == 200
-    data = ActivityEquipmentResponse.model_validate(response.json())
-    assert len(data.equipment) == 1
+    data = ListResponse.model_validate(response.json())
+    assert len(data.data) == 1
 
 
 def test_add_equipment(

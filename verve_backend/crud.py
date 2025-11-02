@@ -13,13 +13,15 @@ from verve_backend.api.deps import SupportedLocale
 from verve_backend.core.config import settings
 from verve_backend.core.security import get_password_hash, verify_password
 from verve_backend.enums import GoalAggregation, GoalType
-from verve_backend.exceptions import InvalidCombinationError
+from verve_backend.exceptions import InvalidCombinationError, InvalidDataError
 from verve_backend.models import (
     Activity,
     ActivityCreate,
     ActivitySubType,
     ActivityType,
     ActivityTypeCreate,
+    Equipment,
+    EquipmentCreate,
     Goal,
     GoalCreate,
     TrackPoint,
@@ -242,7 +244,7 @@ def update_activity_with_track_data(
     session: Session,
     track: Track,
     activity_id: uuid.UUID | str,
-):
+) -> None:
     activity = session.get(Activity, activity_id)
     assert activity is not None, (
         "Function expects that activity is valid (exists and belongs to user)"
@@ -292,3 +294,29 @@ def create_goal(
     session.commit()
     session.refresh(db_obj)
     return db_obj
+def create_equipment(
+    *,
+    session: Session,
+    data: EquipmentCreate,
+    user_id: uuid.UUID | str,
+    activity_ids: list[uuid.UUID | str] | None = None,
+) -> Equipment:
+    if activity_ids is None:
+        activity_ids = []
+    if not all(session.get(Activity, aid) for aid in activity_ids):
+        raise InvalidDataError("One or more activity IDs are invalid")
+
+    equipment = Equipment.model_validate(data, update={"user_id": user_id})
+    session.add(equipment)
+    session.commit()
+    session.refresh(equipment)
+
+    for aid in activity_ids:
+        activity = session.get(Activity, aid)
+        assert activity is not None
+        activity.equipment.append(equipment)
+    session.commit()
+
+    return equipment
+
+

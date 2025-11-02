@@ -79,7 +79,7 @@ def setup_rls_policies(session: Session, schema: str = "verve") -> None:
 def setup_db(session: Session, schema: str = "verve") -> None:
     """Run full database setup (activity types + RLS)."""
     setup_activity_types(session)
-    # setup_rls_policies(session, schema)
+    setup_rls_policies(session, schema)
 
 
 def main() -> None:
