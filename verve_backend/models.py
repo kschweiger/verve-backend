@@ -452,3 +452,43 @@ class UserSettings(UserSettingsBase, table=True):
     user_id: uuid.UUID = Field(
         foreign_key="users.id", primary_key=True, ondelete="CASCADE"
     )
+
+
+class HighlightMetric(StrEnum):
+    DURATION = auto()
+    DISTANCE = auto()
+    ELEVATION_CHANGE_UP = auto()
+    AVG_SPEED = auto()
+    MAX_SPEED = auto()
+
+
+class HighlightTimeScope(StrEnum):
+    YEARLY = auto()
+    LIFETIME = auto()
+
+
+class ActivityHighlight(SQLModel, table=True):
+    __tablename__: str = "activity_highlights"  # type: ignore
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", nullable=False, index=True)
+    activity_id: uuid.UUID = Field(foreign_key="activities.id", nullable=False)
+    type_id: PositiveNumber[int] = Field(foreign_key="activity_type.id", nullable=False)
+
+    metric: HighlightMetric
+    scope: HighlightTimeScope
+    year: int | None = Field(default=None)
+    value: float
+    rank: int
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "metric",
+            "scope",
+            "year",
+            "rank",
+            "type_id",
+            name="uix_highlight_rank",
+        ),
+    )
