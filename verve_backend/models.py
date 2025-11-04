@@ -459,7 +459,16 @@ class HighlightMetric(StrEnum):
     DISTANCE = auto()
     ELEVATION_CHANGE_UP = auto()
     AVG_SPEED = auto()
+    AVG_POWER = auto()
     MAX_SPEED = auto()
+    MAX_POWER = auto()
+    AVG_POWER1MIN = auto()
+    AVG_POWER2MIN = auto()
+    AVG_POWER5MIN = auto()
+    AVG_POWER10MIN = auto()
+    AVG_POWER20MIN = auto()
+    AVG_POWER30MIN = auto()
+    AVG_POWER60MIN = auto()
 
 
 class HighlightTimeScope(StrEnum):

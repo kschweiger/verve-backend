@@ -1,3 +1,1 @@
-from .calculators import calculate_duration
-
-__all__ = ["calculate_duration"]
+import verve_backend.highlights.calculators  # noqa: F401

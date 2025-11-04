@@ -13,8 +13,14 @@ CalculatorFunc: TypeAlias = Callable[[UUID, Session], timedelta | float | None]
 
 
 class Registry:
-    def __init__(self) -> None:
+    def __init__(
+        self, standard_calculators: dict[HighlightMetric, CalculatorFunc] | None = None
+    ) -> None:
         self.calculators: dict[HighlightMetric, CalculatorFunc] = {}
+
+        if standard_calculators:
+            for metric, function in standard_calculators.items():
+                self.add(metric)(function)
 
     def add(
         self, metric: HighlightMetric
