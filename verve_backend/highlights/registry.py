@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 from datetime import timedelta
 from typing import Callable, TypeAlias
 from uuid import UUID
@@ -9,9 +10,17 @@ from verve_backend.models import HighlightMetric
 
 logger = logging.getLogger("uvicorn.error")
 
-CalculatorFunc: TypeAlias = Callable[[UUID, Session], timedelta | float | None]
+
+@dataclass
+class CalculatorResult:
+    value: timedelta | int | float
+    track_id: int | None = None
 
 
+CalculatorFunc: TypeAlias = Callable[[UUID, UUID, Session], CalculatorResult | None]
+
+
+# 1e3fdfee-8697-42ef-bed1-d95551da823c
 class Registry:
     def __init__(
         self, standard_calculators: dict[HighlightMetric, CalculatorFunc] | None = None
@@ -29,8 +38,7 @@ class Registry:
 
         def decorator(func: CalculatorFunc) -> CalculatorFunc:
             logger.debug(
-                "Registering calculator function '%s' for metric '%s'",
-                func.__name__,
+                "Registering calculator function for metric '%s'",
                 metric.name,
             )
             if metric in self.calculators:
@@ -41,18 +49,19 @@ class Registry:
         return decorator
 
     def run_all(
-        self, activity_id: UUID, session: Session
+        self, activity_id: UUID, user_id: UUID, session: Session
     ) -> dict[HighlightMetric, timedelta | float | None]:
         """Runs all registered calculators for a given activity."""
         results = {}
         for metric, calculator_func in self.calculators.items():
             try:
-                results[metric] = calculator_func(activity_id, session)
+                results[metric] = calculator_func(activity_id, user_id, session)
             except Exception:
                 logger.exception(
-                    "Calculator for metric '%s' failed for activity '%s'",
+                    "Calculator for metric '%s' failed for activity '%s' (user %s)",
                     metric.name,
                     activity_id,
+                    user_id,
                 )
                 results[metric] = None
         return results

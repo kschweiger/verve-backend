@@ -32,7 +32,7 @@ async def run_for_activity(
 
     print(user_id)
     print(registry.calculators)
-    print(registry.run_all(id, session))
+    print(registry.run_all(id, uuid.UUID(user_id), session))
     metrics = _get_window_metric_from_track(
         session=session,
         activity_id=id,

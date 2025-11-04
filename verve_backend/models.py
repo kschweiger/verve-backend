@@ -488,6 +488,7 @@ class ActivityHighlight(SQLModel, table=True):
     scope: HighlightTimeScope
     year: int | None = Field(default=None)
     value: float
+    track_id: int | None = Field(default=None)
     rank: int
 
     __table_args__ = (
