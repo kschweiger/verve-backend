@@ -137,10 +137,12 @@ def get_points(
     # EPSG:4326 is WGS84 (lat/lon), utm_srid is your target UTM zone
     transformer = Transformer.from_crs("EPSG:4326", f"EPSG:{utm_srid}", always_xy=True)
 
+    _global_id = 0
     for i, segment in enumerate(track.track.segments):
         for point in segment.points:
             utm_x, utm_y = transformer.transform(point.longitude, point.latitude)
             point_model_data = {
+                "id": _global_id,
                 "activity_id": activity_id,
                 "user_id": user_id,
                 "segment_id": i,
@@ -161,6 +163,7 @@ def get_points(
                     point_model_data["extensions"][extension] = value
 
             _point = TrackPoint.model_validate(point_model_data)
+            _global_id += 1
             current_batch.append(_point)
             if len(current_batch) >= batch_size:
                 yield current_batch
@@ -294,6 +297,8 @@ def create_goal(
     session.commit()
     session.refresh(db_obj)
     return db_obj
+
+
 def create_equipment(
     *,
     session: Session,

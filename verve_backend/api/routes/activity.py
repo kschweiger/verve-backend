@@ -238,7 +238,7 @@ def create_auto_activity(
     # passed as well or None
     _sub_type_id = settings.defautl_sub_type_id if type_id is None else sub_type_id
     activity = Activity(
-        user_id=user_id,
+        user_id=uuid.UUID(user_id),
         start=datetime.datetime.now(),
         created_at=datetime.datetime.now(),
         duration=datetime.timedelta(seconds=1),
@@ -257,7 +257,7 @@ def create_auto_activity(
     # TODO: Add error handling that removes the activity again
     track, n_points = add_track(
         activity_id=activity.id,
-        user_id=user_id,
+        user_id=uuid.UUID(user_id),
         session=session,
         obj_store_client=obj_store_client,
         file=file,

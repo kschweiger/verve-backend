@@ -262,12 +262,12 @@ class ActivitiesPublic(SQLModel):
 class TrackPoint(SQLModel, table=True):
     __tablename__ = "track_points"  # type: ignore
 
-    id: int | None = Field(default=None, primary_key=True)
+    id: int = Field(primary_key=True)
     activity_id: uuid.UUID = Field(
-        foreign_key="activities.id", nullable=False, index=True
+        foreign_key="activities.id", nullable=False, primary_key=True
     )
     user_id: uuid.UUID = Field(
-        foreign_key="users.id", nullable=False, ondelete="CASCADE", index=True
+        foreign_key="users.id", nullable=False, ondelete="CASCADE", primary_key=True
     )
     segment_id: int = Field(...)
     geography: str = Field(sa_column=Column(Geography("POINT", 4326)))

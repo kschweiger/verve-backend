@@ -74,7 +74,13 @@ def get_track_data(user_session: UserSession, activity_id: uuid.UUID) -> Any:
         raise HTTPException(status_code=404, detail="Activity not found")
 
     check_stmt = (
-        select(TrackPoint.id).where(TrackPoint.activity_id == activity_id).limit(1)
+        select(
+            TrackPoint.id,
+            TrackPoint.user_id,
+            TrackPoint.activity_id,
+        )
+        .where(TrackPoint.activity_id == activity_id)
+        .limit(1)
     )
     if not session.exec(check_stmt).first():
         return ListResponse(data=[])
