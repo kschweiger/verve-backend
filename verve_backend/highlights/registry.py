@@ -20,7 +20,6 @@ class CalculatorResult:
 CalculatorFunc: TypeAlias = Callable[[UUID, UUID, Session], CalculatorResult | None]
 
 
-# 1e3fdfee-8697-42ef-bed1-d95551da823c
 class Registry:
     def __init__(
         self, standard_calculators: dict[HighlightMetric, CalculatorFunc] | None = None

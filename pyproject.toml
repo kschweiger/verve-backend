@@ -10,7 +10,7 @@ dependencies = [
   "boto3>=1.40.14",
   "boto3-stubs[s3]>=1.40.21",
   "fastapi[standard]>=0.115.12",
-  "geo-track-analyzer>=1.7.0",
+  "geo-track-analyzer @ git+https://github.com/kschweiger/track_analyzer@v2",
   "geoalchemy2>=0.17.1",
   "passlib>=1.7.4",
   "psycopg>=3.2.12",
@@ -69,10 +69,10 @@ dev = [
   { include-group = "test" },
 ]
 test = [
-    "pytest>=8.4.2",
-    "pytest-cov>=7.0.0",
-    "pytest-mock>=3.15.1",
-    "pytest-sugar>=1.1.1",
+  "pytest>=8.4.2",
+  "pytest-cov>=7.0.0",
+  "pytest-mock>=3.15.1",
+  "pytest-sugar>=1.1.1",
 ]
 [tool.uv]
 package = true

@@ -276,8 +276,15 @@ def create_auto_activity(
     activity.moving_duration = datetime.timedelta(
         days=0, seconds=overview.moving_time_seconds
     )
-    activity.avg_speed = overview.avg_velocity_kmh
-    activity.max_speed = overview.max_velocity_kmh
+    if overview.velocity_kmh:
+        activity.avg_speed = overview.velocity_kmh.avg
+        activity.max_speed = overview.velocity_kmh.max
+    if overview.power:
+        activity.avg_power = overview.power.avg
+        activity.max_power = overview.power.max
+    if overview.heartrate:
+        activity.avg_heartrate = overview.heartrate.avg
+        activity.max_heartrate = overview.heartrate.max
     activity.name = get_activity_name(
         activity_type.name.lower().replace(" ", "_"),
         first_point_time,
