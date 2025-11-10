@@ -476,13 +476,7 @@ class HighlightTimeScope(StrEnum):
     LIFETIME = auto()
 
 
-class ActivityHighlight(SQLModel, table=True):
-    __tablename__: str = "activity_highlights"  # type: ignore
-
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    user_id: uuid.UUID = Field(
-        foreign_key="users.id", nullable=False, index=True, ondelete="CASCADE"
-    )
+class ActivityHighlightBase(SQLModel):
     activity_id: uuid.UUID = Field(foreign_key="activities.id", nullable=False)
     type_id: PositiveNumber[int] = Field(foreign_key="activity_type.id", nullable=False)
 
@@ -493,6 +487,18 @@ class ActivityHighlight(SQLModel, table=True):
     track_id: int | None = Field(default=None)
     rank: int
 
+
+class ActivityHighlightPublic(ActivityHighlightBase):
+    value: float | int | timedelta  # type: ignore
+
+
+class ActivityHighlight(ActivityHighlightBase, table=True):
+    __tablename__: str = "activity_highlights"  # type: ignore
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", nullable=False, index=True, ondelete="CASCADE"
+    )
     __table_args__ = (
         UniqueConstraint(
             "user_id",

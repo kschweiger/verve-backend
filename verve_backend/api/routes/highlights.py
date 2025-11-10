@@ -1,13 +1,20 @@
 import logging
 import uuid
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
+from sqlmodel import select
 
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import UserSession
-from verve_backend.highlights.calculators import _get_window_metric_from_track
-from verve_backend.highlights.registry import registry
-from verve_backend.models import Activity
+from verve_backend.highlights.utils import get_public_highlight
+from verve_backend.models import (
+    Activity,
+    ActivityHighlight,
+    ActivityHighlightPublic,
+    HighlightTimeScope,
+    ListResponse,
+)
 
 # logger = logging.getLogger(__name__)
 logger = logging.getLogger("uvicorn.error")
@@ -20,25 +27,28 @@ router = APIRouter(
 )
 
 
-@router.get("/")
-async def run_for_activity(
+@router.get("/activity/{id}", response_model=ListResponse[ActivityHighlightPublic])
+async def get_highlights_for_activity(
     user_session: UserSession,
     id: uuid.UUID,
-):
-    user_id, session = user_session
+    year: int | None = None,
+) -> Any:
+    """
+    Get all highlight metrics for a given activity.
+    """
+    _, session = user_session
+
     activity = session.get(Activity, id)
     if not activity:
         raise HTTPException(status_code=404, detail="Activity not found")
 
-    print(user_id)
-    print(registry.calculators)
-    print(registry.run_all(id, uuid.UUID(user_id), session))
-    metrics = _get_window_metric_from_track(
-        session=session,
-        activity_id=id,
-        user_id=uuid.UUID(user_id),
-        metric="power",
-        minutes=1,
-        avg_over_windows=5,
-    )
-    print(metrics)
+    stmt = select(ActivityHighlight).where(ActivityHighlight.activity_id == id)
+    if year is not None:
+        stmt = stmt.where(ActivityHighlight.scope == HighlightTimeScope.YEARLY)
+        stmt = stmt.where(ActivityHighlight.year == year)
+    else:
+        stmt = stmt.where(ActivityHighlight.scope == HighlightTimeScope.LIFETIME)
+
+    highlights = session.exec(stmt).all()
+
+    return ListResponse(data=[get_public_highlight(ah) for ah in highlights])

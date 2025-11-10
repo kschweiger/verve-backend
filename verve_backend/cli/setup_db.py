@@ -22,6 +22,7 @@ ACTIVITY_TYPES = {
 
 RSL_TABLES = [
     ("activity", "activities"),
+    ("activity_highlights", "activity_highlights"),
     ("track_point", "track_points"),
     ("goal", "goals"),
     ("raw_track_data", "raw_track_data"),
