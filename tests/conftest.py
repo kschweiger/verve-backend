@@ -1,10 +1,12 @@
 import os
+import random
 from datetime import datetime, timedelta
 from typing import Any, Generator
 from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
+from geo_track_analyzer import PyTrack
 from sqlmodel import Session, SQLModel
 
 
@@ -63,9 +65,10 @@ def temp_user_id() -> Generator[UUID, Any, Any]:
 
     engine = get_engine(echo=False, rls=False)
 
+    random_suffix = random.randint(100000, 999999)
     _user = UserCreate(
-        name="temp_user",
-        email="temp@user.mail",
+        name=f"temp_user_{random_suffix}",
+        email=f"temp_{random_suffix}@user.mail",
         full_name="Temp User",
         password="temporarypassword",
     )
@@ -80,6 +83,46 @@ def temp_user_id() -> Generator[UUID, Any, Any]:
         session.delete(settings)
         session.delete(user)
         session.commit()
+
+
+@pytest.fixture
+def dummy_track() -> PyTrack:
+    start_time = datetime(2024, 1, 15, 10, 0, 0)
+    # Generate 122 points (one every 30 seconds for 61 minutes)
+    num_points = 122
+    points = []
+    elevations = []
+    times = []
+    heartrates = []
+    powers = []
+    cadences = []
+    temperatures = []
+
+    base_lat, base_lon = 48.1351, 11.5820
+    for i in range(num_points):
+        # Simulate a cycling route with gradual position changes (~25 km/h average)
+        points.append((base_lat + i * 0.0015, base_lon + i * 0.0015))
+        # Varying elevation with some climbing
+        elevations.append(520.0 + (i % 20) * 2.0 + (i // 40) * 10.0)
+        times.append(start_time + timedelta(seconds=i * 30))
+        # Realistic cycling metrics
+        heartrates.append(120 + (i % 30) + (i // 60) * 5)
+        powers.append(180 + (i % 40) * 2 + (i // 50) * 10)
+        cadences.append(85 + (i % 10))
+        temperatures.append(18.5 + (i / num_points) * 2.0)
+
+    track = PyTrack(
+        points=points,
+        elevations=elevations,
+        times=times,
+        extensions={
+            "heartrate": heartrates,
+            "power": powers,
+            "cadence": cadences,
+            "temperature": temperatures,
+        },
+    )
+    return track
 
 
 @pytest.fixture(scope="session", autouse=True)

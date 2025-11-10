@@ -10,7 +10,7 @@ WITH power_windows AS (
       ORDER BY time
       RANGE BETWEEN INTERVAL '1 minute' * :minutes PRECEDING AND CURRENT ROW
     ) AS avg_window
-  FROM verve.track_points
+  FROM track_points
   WHERE power IS NOT NULL
     AND activity_id = :activity_id
     AND user_id = :user_id

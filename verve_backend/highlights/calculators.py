@@ -54,8 +54,8 @@ def calculate_duration(
     )
     if value is None:
         value = _get_value_from_acitivty_tabel(session, activity_id, Activity.duration)
-
-    return CalculatorResult(value=value) if value else None
+    assert isinstance(value, timedelta)
+    return CalculatorResult(value=value.total_seconds()) if value else None
 
 
 for metric, col in [

@@ -20,7 +20,7 @@ from verve_backend.api.common.db_utils import (
     validate_sub_type_id,
 )
 from verve_backend.api.common.locale import get_activity_name
-from verve_backend.api.common.track import add_track
+from verve_backend.api.common.track import add_track, update_activity_with_track
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import (
     LocaleQuery,
@@ -38,6 +38,7 @@ from verve_backend.models import (
     Image,
     UserSettings,
 )
+from verve_backend.tasks import process_activity_highlights
 
 
 class ActivityUpdate(BaseModel):
@@ -218,7 +219,8 @@ def create_auto_activity(
     sub_type_id: int | None = None,
     locale: LocaleQuery | None = None,
 ) -> Any:
-    user_id, session = user_session
+    _user_id, session = user_session
+    user_id = uuid.UUID(_user_id)
 
     settings = session.get(UserSettings, user_id)
     assert settings
@@ -238,7 +240,7 @@ def create_auto_activity(
     # passed as well or None
     _sub_type_id = settings.defautl_sub_type_id if type_id is None else sub_type_id
     activity = Activity(
-        user_id=uuid.UUID(user_id),
+        user_id=user_id,
         start=datetime.datetime.now(),
         created_at=datetime.datetime.now(),
         duration=datetime.timedelta(seconds=1),
@@ -257,34 +259,16 @@ def create_auto_activity(
     # TODO: Add error handling that removes the activity again
     track, n_points = add_track(
         activity_id=activity.id,
-        user_id=uuid.UUID(user_id),
+        user_id=user_id,
         session=session,
         obj_store_client=obj_store_client,
         file=file,
     )
 
-    logger.debug("Getting actuivity infos from track ")
-    overview = track.get_track_overview()
+    update_activity_with_track(activity=activity, track=track)
+
     first_point_time = track.track.segments[0].points[0].time
     assert first_point_time is not None
-    if first_point_time:
-        activity.start = first_point_time
-    activity.distance = overview.total_distance_km
-    activity.duration = datetime.timedelta(days=0, seconds=overview.total_time_seconds)
-    activity.elevation_change_up = overview.uphill_elevation
-    activity.elevation_change_down = overview.downhill_elevation
-    activity.moving_duration = datetime.timedelta(
-        days=0, seconds=overview.moving_time_seconds
-    )
-    if overview.velocity_kmh:
-        activity.avg_speed = overview.velocity_kmh.avg
-        activity.max_speed = overview.velocity_kmh.max
-    if overview.power:
-        activity.avg_power = overview.power.avg
-        activity.max_power = overview.power.max
-    if overview.heartrate:
-        activity.avg_heartrate = overview.heartrate.avg
-        activity.max_heartrate = overview.heartrate.max
     activity.name = get_activity_name(
         activity_type.name.lower().replace(" ", "_"),
         first_point_time,
@@ -295,6 +279,8 @@ def create_auto_activity(
     session.refresh(activity)
 
     session.commit()
+    process_activity_highlights.delay(activity.id, user_id)
+
     return activity
 
 

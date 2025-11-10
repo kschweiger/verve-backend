@@ -1,3 +1,4 @@
+import datetime
 import logging
 import uuid
 from io import BytesIO
@@ -84,3 +85,27 @@ def add_track(
     logger.info("Inserting took: %.2f seconds", perf_counter() - pre)
 
     return track, n_points
+
+
+def update_activity_with_track(activity: Activity, track: Track) -> None:
+    logger.debug("Getting actuivity infos from track ")
+    overview = track.get_track_overview()
+    first_point_time = track.track.segments[0].points[0].time
+    assert first_point_time is not None
+    activity.start = first_point_time
+    activity.distance = overview.total_distance_km
+    activity.duration = datetime.timedelta(days=0, seconds=overview.total_time_seconds)
+    activity.elevation_change_up = overview.uphill_elevation
+    activity.elevation_change_down = overview.downhill_elevation
+    activity.moving_duration = datetime.timedelta(
+        days=0, seconds=overview.moving_time_seconds
+    )
+    if overview.velocity_kmh:
+        activity.avg_speed = overview.velocity_kmh.avg
+        activity.max_speed = overview.velocity_kmh.max
+    if overview.power:
+        activity.avg_power = overview.power.avg
+        activity.max_power = overview.power.max
+    if overview.heartrate:
+        activity.avg_heartrate = overview.heartrate.avg
+        activity.max_heartrate = overview.heartrate.max

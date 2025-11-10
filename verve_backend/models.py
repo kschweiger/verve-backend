@@ -480,7 +480,9 @@ class ActivityHighlight(SQLModel, table=True):
     __tablename__: str = "activity_highlights"  # type: ignore
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    user_id: uuid.UUID = Field(foreign_key="users.id", nullable=False, index=True)
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", nullable=False, index=True, ondelete="CASCADE"
+    )
     activity_id: uuid.UUID = Field(foreign_key="activities.id", nullable=False)
     type_id: PositiveNumber[int] = Field(foreign_key="activity_type.id", nullable=False)
 

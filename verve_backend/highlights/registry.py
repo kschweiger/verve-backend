@@ -1,6 +1,5 @@
 import logging
 from dataclasses import dataclass
-from datetime import timedelta
 from typing import Callable, TypeAlias
 from uuid import UUID
 
@@ -13,7 +12,7 @@ logger = logging.getLogger("uvicorn.error")
 
 @dataclass
 class CalculatorResult:
-    value: timedelta | int | float
+    value: int | float
     track_id: int | None = None
 
 
@@ -49,7 +48,7 @@ class Registry:
 
     def run_all(
         self, activity_id: UUID, user_id: UUID, session: Session
-    ) -> dict[HighlightMetric, timedelta | float | None]:
+    ) -> dict[HighlightMetric, CalculatorResult | None]:
         """Runs all registered calculators for a given activity."""
         results = {}
         for metric, calculator_func in self.calculators.items():
