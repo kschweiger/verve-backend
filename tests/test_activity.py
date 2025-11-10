@@ -3,11 +3,13 @@ from importlib import resources
 
 import pytest
 from fastapi.testclient import TestClient
+from pytest_mock import MockerFixture
 
 from verve_backend.models import (
     ActivitiesPublic,
     ActivityCreate,
     ActivityPublic,
+    UserPublic,
 )
 
 
@@ -67,9 +69,13 @@ def test_create_activity_wo_name(
 
 
 def test_auto_activity(
+    mocker: MockerFixture,
     client: TestClient,
     user1_token: str,
 ) -> None:
+    mock_delay = mocker.patch(
+        "verve_backend.api.routes.activity.process_activity_highlights.delay"
+    )
     with resources.files("tests.resources").joinpath("MyWhoosh_1.fit").open("rb") as f:
         fit_content = f.read()
 
@@ -95,6 +101,21 @@ def test_auto_activity(
     raw_data = response_track.json()
     print(raw_data)
     assert len(raw_data["data"]) > 0
+
+    mock_delay.assert_called_once()
+    call_args, _ = mock_delay.call_args
+
+    # call_args is a tuple of the positional arguments: (activity_id, user_id)
+    assert len(call_args) == 2
+    assert call_args[0] == activity.id
+
+    response = client.get(
+        "/users/me", headers={"Authorization": f"Bearer {user1_token}"}
+    )
+    assert response.status_code == 200
+    user = UserPublic.model_validate(response.json())
+
+    assert call_args[1] == user.id
 
 
 @pytest.mark.parametrize(
