@@ -262,8 +262,18 @@ def update_activity_with_track_data(
     activity.elevation_change_up = overview.uphill_elevation
     activity.elevation_change_down = overview.downhill_elevation
     activity.moving_duration = timedelta(days=0, seconds=overview.moving_time_seconds)
-    activity.avg_speed = overview.avg_velocity_kmh
-    activity.max_speed = overview.max_velocity_kmh
+    assert overview.velocity_kmh
+    activity.avg_speed = overview.velocity_kmh.avg
+    activity.max_speed = overview.velocity_kmh.max
+    if overview.power:
+        activity.avg_speed = overview.power.avg
+        activity.max_speed = overview.power.max
+    if overview.heartrate:
+        activity.avg_speed = overview.heartrate.avg
+        activity.max_speed = overview.heartrate.max
+    if overview.cadence:
+        activity.avg_speed = overview.cadence.avg
+        activity.max_speed = overview.cadence.max
     session.add(activity)
     session.commit()
     session.refresh(activity)

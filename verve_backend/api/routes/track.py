@@ -20,6 +20,7 @@ from verve_backend.models import (
     TrackPoint,
     TrackPointResponse,
 )
+from verve_backend.tasks import process_activity_highlights
 
 # logger = logging.getLogger(__name__)
 logger = logging.getLogger("uvicorn.error")
@@ -34,8 +35,8 @@ def add_track(
     activity_id: uuid.UUID,
     file: UploadFile,
 ) -> Any:
-    user_id, session = user_session
-
+    _user_id, session = user_session
+    user_id = uuid.UUID(_user_id)
     track, n_points = upload_track(
         activity_id=activity_id,
         user_id=user_id,
@@ -55,6 +56,8 @@ def add_track(
         logger.exception(e)
         logger.info("Removing track data")
         # TODO: Implment
+
+    process_activity_highlights.delay(activity_id, user_id)
 
     return JSONResponse(
         status_code=HTTP_201_CREATED,
