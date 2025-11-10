@@ -81,7 +81,9 @@ def test_update_highlights_first_entry(db: Session, temp_user_id: UUID) -> None:
     db.commit()
 
     # ASSERT: Check that the highlights were created correctly
-    highlights = db.exec(select(ActivityHighlight)).all()
+    highlights = db.exec(
+        select(ActivityHighlight).where(ActivityHighlight.user_id == user.id)
+    ).all()
     assert len(highlights) == 2, (
         "Should create one highlight for YEARLY and one for LIFETIME"
     )
@@ -131,6 +133,7 @@ def test_update_highlights_ranking_logic(db: Session, temp_user_id: UUID) -> Non
     stmt = (
         select(ActivityHighlight)
         .where(ActivityHighlight.scope == HighlightTimeScope.LIFETIME)
+        .where(ActivityHighlight.user_id == user.id)
         .order_by(ActivityHighlight.rank)
     )
     highlights = db.exec(stmt).all()
@@ -187,6 +190,7 @@ def test_update_highlights_across_different_years(
     stmt_lifetime = (
         select(ActivityHighlight)
         .where(ActivityHighlight.scope == HighlightTimeScope.LIFETIME)
+        .where(ActivityHighlight.user_id == user.id)
         .order_by(ActivityHighlight.rank)  # type: ignore
     )
     lifetime_highlights = db.exec(stmt_lifetime).all()
@@ -232,7 +236,9 @@ def test_process_activity_highlights_task(
     # ACT: Call the task function directly, not with .delay()
     process_activity_highlights(activity_id=activity.id, user_id=temp_user_id)
 
-    highlights = db.exec(select(ActivityHighlight)).all()
+    highlights = db.exec(
+        select(ActivityHighlight).where(ActivityHighlight.user_id == temp_user_id)
+    ).all()
     assert (
         len(highlights) == len(registry.calculators.keys()) * 2
     )  # Yearly and Lifetime
