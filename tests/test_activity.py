@@ -4,10 +4,12 @@ from importlib import resources
 import pytest
 from fastapi.testclient import TestClient
 from pytest_mock import MockerFixture
+from sqlmodel import Session, select
 
 from verve_backend.models import (
     ActivitiesPublic,
     ActivityCreate,
+    ActivityHighlight,
     ActivityPublic,
     UserPublic,
 )
@@ -116,6 +118,45 @@ def test_auto_activity(
     user = UserPublic.model_validate(response.json())
 
     assert call_args[1] == user.id
+
+
+def test_auto_activity_e2e_with_eager_celery(
+    client: TestClient,
+    user2_token: str,
+    db: Session,
+    celery_eager,
+) -> None:
+    """
+    An end-to-end test for the auto activity creation flow.
+
+    By including the `celery_eager` fixture, we ensure that the highlight
+    task runs immediately and blocks until completion before the API call returns.
+    """
+    # ARRANGE
+    with resources.files("tests.resources").joinpath("MyWhoosh_1.fit").open("rb") as f:
+        fit_content = f.read()
+
+    # ACT: Call the API. The task will run synchronously in the same thread.
+    response = client.post(
+        "/activity/auto/",
+        headers={"Authorization": f"Bearer {user2_token}"},
+        files={"file": ("MyWhoosh_1.fit", fit_content, "application/octet-stream")},
+    )
+    assert response.status_code == 200
+    activity_id = response.json()["id"]
+
+    # ASSERT: Check the database for the results of the now-completed task.
+    # Note: We use db_session here, which is the transactional session, to ensure
+    # we see the results of the API call's transaction.
+    highlights = db.exec(
+        select(ActivityHighlight).where(ActivityHighlight.activity_id == activity_id)
+    ).all()
+
+    assert len(highlights) > 0
+    # Example of a more specific check
+    distance_highlight = next((h for h in highlights if h.metric == "distance"), None)
+    assert distance_highlight is not None
+    assert distance_highlight.value > 0
 
 
 @pytest.mark.parametrize(

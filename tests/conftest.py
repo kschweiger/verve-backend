@@ -86,6 +86,22 @@ def temp_user_id() -> Generator[UUID, Any, Any]:
 
 
 @pytest.fixture
+def celery_eager(monkeypatch):
+    """
+    A pytest fixture that forces Celery to run tasks synchronously (eagerly)
+    for the duration of a single test by directly patching the existing
+    Celery app configuration object in memory.
+
+    This works even with a session-scoped TestClient.
+    """
+    from verve_backend.celery_app import celery as celery_app_instance
+
+    # Use monkeypatch to temporarily set 'task_always_eager' to True.
+    # The original value will be automatically restored after the test.
+    monkeypatch.setattr(celery_app_instance.conf, "task_always_eager", True)
+
+
+@pytest.fixture
 def dummy_track() -> PyTrack:
     start_time = datetime(2024, 1, 15, 10, 0, 0)
     # Generate 122 points (one every 30 seconds for 61 minutes)
