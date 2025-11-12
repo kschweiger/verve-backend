@@ -11,3 +11,4 @@ class Tag(StrEnum):
     UPLOAD = auto()
     HEATMAP = auto()
     EQUIPMENT = auto()
+    HIGHLIGHTS = auto()

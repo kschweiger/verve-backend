@@ -21,9 +21,7 @@ logger = logging.getLogger("uvicorn.error")
 
 router = APIRouter(
     prefix="/highlights",
-    tags=[
-        Tag.ACTIVITY,
-    ],
+    tags=[Tag.ACTIVITY, Tag.HIGHLIGHTS],
 )
 
 

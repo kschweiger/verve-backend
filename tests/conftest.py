@@ -86,6 +86,29 @@ def temp_user_id() -> Generator[UUID, Any, Any]:
 
 
 @pytest.fixture
+def temp_user_token(temp_user_id: UUID, client: TestClient) -> str:
+    from sqlmodel import Session
+
+    from verve_backend.core.db import get_engine
+    from verve_backend.models import User
+
+    engine = get_engine(echo=False, rls=False)
+
+    with Session(engine) as session:
+        user = session.get(User, temp_user_id)
+        if not user:
+            raise ValueError(f"User with id {temp_user_id} not found")
+
+        token = client.post(
+            "/login/access-token",
+            data={"username": user.email, "password": "temporarypassword"},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        ).json()["access_token"]
+
+    return token
+
+
+@pytest.fixture
 def celery_eager(monkeypatch):
     """
     A pytest fixture that forces Celery to run tasks synchronously (eagerly)
