@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from uuid import UUID
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
@@ -8,6 +9,7 @@ from verve_backend.models import (
     Activity,
     ActivityHighlight,
     ActivityHighlightPublic,
+    DictResponse,
     HighlightMetric,
     HighlightTimeScope,
     ListResponse,
@@ -88,3 +90,53 @@ def test_get_highlights_for_activity_nothing_in(
             assert isinstance(hl.value, int)
         else:
             assert isinstance(hl.value, float)
+
+
+@pytest.mark.parametrize("year", [2025, None])
+def test_get_highlights(
+    client: TestClient,
+    user1_token: str,
+    year: int | None,
+) -> None:
+    response = client.get(
+        "/highlights/",
+        headers={"Authorization": f"Bearer {user1_token}"},
+        params={"year": year} if year else {},
+    )
+    assert response.status_code == 200
+    results = DictResponse[
+        HighlightMetric, list[ActivityHighlightPublic]
+    ].model_validate(response.json())
+    assert len(results.data) > 0
+    for key, value in results.data.items():
+        HighlightMetric(key)
+        assert isinstance(value, list)
+        assert len(value) > 0
+        assert value[0].scope == (
+            HighlightTimeScope.YEARLY if year else HighlightTimeScope.LIFETIME
+        )
+
+
+@pytest.mark.parametrize("year", [2025, None])
+@pytest.mark.parametrize(
+    "metric",
+    [HighlightMetric.DISTANCE, HighlightMetric.DURATION, HighlightMetric.AVG_POWER5MIN],
+)
+def test_get_highlights_single_metric(
+    client: TestClient,
+    user1_token: str,
+    year: int | None,
+    metric: HighlightMetric,
+) -> None:
+    response = client.get(
+        f"/highlights/metric/{metric.value}",
+        headers={"Authorization": f"Bearer {user1_token}"},
+        params={"year": year} if year else {},
+    )
+    assert response.status_code == 200
+    results = ListResponse[ActivityHighlightPublic].model_validate(response.json())
+    assert len(results.data) > 0
+    assert all(
+        hl.scope == (HighlightTimeScope.YEARLY if year else HighlightTimeScope.LIFETIME)
+        for hl in results.data
+    )

@@ -1,12 +1,13 @@
 import os
 import random
 from datetime import datetime, timedelta
+from importlib import resources
 from typing import Any, Generator
 from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
-from geo_track_analyzer import PyTrack
+from geo_track_analyzer import FITTrack, PyTrack
 from sqlmodel import Session, SQLModel
 
 
@@ -191,6 +192,7 @@ def generate_data(session: Session) -> None:
         models,
     )
     from verve_backend.cli.setup_db import setup_db
+    from verve_backend.tasks import process_activity_highlights
 
     setup_db(session, "verve_testing")
     created_users = []
@@ -221,6 +223,23 @@ def generate_data(session: Session) -> None:
         ),
         user=created_users[0],
     )
+
+    resource_files = resources.files("tests.resources")
+
+    track = FITTrack((resource_files / "MyWhoosh_1.fit").read_bytes())
+    crud.insert_track(
+        session=session,
+        track=track,
+        activity_id=activity_1.id,
+        user_id=created_users[0].id,
+        batch_size=500,
+    )
+    crud.update_activity_with_track_data(
+        session=session,
+        activity_id=activity_1.id,
+        track=track,
+    )
+    process_activity_highlights(activity_1.id, created_users[0].id)
 
     activity_2 = crud.create_activity(
         session=session,

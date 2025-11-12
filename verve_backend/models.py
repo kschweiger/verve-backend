@@ -24,6 +24,7 @@ UserPassword = Annotated[str, Field(min_length=8, max_length=40)]
 
 
 U = TypeVar("U")
+V = TypeVar("V")
 
 
 class SupportedLocale(StrEnum):
@@ -51,6 +52,10 @@ class HeatmapSettings(BaseModel):
 
 class ListResponse(BaseModel, Generic[U]):
     data: list[U]
+
+
+class DictResponse(BaseModel, Generic[U, V]):
+    data: dict[U, V]
 
 
 class ActivityEquipment(SQLModel, table=True):
