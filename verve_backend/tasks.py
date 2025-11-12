@@ -44,5 +44,6 @@ def process_activity_highlights(activity_id: UUID, user_id: UUID) -> None:
                     activity=activity,
                     metric=metric,
                     value=result.value,
+                    track_id=result.track_id,
                 )
                 session.commit()

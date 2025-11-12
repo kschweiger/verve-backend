@@ -17,8 +17,9 @@ def update_top_n_highlights(
     activity: Activity,
     metric: HighlightMetric,
     value: float | int,
+    track_id: int | None = None,
     n: int = 3,
-):
+) -> None:
     """
     Updates the top N highlights for a given metric, handling both
     YEARLY and LIFETIME scopes.
@@ -46,6 +47,7 @@ def update_top_n_highlights(
             value=value,
             rank=-1,
             type_id=activity.type_id,
+            track_id=track_id,
         )
         all_candidates = list(current_highlights) + [candidate]
         all_candidates.sort(key=lambda h: (h.value, h.activity_id), reverse=True)
