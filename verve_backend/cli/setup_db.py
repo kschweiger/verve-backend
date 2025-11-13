@@ -29,7 +29,6 @@ RSL_TABLES = [
     ("image", "image"),
     ("user_setting", "user_settings"),
     ("zone_interval", "zone_intervals"),
-    # ("activity_name", "activity_names"),
     ("equipment", "equipment"),
 ]
 

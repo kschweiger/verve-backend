@@ -27,7 +27,7 @@ def update_top_n_highlights(
     for scope in [HighlightTimeScope.YEARLY, HighlightTimeScope.LIFETIME]:
         year = activity.start.year if scope == HighlightTimeScope.YEARLY else None
 
-        # 1. Get current highlights (still needed to determine the new ranking)
+        # 1. Get current highlights
         stmt = select(ActivityHighlight).where(
             ActivityHighlight.user_id == user_id,
             ActivityHighlight.metric == metric,
@@ -57,7 +57,7 @@ def update_top_n_highlights(
         if not any(c.activity_id == activity.id for c in top_candidates):
             continue
 
-        # 4. Delete all existing highlights for this specific scope in one command.
+        # 4. Delete all existing highlights for this specific scope
         del_stmt = delete(ActivityHighlight).where(
             ActivityHighlight.user_id == user_id,  # type: ignore
             ActivityHighlight.metric == metric,  # type: ignore

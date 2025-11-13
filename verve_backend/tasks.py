@@ -20,9 +20,9 @@ def process_activity_highlights(activity_id: UUID, user_id: UUID) -> None:
     engine = get_engine()
     with Session(engine) as session:
         activity = session.get(Activity, activity_id)
+        # NOTE: Technically this should never happen. Log it for now
         if not activity:
             logger.error("Activity not found: %s", activity_id)
-            # Handle error, maybe log it
             return
         if activity.user_id != user_id:
             logger.error(
@@ -32,8 +32,6 @@ def process_activity_highlights(activity_id: UUID, user_id: UUID) -> None:
                 activity.user_id,
                 user_id,
             )
-            logger.info("%s %s", type(activity.user_id), type(user_id))
-            # Handle error, maybe log it
             return
 
         for metric, result in registry.run_all(activity_id, user_id, session).items():

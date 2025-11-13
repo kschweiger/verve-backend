@@ -7,7 +7,7 @@ from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
-from geo_track_analyzer import FITTrack, PyTrack
+from geo_track_analyzer import FITTrack, PyTrack, Track
 from sqlmodel import Session, SQLModel
 
 
@@ -184,6 +184,52 @@ def client() -> Generator[TestClient, None, None]:
         base_url=f"http://testserver{settings.API_V1_STR}",
     ) as c:
         yield c
+
+
+@pytest.fixture
+def create_dummy_activity(
+    session: Session,
+    user_id: UUID,
+    start: datetime,
+    distance: float,
+    type_id: int = 1,
+    track: Track | None = None,
+    name: str | None = None,
+):
+    """Creates a simple activity, saves it to the DB, and returns it."""
+    from verve_backend.api.common.track import update_activity_with_track
+    from verve_backend.crud import insert_track
+    from verve_backend.models import Activity
+
+    activity = Activity(
+        user_id=user_id,
+        start=start,
+        distance=distance,
+        duration=timedelta(minutes=60),
+        type_id=type_id,
+        sub_type_id=None,
+        name=f"Test Activity {distance}km" if name is None else name,
+    )
+    session.add(activity)
+    session.commit()
+    session.refresh(activity)
+
+    if track:
+        insert_track(
+            session=session,
+            track=track,
+            activity_id=activity.id,
+            user_id=user_id,
+        )
+        update_activity_with_track(activity=activity, track=track)
+
+        overview = track.get_track_overview()
+        activity.distance = overview.moving_distance_km
+        session.add(activity)
+        session.commit()
+        session.refresh(activity)
+
+    return activity
 
 
 def generate_data(session: Session) -> None:

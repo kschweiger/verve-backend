@@ -93,7 +93,6 @@ def get_highlights_by_metric(
 ) -> Any:
     _, session = user_session
 
-    print(metric, type(metric))
     stmt = select(ActivityHighlight).where(ActivityHighlight.metric == metric)
     if year is not None:
         stmt = stmt.where(ActivityHighlight.scope == HighlightTimeScope.YEARLY)
@@ -101,7 +100,6 @@ def get_highlights_by_metric(
     else:
         stmt = stmt.where(ActivityHighlight.scope == HighlightTimeScope.LIFETIME)
 
-    print(stmt)
     highlights = session.exec(stmt).all()
 
     results = [get_public_highlight(hl) for hl in highlights]
