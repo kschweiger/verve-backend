@@ -22,13 +22,13 @@ ACTIVITY_TYPES = {
 
 RSL_TABLES = [
     ("activity", "activities"),
+    ("activity_highlights", "activity_highlights"),
     ("track_point", "track_points"),
     ("goal", "goals"),
     ("raw_track_data", "raw_track_data"),
     ("image", "image"),
     ("user_setting", "user_settings"),
     ("zone_interval", "zone_intervals"),
-    ("activity_name", "activity_names"),
     ("equipment", "equipment"),
 ]
 
@@ -56,8 +56,8 @@ def setup_rls_policies(session: Session, schema: str = "verve") -> None:
     print("Setting up Row Level Security policies...")
     for relation_prefix, table_name in RSL_TABLES:
         try:
-            session.exec(
-                text(
+            session.exec(  # type: ignore
+                text(  # type: ignore
                     f"""
                 ALTER TABLE {schema}.{table_name} ENABLE ROW LEVEL SECURITY;
                 CREATE POLICY {relation_prefix}_isolation_policy

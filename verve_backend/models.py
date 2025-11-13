@@ -24,6 +24,7 @@ UserPassword = Annotated[str, Field(min_length=8, max_length=40)]
 
 
 U = TypeVar("U")
+V = TypeVar("V")
 
 
 class SupportedLocale(StrEnum):
@@ -51,6 +52,10 @@ class HeatmapSettings(BaseModel):
 
 class ListResponse(BaseModel, Generic[U]):
     data: list[U]
+
+
+class DictResponse(BaseModel, Generic[U, V]):
+    data: dict[U, V]
 
 
 class ActivityEquipment(SQLModel, table=True):
@@ -262,12 +267,12 @@ class ActivitiesPublic(SQLModel):
 class TrackPoint(SQLModel, table=True):
     __tablename__ = "track_points"  # type: ignore
 
-    id: int | None = Field(default=None, primary_key=True)
+    id: int = Field(primary_key=True)
     activity_id: uuid.UUID = Field(
-        foreign_key="activities.id", nullable=False, index=True
+        foreign_key="activities.id", nullable=False, primary_key=True
     )
     user_id: uuid.UUID = Field(
-        foreign_key="users.id", nullable=False, ondelete="CASCADE", index=True
+        foreign_key="users.id", nullable=False, ondelete="CASCADE", primary_key=True
     )
     segment_id: int = Field(...)
     geography: str = Field(sa_column=Column(Geography("POINT", 4326)))
@@ -451,4 +456,62 @@ class UserSettings(UserSettingsBase, table=True):
 
     user_id: uuid.UUID = Field(
         foreign_key="users.id", primary_key=True, ondelete="CASCADE"
+    )
+
+
+class HighlightMetric(StrEnum):
+    DURATION = auto()
+    DISTANCE = auto()
+    ELEVATION_CHANGE_UP = auto()
+    AVG_SPEED = auto()
+    AVG_POWER = auto()
+    MAX_SPEED = auto()
+    MAX_POWER = auto()
+    AVG_POWER1MIN = auto()
+    AVG_POWER2MIN = auto()
+    AVG_POWER5MIN = auto()
+    AVG_POWER10MIN = auto()
+    AVG_POWER20MIN = auto()
+    AVG_POWER30MIN = auto()
+    AVG_POWER60MIN = auto()
+
+
+class HighlightTimeScope(StrEnum):
+    YEARLY = auto()
+    LIFETIME = auto()
+
+
+class ActivityHighlightBase(SQLModel):
+    activity_id: uuid.UUID = Field(foreign_key="activities.id", nullable=False)
+    type_id: PositiveNumber[int] = Field(foreign_key="activity_type.id", nullable=False)
+
+    metric: HighlightMetric
+    scope: HighlightTimeScope
+    year: int | None = Field(default=None)
+    value: float
+    track_id: int | None = Field(default=None)
+    rank: int
+
+
+class ActivityHighlightPublic(ActivityHighlightBase):
+    value: float | int | timedelta  # type: ignore
+
+
+class ActivityHighlight(ActivityHighlightBase, table=True):
+    __tablename__: str = "activity_highlights"  # type: ignore
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", nullable=False, index=True, ondelete="CASCADE"
+    )
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "metric",
+            "scope",
+            "year",
+            "rank",
+            "type_id",
+            name="uix_highlight_rank",
+        ),
     )

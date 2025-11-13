@@ -9,6 +9,7 @@ from verve_backend.api.routes import (
     equipment,
     goal,
     heatmap,
+    highlights,
     login,
     resolver,
     statistics,
@@ -28,6 +29,8 @@ api_router.include_router(goal.router)
 api_router.include_router(resolver.router)
 api_router.include_router(statistics.router)
 api_router.include_router(equipment.router)
+api_router.include_router(highlights.router)
+
 
 if settings.ENVIRONMENT == "local":
     # api_router.include_router(private.router)

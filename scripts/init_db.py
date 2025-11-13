@@ -8,6 +8,7 @@ from verve_backend import crud, models
 from verve_backend.cli.setup_db import setup_db
 from verve_backend.core.db import get_engine
 from verve_backend.enums import GoalAggregation, GoalType, TemportalType
+from verve_backend.tasks import process_activity_highlights
 
 engine = get_engine(echo=True)
 SQLModel.metadata.drop_all(engine)  # DANGERZONE:
@@ -212,5 +213,7 @@ with Session(engine) as session:
                 activity_id=_activity.id,
                 track=track,
             )
+
+            process_activity_highlights(_activity.id, created_users[0].id)
             print("Added track %s" % i_track_added)
             i_track_added += 1

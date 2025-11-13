@@ -1,10 +1,13 @@
 import os
+import random
 from datetime import datetime, timedelta
+from importlib import resources
 from typing import Any, Generator
 from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
+from geo_track_analyzer import FITTrack, PyTrack, Track
 from sqlmodel import Session, SQLModel
 
 
@@ -63,9 +66,10 @@ def temp_user_id() -> Generator[UUID, Any, Any]:
 
     engine = get_engine(echo=False, rls=False)
 
+    random_suffix = random.randint(100000, 999999)
     _user = UserCreate(
-        name="temp_user",
-        email="temp@user.mail",
+        name=f"temp_user_{random_suffix}",
+        email=f"temp_{random_suffix}@user.mail",
         full_name="Temp User",
         password="temporarypassword",
     )
@@ -80,6 +84,85 @@ def temp_user_id() -> Generator[UUID, Any, Any]:
         session.delete(settings)
         session.delete(user)
         session.commit()
+
+
+@pytest.fixture
+def temp_user_token(temp_user_id: UUID, client: TestClient) -> str:
+    from sqlmodel import Session
+
+    from verve_backend.core.db import get_engine
+    from verve_backend.models import User
+
+    engine = get_engine(echo=False, rls=False)
+
+    with Session(engine) as session:
+        user = session.get(User, temp_user_id)
+        if not user:
+            raise ValueError(f"User with id {temp_user_id} not found")
+
+        token = client.post(
+            "/login/access-token",
+            data={"username": user.email, "password": "temporarypassword"},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        ).json()["access_token"]
+
+    return token
+
+
+@pytest.fixture
+def celery_eager(monkeypatch):
+    """
+    A pytest fixture that forces Celery to run tasks synchronously (eagerly)
+    for the duration of a single test by directly patching the existing
+    Celery app configuration object in memory.
+
+    This works even with a session-scoped TestClient.
+    """
+    from verve_backend.celery_app import celery as celery_app_instance
+
+    # Use monkeypatch to temporarily set 'task_always_eager' to True.
+    # The original value will be automatically restored after the test.
+    monkeypatch.setattr(celery_app_instance.conf, "task_always_eager", True)
+
+
+@pytest.fixture
+def dummy_track() -> PyTrack:
+    start_time = datetime(2024, 1, 15, 10, 0, 0)
+    # Generate 122 points (one every 30 seconds for 61 minutes)
+    num_points = 122
+    points = []
+    elevations = []
+    times = []
+    heartrates = []
+    powers = []
+    cadences = []
+    temperatures = []
+
+    base_lat, base_lon = 48.1351, 11.5820
+    for i in range(num_points):
+        # Simulate a cycling route with gradual position changes (~25 km/h average)
+        points.append((base_lat + i * 0.0015, base_lon + i * 0.0015))
+        # Varying elevation with some climbing
+        elevations.append(520.0 + (i % 20) * 2.0 + (i // 40) * 10.0)
+        times.append(start_time + timedelta(seconds=i * 30))
+        # Realistic cycling metrics
+        heartrates.append(120 + (i % 30) + (i // 60) * 5)
+        powers.append(180 + (i % 40) * 2 + (i // 50) * 10)
+        cadences.append(85 + (i % 10))
+        temperatures.append(18.5 + (i / num_points) * 2.0)
+
+    track = PyTrack(
+        points=points,
+        elevations=elevations,
+        times=times,
+        extensions={
+            "heartrate": heartrates,
+            "power": powers,
+            "cadence": cadences,
+            "temperature": temperatures,
+        },
+    )
+    return track
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -103,12 +186,59 @@ def client() -> Generator[TestClient, None, None]:
         yield c
 
 
+@pytest.fixture
+def create_dummy_activity(
+    session: Session,
+    user_id: UUID,
+    start: datetime,
+    distance: float,
+    type_id: int = 1,
+    track: Track | None = None,
+    name: str | None = None,
+):
+    """Creates a simple activity, saves it to the DB, and returns it."""
+    from verve_backend.api.common.track import update_activity_with_track
+    from verve_backend.crud import insert_track
+    from verve_backend.models import Activity
+
+    activity = Activity(
+        user_id=user_id,
+        start=start,
+        distance=distance,
+        duration=timedelta(minutes=60),
+        type_id=type_id,
+        sub_type_id=None,
+        name=f"Test Activity {distance}km" if name is None else name,
+    )
+    session.add(activity)
+    session.commit()
+    session.refresh(activity)
+
+    if track:
+        insert_track(
+            session=session,
+            track=track,
+            activity_id=activity.id,
+            user_id=user_id,
+        )
+        update_activity_with_track(activity=activity, track=track)
+
+        overview = track.get_track_overview()
+        activity.distance = overview.moving_distance_km
+        session.add(activity)
+        session.commit()
+        session.refresh(activity)
+
+    return activity
+
+
 def generate_data(session: Session) -> None:
     from verve_backend import (
         crud,
         models,
     )
     from verve_backend.cli.setup_db import setup_db
+    from verve_backend.tasks import process_activity_highlights
 
     setup_db(session, "verve_testing")
     created_users = []
@@ -139,6 +269,23 @@ def generate_data(session: Session) -> None:
         ),
         user=created_users[0],
     )
+
+    resource_files = resources.files("tests.resources")
+
+    track = FITTrack((resource_files / "MyWhoosh_1.fit").read_bytes())
+    crud.insert_track(
+        session=session,
+        track=track,
+        activity_id=activity_1.id,
+        user_id=created_users[0].id,
+        batch_size=500,
+    )
+    crud.update_activity_with_track_data(
+        session=session,
+        activity_id=activity_1.id,
+        track=track,
+    )
+    process_activity_highlights(activity_1.id, created_users[0].id)
 
     activity_2 = crud.create_activity(
         session=session,
