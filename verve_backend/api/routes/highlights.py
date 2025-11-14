@@ -106,3 +106,8 @@ def get_highlights_by_metric(
     results.sort(key=lambda h: h.rank)
 
     return ListResponse(data=results)
+
+
+@router.get("/metrics", response_model=ListResponse[HighlightMetric])
+def get_metrics() -> Any:
+    return ListResponse(data=list(HighlightMetric))
