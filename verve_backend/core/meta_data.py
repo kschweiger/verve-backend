@@ -1,5 +1,6 @@
 import logging
 from datetime import timedelta
+from enum import StrEnum
 from typing import Any, Self
 from uuid import UUID, uuid4
 
@@ -22,10 +23,17 @@ class ActivityMetaData(BaseModel):
         return self
 
 
+class SwimStyle(StrEnum):
+    FREESTYLE = "freestyle"
+    BACKSTROKE = "backstroke"
+    BREASTSTROKE = "breaststroke"
+    BUTTERFLY = "butterfly"
+
+
 class LapData(BaseModel):
     count: int
     lap_lenths: int | None = None
-    style: str | None = None
+    style: SwimStyle | None = None
     duration: timedelta | None = None
 
 

@@ -238,6 +238,7 @@ def generate_data(session: Session) -> None:
         models,
     )
     from verve_backend.cli.setup_db import setup_db
+    from verve_backend.core.meta_data import LapData, SwimmingMetaData
     from verve_backend.tasks import process_activity_highlights
 
     setup_db(session, "verve_testing")
@@ -298,4 +299,27 @@ def generate_data(session: Session) -> None:
             name=None,
         ),
         user=created_users[1],
+    )
+
+    activity_3 = crud.create_activity(
+        session=session,
+        create=models.ActivityCreate(
+            start=datetime(year=2025, month=1, day=2, hour=13),
+            duration=timedelta(days=0, seconds=60 * 60 * 1),
+            distance=30.0,
+            type_id=4,  # Should be swimming
+            sub_type_id=2,
+            name=None,
+            meta_data=SwimmingMetaData(
+                segments=[
+                    LapData(
+                        count=4,
+                        lap_lenths=50,
+                        duration=timedelta(minutes=20),
+                        style="freestyle",
+                    )
+                ]
+            ).model_dump(mode="json"),
+        ),
+        user=created_users[0],
     )

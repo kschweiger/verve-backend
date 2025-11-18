@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from pytest_mock import MockerFixture
 from sqlmodel import Session, select
 
-from verve_backend.core.meta_data import LapData, SwimmingMetaData
+from verve_backend.core.meta_data import LapData, SwimmingMetaData, SwimStyle
 from verve_backend.models import (
     ActivitiesPublic,
     ActivityCreate,
@@ -285,12 +285,12 @@ def test_update_activity_errors(
                 segments=[
                     LapData(
                         count=10,
-                        style="Freestyle",
+                        style=SwimStyle.FREESTYLE,
                         duration=timedelta(minutes=20),
                         lap_lenths=50,
                     ),
                     LapData(count=10),
-                    LapData(count=10, style="Freestyle"),
+                    LapData(count=10, style=SwimStyle.FREESTYLE),
                 ]
             ),
             200,
