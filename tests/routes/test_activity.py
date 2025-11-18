@@ -3,14 +3,17 @@ from importlib import resources
 
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import BaseModel
 from pytest_mock import MockerFixture
 from sqlmodel import Session, select
 
+from verve_backend.core.meta_data import LapData, SwimmingMetaData
 from verve_backend.models import (
     ActivitiesPublic,
     ActivityCreate,
     ActivityHighlight,
     ActivityPublic,
+    ActivityType,
     UserPublic,
 )
 
@@ -271,3 +274,66 @@ def test_update_activity_errors(
     )
 
     assert response.status_code == exp_status
+
+
+@pytest.mark.parametrize(
+    ("activity_type_name", "meta_data", "exp_status"),
+    [
+        (
+            "Swimming",
+            SwimmingMetaData(
+                segments=[
+                    LapData(
+                        count=10,
+                        style="Freestyle",
+                        duration=timedelta(minutes=20),
+                        lap_lenths=50,
+                    ),
+                    LapData(count=10),
+                    LapData(count=10, style="Freestyle"),
+                ]
+            ),
+            200,
+        ),
+        (
+            "Swimming",
+            {"some": "Data"},
+            400,
+        ),
+    ],
+)
+def test_meta_data_validation(
+    client: TestClient,
+    db: Session,
+    user1_token: str,
+    activity_type_name: str,
+    meta_data: BaseModel | dict,
+    exp_status: int,
+) -> None:
+    activity_type = db.exec(
+        select(ActivityType).where(ActivityType.name == activity_type_name)
+    ).first()
+    assert activity_type is not None
+    assert activity_type.id is not None
+    activity_create = ActivityCreate(
+        start=datetime(2024, 1, 1, 10),
+        duration=timedelta(minutes=30),
+        distance=1.0,
+        moving_duration=timedelta(minutes=25),
+        type_id=activity_type.id,
+        sub_type_id=None,
+        name="Swiming activity",
+        meta_data=meta_data.model_dump(mode="json")
+        if isinstance(meta_data, BaseModel)
+        else meta_data,
+    )
+    response = client.post(
+        "/activity",
+        json=activity_create.model_dump(exclude_unset=True, mode="json"),
+        headers={"Authorization": f"Bearer {user1_token}"},
+    )
+
+    assert response.status_code == exp_status
+    if exp_status == 200:
+        create_activity = ActivityPublic.model_validate(response.json())
+        assert True

@@ -17,6 +17,7 @@ ACTIVITY_TYPES = {
     ],
     "Foot Sports": ["Run", "Hike", "Trail Run", "Nordic Walking"],
     "Winter Sports": ["Cross-country Skiing", "Snowshoeing", "Downhill Skiing"],
+    "Swimming": ["Indoor", "Outdoor Pool", "Open Water"],
     "Other": ["Climbing", "Skateboarding", "Other"],
 }
 

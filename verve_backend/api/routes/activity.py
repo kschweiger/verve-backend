@@ -28,6 +28,7 @@ from verve_backend.api.deps import (
     UserSession,
 )
 from verve_backend.core.config import settings
+from verve_backend.core.meta_data import ActivityMetaData, validate_meta_data
 from verve_backend.models import (
     ActivitiesPublic,
     Activity,
@@ -189,6 +190,7 @@ def create_activity(
 ) -> Any:
     user_id, session = user_session
     name = data.name
+    activity_type = None
     if name is None:
         activity_type = session.get(ActivityType, data.type_id)
         assert activity_type is not None
@@ -202,7 +204,30 @@ def create_activity(
             data.start,
             locale,
         )
-    activity = Activity.model_validate(data, update={"user_id": user_id, "name": name})
+    if data.meta_data:
+        activity_type = activity_type or session.get(ActivityType, data.type_id)
+        assert activity_type is not None
+        validated_meta_data = validate_meta_data(
+            activity_type=activity_type,
+            sub_activity_type=session.get(ActivitySubType, data.sub_type_id),
+            data=data.meta_data,
+        )
+        if not isinstance(validated_meta_data, ActivityMetaData):
+            logger.error("MetaData validation vailes")
+            raise HTTPException(
+                status_code=HTTP_400_BAD_REQUEST,
+                detail="Received invilaid meta_data for activity. "
+                f"Error code: {validated_meta_data}",
+            )
+        data.meta_data = validated_meta_data.model_dump(mode="json")
+
+    activity = Activity.model_validate(
+        data,
+        update={
+            "user_id": user_id,
+            "name": name,
+        },
+    )
     session.add(activity)
     session.commit()
     session.refresh(activity)
