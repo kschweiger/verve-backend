@@ -36,7 +36,7 @@ with Session(engine) as session:
                 user_create=models.UserCreate(
                     name=name, password=pw, email=email, full_name=full_name
                 ),
-            )
+            ).unwrap()
         )
     activity_1 = crud.create_activity(
         session=session,
@@ -49,7 +49,7 @@ with Session(engine) as session:
             name=None,
         ),
         user=created_users[0],
-    )
+    ).unwrap()
 
     activity_2 = crud.create_activity(
         session=session,
@@ -62,7 +62,7 @@ with Session(engine) as session:
             name=None,
         ),
         user=created_users[1],
-    )
+    ).unwrap()
 
     crud.create_equipment(
         session=session,
@@ -199,7 +199,7 @@ with Session(engine) as session:
                     name=None,
                 ),
                 user=created_users[0],
-            )
+            ).unwrap()
 
             crud.insert_track(
                 session=session,

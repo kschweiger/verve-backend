@@ -30,9 +30,12 @@ from verve_backend.models import (
     UserPublic,
     UserSettings,
 )
+from verve_backend.result import Err, Ok, Result
 
 
-def create_user(*, session: Session, user_create: UserCreate) -> User:
+def create_user(
+    *, session: Session, user_create: UserCreate
+) -> Result[User, uuid.UUID]:
     db_obj = User.model_validate(
         user_create, update={"hashed_password": get_password_hash(user_create.password)}
     )
@@ -49,7 +52,7 @@ def create_user(*, session: Session, user_create: UserCreate) -> User:
     )
     session.add(settings_obj)
     session.commit()
-    return db_obj
+    return Ok(db_obj)
 
 
 def get_user_by_email(*, session: Session, email: str) -> User | None:
@@ -80,7 +83,7 @@ def create_activity(
     create: ActivityCreate,
     user: UserPublic,
     locale: SupportedLocale = SupportedLocale.DE,
-) -> Activity:
+) -> Result[Activity, uuid.UUID]:
     name = create.name
     if name is None:
         activity_type = session.get(ActivityType, create.type_id)
@@ -95,17 +98,17 @@ def create_activity(
     session.commit()
     session.refresh(db_obj)
 
-    return db_obj
+    return Ok(db_obj)
 
 
 def create_activity_type(
     *, session: Session, create: ActivityTypeCreate
-) -> ActivityType:
+) -> Result[ActivityType, uuid.UUID]:
     db_obj = ActivityType.model_validate(create)
     session.add(db_obj)
     session.commit()
     session.refresh(db_obj)
-    return db_obj
+    return Ok(db_obj)
 
 
 def get_points(
@@ -281,7 +284,7 @@ def update_activity_with_track_data(
 
 def create_goal(
     *, session: Session, goal: GoalCreate, user_id: uuid.UUID | str
-) -> Goal:
+) -> Result[Goal, str]:
     # Validate GoalType / GoalAggregation combination
     match goal.type:
         case GoalType.LOCATION:
@@ -306,7 +309,7 @@ def create_goal(
     session.add(db_obj)
     session.commit()
     session.refresh(db_obj)
-    return db_obj
+    return Ok(db_obj)
 
 
 def create_equipment(
@@ -315,7 +318,7 @@ def create_equipment(
     data: EquipmentCreate,
     user_id: uuid.UUID | str,
     activity_ids: list[uuid.UUID | str] | None = None,
-) -> Equipment:
+) -> Result[Equipment, uuid.UUID]:
     if activity_ids is None:
         activity_ids = []
     if not all(session.get(Activity, aid) for aid in activity_ids):
@@ -332,6 +335,6 @@ def create_equipment(
         activity.equipment.append(equipment)
     session.commit()
 
-    return equipment
+    return Ok(equipment)
 
 

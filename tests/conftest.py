@@ -10,6 +10,9 @@ from fastapi.testclient import TestClient
 from geo_track_analyzer import FITTrack, PyTrack, Track
 from sqlmodel import Session, SQLModel
 
+from verve_backend.models import User
+from verve_backend.result import Err, Ok, is_ok
+
 
 # This runs right after cmd arg parsing but after imports
 # so the app cannot be imported in the global scope otherwise
@@ -74,7 +77,8 @@ def temp_user_id() -> Generator[UUID, Any, Any]:
         password="temporarypassword",
     )
     with Session(engine) as session:
-        user = crud.create_user(session=session, user_create=_user)
+        result = crud.create_user(session=session, user_create=_user)
+        user = result.unwrap()
         id = user.id
     yield id
 
@@ -238,11 +242,11 @@ def generate_data(session: Session) -> None:
         models,
     )
     from verve_backend.cli.setup_db import setup_db
-    from verve_backend.core.meta_data import LapData, SwimmingMetaData
+    from verve_backend.core.meta_data import LapData, SwimmingMetaData, SwimStyle
     from verve_backend.tasks import process_activity_highlights
 
     setup_db(session, "verve_testing")
-    created_users = []
+    created_users: list[User] = []
     for name, pw, email, full_name in [
         ("username1", "12345678", "user1@mail.com", "User Name"),
         ("username2", "12345678", "user2@mail.com", None),
@@ -256,7 +260,7 @@ def generate_data(session: Session) -> None:
                     email=email,
                     full_name=full_name,
                 ),
-            )
+            ).unwrap()
         )
     activity_1 = crud.create_activity(
         session=session,
@@ -269,7 +273,7 @@ def generate_data(session: Session) -> None:
             name=None,
         ),
         user=created_users[0],
-    )
+    ).unwrap()
 
     resource_files = resources.files("tests.resources")
 
@@ -299,7 +303,7 @@ def generate_data(session: Session) -> None:
             name=None,
         ),
         user=created_users[1],
-    )
+    ).unwrap()
 
     activity_3 = crud.create_activity(
         session=session,
@@ -316,10 +320,10 @@ def generate_data(session: Session) -> None:
                         count=4,
                         lap_lenths=50,
                         duration=timedelta(minutes=20),
-                        style="freestyle",
+                        style=SwimStyle.FREESTYLE,
                     )
                 ]
             ).model_dump(mode="json"),
         ),
         user=created_users[0],
-    )
+    ).unwrap()

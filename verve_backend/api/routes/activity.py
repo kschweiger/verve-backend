@@ -304,7 +304,7 @@ def create_auto_activity(
     session.refresh(activity)
 
     session.commit()
-    process_activity_highlights.delay(activity.id, user_id)
+    process_activity_highlights.delay(activity.id, user_id)  # type: ignore
 
     return activity
 

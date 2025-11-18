@@ -27,7 +27,7 @@ def test_activity_equipment_relationship(db: Session) -> None:
             name=None,
         ),
         user=user,  # type: ignore
-    )
+    ).unwrap()
 
     data = dict(
         name="My Favorite Bike",
