@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import timedelta
 from typing import Generator
@@ -11,6 +12,7 @@ from sqlmodel import Session, insert, select
 from verve_backend.api.common.locale import get_activity_name
 from verve_backend.api.deps import SupportedLocale
 from verve_backend.core.config import settings
+from verve_backend.core.meta_data import ActivityMetaData, validate_meta_data
 from verve_backend.core.security import get_password_hash, verify_password
 from verve_backend.enums import GoalAggregation, GoalType
 from verve_backend.exceptions import InvalidCombinationError, InvalidDataError
@@ -30,7 +32,9 @@ from verve_backend.models import (
     UserPublic,
     UserSettings,
 )
-from verve_backend.result import Err, Ok, Result
+from verve_backend.result import Err, ErrorType, Ok, Result, TypedResult
+
+logger = logging.getLogger("uvicorn.error")
 
 
 def create_user(
@@ -84,15 +88,26 @@ def create_activity(
     user: UserPublic,
     locale: SupportedLocale = SupportedLocale.DE,
 ) -> Result[Activity, uuid.UUID]:
+    activity_type = session.get(ActivityType, create.type_id)
+    assert activity_type is not None
+
     name = create.name
     if name is None:
-        activity_type = session.get(ActivityType, create.type_id)
-        assert activity_type is not None
         name = get_activity_name(
             activity_type.name.lower().replace(" ", "_"),
             create.start,
             locale,
         )
+    if create.meta_data:
+        validation_result = validate_meta_data(
+            activity_type=activity_type,
+            sub_activity_type=session.get(ActivitySubType, create.sub_type_id),
+            data=create.meta_data,
+        )
+        if not isinstance(validation_result, ActivityMetaData):
+            return Err(validation_result)
+        create.meta_data = validation_result.model_dump(mode="json")
+
     db_obj = Activity.model_validate(create, update={"user_id": user.id, "name": name})
     session.add(db_obj)
     session.commit()
@@ -150,7 +165,8 @@ def get_points(
                 "user_id": user_id,
                 "segment_id": i,
                 "geography": f"POINT({point.longitude} {point.latitude})",
-                "geometry": f"SRID={utm_srid};POINT({utm_x} {utm_y})",  # UTM coordinates with SRID
+                # UTM coordinates with SRID
+                "geometry": f"SRID={utm_srid};POINT({utm_x} {utm_y})",
                 "elevation": point.elevation,
                 "time": point.time,
                 "extensions": {},
@@ -284,21 +300,29 @@ def update_activity_with_track_data(
 
 def create_goal(
     *, session: Session, goal: GoalCreate, user_id: uuid.UUID | str
-) -> Result[Goal, str]:
+) -> TypedResult[Goal, str]:
     # Validate GoalType / GoalAggregation combination
     match goal.type:
         case GoalType.LOCATION:
             if goal.aggregation != GoalAggregation.COUNT:
-                raise InvalidCombinationError(
-                    "Location goal only support count aggregation"
+                return Err(
+                    (
+                        "Invalid combination: Location goal only support count "
+                        "aggregation",
+                        ErrorType.VALIDATION,
+                    )
                 )
         case GoalType.MANUAL:
             if goal.aggregation not in [
                 GoalAggregation.COUNT,
                 GoalAggregation.DURATION,
             ]:
-                raise InvalidCombinationError(
-                    "Manual goal only support count and duration aggregation"
+                return Err(
+                    (
+                        "Invalid combination: Manual goal only support count and "
+                        "duration aggregation",
+                        ErrorType.VALIDATION,
+                    )
                 )
         case GoalType.ACTIVITY:
             pass

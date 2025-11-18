@@ -8,8 +8,10 @@ from fastapi.responses import JSONResponse
 from sqlmodel import select
 from starlette.status import (
     HTTP_200_OK,
+    HTTP_400_BAD_REQUEST,
     HTTP_404_NOT_FOUND,
     HTTP_405_METHOD_NOT_ALLOWED,
+    HTTP_422_UNPROCESSABLE_CONTENT,
     HTTP_422_UNPROCESSABLE_ENTITY,
 )
 
@@ -19,6 +21,7 @@ from verve_backend.api.deps import UserSession
 from verve_backend.enums import GoalType
 from verve_backend.exceptions import InvalidCombinationError
 from verve_backend.models import Goal, GoalCreate, GoalPublic, GoalsPublic
+from verve_backend.result import Err, ErrorType, Ok
 
 # logger = logging.getLogger(__name__)
 logger = logging.getLogger("uvicorn.error")
@@ -70,16 +73,20 @@ def get_goals(
 def add_goal(user_session: UserSession, data: GoalCreate) -> Any:
     user_id, session = user_session
 
-    try:
-        goal = crud.create_goal(session=session, goal=data, user_id=user_id)
-    except InvalidCombinationError as e:
-        logger.info("Invalid combination in goal: %s", data)
-        raise HTTPException(
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Invalid combination: {e}",
-        )
+    result = crud.create_goal(session=session, goal=data, user_id=user_id)
+    match result:
+        case Ok(goal):
+            return goal
+        case Err((msg, err_type)):
+            if err_type == ErrorType.VALIDATION:
+                code = HTTP_422_UNPROCESSABLE_CONTENT
+            else:
+                code = HTTP_400_BAD_REQUEST
 
-    return goal
+            raise HTTPException(
+                status_code=code,
+                detail=msg,
+            )
 
 
 @router.delete("/")

@@ -1,7 +1,13 @@
+from enum import StrEnum, auto
 from typing import Generic, Never, TypeIs, TypeVar, Union
 
 T = TypeVar("T")
 E = TypeVar("E")
+
+
+class ErrorType(StrEnum):
+    CRITICAL = auto()
+    VALIDATION = auto()
 
 
 class Ok(Generic[T]):
@@ -25,6 +31,7 @@ class Err(Generic[E]):
 
 
 Result = Union[Ok[T], Err[E]]
+TypedResult = Union[Ok[T], Err[tuple[E, ErrorType]]]
 
 
 def is_ok(result: Result[T, E]) -> TypeIs[Ok[T]]:

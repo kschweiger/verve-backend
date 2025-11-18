@@ -15,6 +15,7 @@ from starlette.status import (
     HTTP_501_NOT_IMPLEMENTED,
 )
 
+from verve_backend import crud
 from verve_backend.api.common.db_utils import (
     check_and_raise_primary_key,
     validate_sub_type_id,
@@ -37,8 +38,10 @@ from verve_backend.models import (
     ActivitySubType,
     ActivityType,
     Image,
+    User,
     UserSettings,
 )
+from verve_backend.result import Err, Ok
 from verve_backend.tasks import process_activity_highlights
 
 
@@ -189,49 +192,28 @@ def create_activity(
     data: ActivityCreate,
 ) -> Any:
     user_id, session = user_session
-    name = data.name
-    activity_type = None
-    if name is None:
-        activity_type = session.get(ActivityType, data.type_id)
-        assert activity_type is not None
-        if locale is None:
-            settings = session.get(UserSettings, user_id)
-            assert settings is not None
-            locale = settings.locale
+    user = session.get(User, user_id)
+    assert user is not None
+    if locale is None:
+        settings = session.get(UserSettings, user_id)
+        assert settings is not None
+        locale = settings.locale
 
-        name = get_activity_name(
-            activity_type.name.lower().replace(" ", "_"),
-            data.start,
-            locale,
-        )
-    if data.meta_data:
-        activity_type = activity_type or session.get(ActivityType, data.type_id)
-        assert activity_type is not None
-        validated_meta_data = validate_meta_data(
-            activity_type=activity_type,
-            sub_activity_type=session.get(ActivitySubType, data.sub_type_id),
-            data=data.meta_data,
-        )
-        if not isinstance(validated_meta_data, ActivityMetaData):
-            logger.error("MetaData validation vailes")
+    result = crud.create_activity(
+        session=session,
+        create=data,
+        user=user,  # type: ignore
+        locale=locale,
+    )
+    match result:
+        case Ok(activity):
+            return activity
+        case Err(error_id):
             raise HTTPException(
                 status_code=HTTP_400_BAD_REQUEST,
                 detail="Received invilaid meta_data for activity. "
-                f"Error code: {validated_meta_data}",
+                f"Error code: {error_id}",
             )
-        data.meta_data = validated_meta_data.model_dump(mode="json")
-
-    activity = Activity.model_validate(
-        data,
-        update={
-            "user_id": user_id,
-            "name": name,
-        },
-    )
-    session.add(activity)
-    session.commit()
-    session.refresh(activity)
-    return activity
 
 
 @router.post("/auto/", response_model=ActivityPublic)
