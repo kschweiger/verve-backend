@@ -14,8 +14,9 @@ from starlette.status import (
 
 from verve_backend.api.common.db_utils import check_and_raise_primary_key
 from verve_backend.api.deps import UserSession
-from verve_backend.core.date_utils import get_week_date_range
+from verve_backend.core.date_utils import get_month_grid, get_week_date_range
 from verve_backend.models import Activity, ActivityType, UserSettings
+from verve_backend.transformations import CalendarWeek, build_calendar_response
 
 T = TypeVar("T", int, float)
 
@@ -55,6 +56,14 @@ class WeekStatsResponse(BaseModel):
     distance: WeekMetric[float]
     elevation_gain: WeekMetric[float]
     duration: WeekMetric[int]
+
+
+class CalendarResponse(BaseModel):
+    """Calendar data organized by weeks."""
+
+    year: int
+    month: int
+    weeks: Annotated[list[CalendarWeek], Field(min_length=4, max_length=5)]
 
 
 def process_metric_data(
@@ -227,3 +236,33 @@ def get_week_stats(
         elevation_gain=process_metric_data(elevation_gain_per_day, elevation_gain_pie),
         duration=process_metric_data(duration_per_day, duration_pie),
     )
+
+
+@router.get("/calender", response_model=CalendarResponse)
+def get_calendar(
+    user_session: UserSession,
+    month: Annotated[int | None, Query(ge=1, le=12)] = None,
+    year: Annotated[int | None, Query(ge=2000)] = None,
+) -> Any:
+    _, session = user_session
+
+    today = datetime.now()
+    if year is None:
+        year = today.year
+    if month is None:
+        month = today.month
+
+    month_date_grid = get_month_grid(year, month)
+
+    first_date = month_date_grid[0][0]
+    last_date = month_date_grid[-1][-1]
+
+    stmt = (
+        select(Activity)
+        .where(Activity.start >= first_date)
+        .where(Activity.start <= last_date)
+    )
+    activities = session.exec(stmt).all()
+    weeks = build_calendar_response(activities, month_date_grid, month)
+
+    return CalendarResponse(year=year, month=month, weeks=weeks)
