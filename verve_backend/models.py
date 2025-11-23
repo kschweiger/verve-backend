@@ -245,6 +245,17 @@ class EquipmentPublic(EquipmentBase):
     id: uuid.UUID
 
 
+class EquipmentSetLink(SQLModel, table=True):
+    __tablename__: str = "equipment_set_links"  # type: ignore
+
+    set_id: uuid.UUID = Field(
+        foreign_key="equipment_sets.id", primary_key=True, ondelete="CASCADE"
+    )
+    equipment_id: uuid.UUID = Field(
+        foreign_key="equipment.id", primary_key=True, ondelete="CASCADE"
+    )
+
+
 class Equipment(EquipmentBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(
@@ -256,6 +267,26 @@ class Equipment(EquipmentBase, table=True):
         sa_relationship_kwargs={
             "lazy": "select",
         },
+    )
+    sets: list["EquipmentSet"] = Relationship(
+        back_populates="items",
+        link_model=EquipmentSetLink,
+        sa_relationship_kwargs={
+            "lazy": "select",
+        },
+    )
+
+
+class EquipmentSet(SQLModel, table=True):
+    __tablename__: str = "equipment_sets"  # type: ignore
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", nullable=False, ondelete="CASCADE"
+    )
+    name: str = Field(nullable=False)
+    items: list[Equipment] = Relationship(
+        back_populates="sets", link_model=EquipmentSetLink
     )
 
 

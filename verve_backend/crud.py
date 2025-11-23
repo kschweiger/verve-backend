@@ -24,6 +24,7 @@ from verve_backend.models import (
     ActivityTypeCreate,
     Equipment,
     EquipmentCreate,
+    EquipmentSet,
     Goal,
     GoalCreate,
     TrackPoint,
@@ -360,5 +361,21 @@ def create_equipment(
     session.commit()
 
     return Ok(equipment)
+
+
+def create_equipment_set(
+    *,
+    session: Session,
+    name: str,
+    data: list[Equipment],
+    user_id: uuid.UUID,
+) -> Result[EquipmentSet, uuid.UUID]:
+    e_set = EquipmentSet(user_id=user_id, name=name, items=data)
+
+    session.add(e_set)
+    session.commit()
+    session.refresh(e_set)
+
+    return Ok(e_set)
 
 
