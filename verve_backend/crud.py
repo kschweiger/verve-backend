@@ -15,7 +15,7 @@ from verve_backend.core.config import settings
 from verve_backend.core.meta_data import ActivityMetaData, validate_meta_data
 from verve_backend.core.security import get_password_hash, verify_password
 from verve_backend.enums import GoalAggregation, GoalType
-from verve_backend.exceptions import InvalidCombinationError, InvalidDataError
+from verve_backend.exceptions import InvalidDataError
 from verve_backend.models import (
     Activity,
     ActivityCreate,
@@ -377,5 +377,3 @@ def create_equipment_set(
     session.refresh(e_set)
 
     return Ok(e_set)
-
-

@@ -19,7 +19,6 @@ from verve_backend import crud
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import UserSession
 from verve_backend.enums import GoalType
-from verve_backend.exceptions import InvalidCombinationError
 from verve_backend.models import Goal, GoalCreate, GoalPublic, GoalsPublic
 from verve_backend.result import Err, ErrorType, Ok
 
@@ -46,7 +45,7 @@ def get_goals(
     year: Annotated[int, Query(ge=2000, default_factory=lambda: datetime.now().year)],
     month: Annotated[int | None, Query(ge=1, lt=13)] = None,
 ) -> Any:
-    user_id, session = user_session
+    _, session = user_session
 
     stmt = select(Goal).where(Goal.year == year)
     if month:

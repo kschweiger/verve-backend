@@ -11,7 +11,6 @@ from geo_track_analyzer import FITTrack, PyTrack, Track
 from sqlmodel import Session, SQLModel
 
 from verve_backend.models import User
-from verve_backend.result import Err, Ok, is_ok
 
 
 # This runs right after cmd arg parsing but after imports
@@ -114,7 +113,7 @@ def temp_user_token(temp_user_id: UUID, client: TestClient) -> str:
 
 
 @pytest.fixture
-def celery_eager(monkeypatch):
+def celery_eager(monkeypatch) -> None:
     """
     A pytest fixture that forces Celery to run tasks synchronously (eagerly)
     for the duration of a single test by directly patching the existing
@@ -199,7 +198,7 @@ def create_dummy_activity(
     type_id: int = 1,
     track: Track | None = None,
     name: str | None = None,
-):
+) -> Any:
     """Creates a simple activity, saves it to the DB, and returns it."""
     from verve_backend.api.common.track import update_activity_with_track
     from verve_backend.crud import insert_track
@@ -292,7 +291,7 @@ def generate_data(session: Session) -> None:
     )
     process_activity_highlights(activity_1.id, created_users[0].id)
 
-    activity_2 = crud.create_activity(
+    activity_2 = crud.create_activity(  # noqa: F841
         session=session,
         create=models.ActivityCreate(
             start=datetime(year=2025, month=1, day=2, hour=13),
@@ -305,7 +304,7 @@ def generate_data(session: Session) -> None:
         user=created_users[1],
     ).unwrap()
 
-    activity_3 = crud.create_activity(
+    activity_3 = crud.create_activity(  # noqa: F841
         session=session,
         create=models.ActivityCreate(
             start=datetime(year=2025, month=1, day=2, hour=13),
@@ -345,7 +344,7 @@ def generate_data(session: Session) -> None:
         user_id=created_users[0].id,
     ).unwrap()
 
-    equipment_set = crud.create_equipment_set(
+    uequipment_set = crud.create_equipment_set(  # noqa: F841
         session=session,
         name="Basic Set",
         data=[equipment_1, equipment_2],

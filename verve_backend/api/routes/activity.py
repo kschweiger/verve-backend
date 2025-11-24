@@ -29,7 +29,6 @@ from verve_backend.api.deps import (
     UserSession,
 )
 from verve_backend.core.config import settings
-from verve_backend.core.meta_data import ActivityMetaData, validate_meta_data
 from verve_backend.models import (
     ActivitiesPublic,
     Activity,
@@ -264,7 +263,7 @@ def create_auto_activity(
     activity_type = session.get(ActivityType, activity.type_id)
     assert activity_type is not None
     # TODO: Add error handling that removes the activity again
-    track, n_points = add_track(
+    track, _ = add_track(
         activity_id=activity.id,
         user_id=user_id,
         session=session,

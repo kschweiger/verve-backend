@@ -104,7 +104,6 @@ def test_auto_activity(
 
     assert response_track.status_code == 200
     raw_data = response_track.json()
-    print(raw_data)
     assert len(raw_data["data"]) > 0
 
     mock_delay.assert_called_once()
@@ -335,5 +334,5 @@ def test_meta_data_validation(
 
     assert response.status_code == exp_status
     if exp_status == 200:
-        create_activity = ActivityPublic.model_validate(response.json())
+        _create_activity = ActivityPublic.model_validate(response.json())
         assert True
