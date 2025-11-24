@@ -327,3 +327,27 @@ def generate_data(session: Session) -> None:
         ),
         user=created_users[0],
     ).unwrap()
+
+    equipment_1 = crud.create_equipment(
+        session=session,
+        data=models.EquipmentCreate(
+            name="Basic Bike",
+            equipment_type=models.EquipmentType.BIKE,
+        ),
+        user_id=created_users[0].id,
+    ).unwrap()
+    equipment_2 = crud.create_equipment(
+        session=session,
+        data=models.EquipmentCreate(
+            name="Basic Shoes",
+            equipment_type=models.EquipmentType.SHOES,
+        ),
+        user_id=created_users[0].id,
+    ).unwrap()
+
+    equipment_set = crud.create_equipment_set(
+        session=session,
+        name="Basic Set",
+        data=[equipment_1, equipment_2],
+        user_id=created_users[0].id,
+    ).unwrap()

@@ -245,6 +245,22 @@ class EquipmentPublic(EquipmentBase):
     id: uuid.UUID
 
 
+class DefaultEquipmentSets(SQLModel, table=True):
+    __tablename__: str = "default_equipment_sets"  # type: ignore
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", nullable=False, ondelete="CASCADE"
+    )
+    set_id: uuid.UUID = Field(foreign_key="equipment_sets.id", ondelete="CASCADE")
+    type_id: int = Field(foreign_key="activity_type.id", nullable=False)
+    sub_type_id: int | None = Field(foreign_key="sub_activity_type.id")
+
+    __table_args__ = (
+        Index("idx_default_equipment_sets_type_sub_type", "type_id", "sub_type_id"),
+    )
+
+
 class EquipmentSetLink(SQLModel, table=True):
     __tablename__: str = "equipment_set_links"  # type: ignore
 
@@ -474,10 +490,8 @@ class ZoneInterval(ZoneIntervalBase, table=True):
 
 
 class UserSettingsBase(SQLModel):
-    default_type_id: PositiveNumber[int] = Field(
-        foreign_key="activity_type.id", nullable=False
-    )
-    defautl_sub_type_id: PositiveNumber[int] | None = Field(
+    default_type_id: int = Field(foreign_key="activity_type.id", nullable=False)
+    defautl_sub_type_id: int | None = Field(
         foreign_key="sub_activity_type.id", nullable=True
     )
     locale: SupportedLocale = Field(default=SupportedLocale.EN)

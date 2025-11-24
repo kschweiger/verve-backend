@@ -10,10 +10,14 @@ from starlette.status import (
 )
 
 from verve_backend import crud
+from verve_backend.api.common.db_utils import validate_sub_type_id
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import UserSession
 from verve_backend.models import (
     Activity,
+    ActivityType,
+    DefaultEquipmentSets,
+    DictResponse,
     Equipment,
     EquipmentCreate,
     EquipmentPublic,
@@ -312,3 +316,68 @@ def remove_set_from_activity(
             activity.equipment.remove(equipment)
 
     session.commit()
+
+
+@router.put(
+    "/set/default/{set_id}",
+    status_code=HTTP_204_NO_CONTENT,
+)
+def set_default_set(
+    *,
+    user_session: UserSession,
+    set_id: UUID,
+    activity_type_id: int,
+    activity_sub_type_id: int | None = None,
+) -> None:
+    _user_id, session = user_session
+    user_id = UUID(_user_id)
+
+    equipment_set = session.get(EquipmentSet, set_id)
+    if not equipment_set:
+        raise HTTPException(status_code=404, detail="Equipment set not found")
+
+    activity_type = session.get(ActivityType, activity_type_id)
+    if not activity_type:
+        raise HTTPException(status_code=404, detail="Activity type not found")
+    if activity_sub_type_id:
+        validate_sub_type_id(session, activity_type_id, activity_sub_type_id)
+
+    stmt = select(DefaultEquipmentSets).where(
+        DefaultEquipmentSets.type_id == activity_type_id
+    )
+    if activity_sub_type_id:
+        stmt = stmt.where(DefaultEquipmentSets.sub_type_id == activity_sub_type_id)
+    existing_default = session.exec(
+        select(DefaultEquipmentSets)
+        .where(DefaultEquipmentSets.type_id == activity_type_id)
+        .where(DefaultEquipmentSets.sub_type_id == activity_sub_type_id)
+    ).first()
+    if existing_default:
+        session.delete(existing_default)
+
+    new_default = DefaultEquipmentSets(
+        user_id=user_id,
+        set_id=set_id,
+        type_id=activity_type_id,
+        sub_type_id=activity_sub_type_id,
+    )
+    session.add(new_default)
+    session.commit()
+
+
+@router.get(
+    "/set/default/all", response_model=DictResponse[tuple[int, int | None], UUID]
+)
+def get_default_sets(
+    *,
+    user_session: UserSession,
+) -> Any:
+    _, session = user_session
+
+    all_sets = session.exec(select(DefaultEquipmentSets)).all()
+
+    resp = {}
+    for _set in all_sets:
+        resp[(_set.type_id, _set.sub_type_id)] = _set.set_id
+
+    return DictResponse(data=resp)

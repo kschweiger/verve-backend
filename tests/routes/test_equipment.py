@@ -11,6 +11,7 @@ from verve_backend.models import (
     Activity,
     ActivityCreate,
     ActivityPublic,
+    DefaultEquipmentSets,
     Equipment,
     EquipmentCreate,
     EquipmentPublic,
@@ -333,3 +334,104 @@ def test_equipment_set_activity_integration(
     _activity = db.get(Activity, activity.id)
     assert _activity is not None
     assert len(_activity.equipment) == 1
+
+
+@pytest.mark.parametrize(
+    ("type_id", "sub_type_id"),
+    [
+        (1, None),
+        (1, 1),
+    ],
+)
+def test_create_default_set(
+    db: Session,
+    client: TestClient,
+    temp_user_token: str,
+    equipment_for_set: list[UUID],
+    type_id: int,
+    sub_type_id: int | None,
+) -> None:
+    eq_ids = equipment_for_set
+
+    # Create the set
+    set_create = EquipmentSetCreate(
+        name="Test Set 1", equipment_ids=[eq_ids[0], eq_ids[1]]
+    )
+    response = client.post(
+        "/equipment/set/",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        json=set_create.model_dump(exclude_unset=True, mode="json"),
+    )
+    assert response.status_code == 200
+    created_set = EquipmentSetPublic.model_validate(response.json())
+
+    params = {"activity_type_id": type_id}
+    if sub_type_id is not None:
+        params["activity_sub_type_id"] = sub_type_id
+    response = client.put(
+        f"/equipment/set/default/{created_set.id}",
+        params=params,
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+    assert response.status_code == 204
+
+    default_sets = db.exec(
+        select(DefaultEquipmentSets).where(
+            DefaultEquipmentSets.set_id == created_set.id
+        )
+    ).all()
+
+    assert len(default_sets) == 1
+
+
+def test_get_defautl_sets(
+    client: TestClient,
+    temp_user_token: str,
+    equipment_for_set: list[UUID],
+) -> None:
+    eq_ids = equipment_for_set
+
+    # Create the sets
+    response = client.post(
+        "/equipment/set/",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        json=EquipmentSetCreate(
+            name="Test Set 1", equipment_ids=[eq_ids[0], eq_ids[1]]
+        ).model_dump(exclude_unset=True, mode="json"),
+    )
+    assert response.status_code == 200
+    set_1 = EquipmentSetPublic.model_validate(response.json())
+    response = client.post(
+        "/equipment/set/",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        json=EquipmentSetCreate(
+            name="Test Set 1", equipment_ids=[eq_ids[2]]
+        ).model_dump(exclude_unset=True, mode="json"),
+    )
+    assert response.status_code == 200
+    set_2 = EquipmentSetPublic.model_validate(response.json())
+
+    # Make the default sets
+    client.put(
+        f"/equipment/set/default/{set_1.id}",
+        params={"activity_type_id": 1},
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+    # Same set can be default for multiple types
+    client.put(
+        f"/equipment/set/default/{set_1.id}",
+        params={"activity_type_id": 1, "activity_sub_type_id": 1},
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+    client.put(
+        f"/equipment/set/default/{set_2.id}",
+        params={"activity_type_id": 1, "activity_sub_type_id": 2},
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+
+    response = client.get(
+        "/equipment/set/default/all",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+    assert response.status_code == 200
+    assert len(response.json()["data"]) == 3
