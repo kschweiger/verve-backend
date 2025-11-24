@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from importlib import resources
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -7,13 +8,16 @@ from pydantic import BaseModel
 from pytest_mock import MockerFixture
 from sqlmodel import Session, select
 
+from verve_backend import crud
 from verve_backend.core.meta_data import LapData, SwimmingMetaData, SwimStyle
 from verve_backend.models import (
     ActivitiesPublic,
+    Activity,
     ActivityCreate,
     ActivityHighlight,
     ActivityPublic,
     ActivityType,
+    EquipmentSet,
     UserPublic,
 )
 
@@ -104,7 +108,6 @@ def test_auto_activity(
 
     assert response_track.status_code == 200
     raw_data = response_track.json()
-    print(raw_data)
     assert len(raw_data["data"]) > 0
 
     mock_delay.assert_called_once()
@@ -335,5 +338,115 @@ def test_meta_data_validation(
 
     assert response.status_code == exp_status
     if exp_status == 200:
-        create_activity = ActivityPublic.model_validate(response.json())
+        _create_activity = ActivityPublic.model_validate(response.json())
         assert True
+
+
+def test_create_with_default_equipment_set(
+    mocker: MockerFixture,
+    db: Session,
+    client: TestClient,
+    user1_token: str,
+    user1_id: UUID,
+) -> None:
+    set_id = crud.get_default_equipment_set(
+        session=db,
+        user_id=user1_id,
+        # NOTE: Created in conftest
+        activity_type_id=1,
+        activity_sub_type_id=1,
+    ).unwrap()
+    assert set_id is not None
+    e_set = db.get(EquipmentSet, set_id)
+    assert e_set is not None
+    assert len(e_set.items) > 0
+
+    mocker.patch("verve_backend.api.routes.activity.process_activity_highlights.delay")
+    with resources.files("tests.resources").joinpath("MyWhoosh_1.fit").open("rb") as f:
+        fit_content = f.read()
+
+    response = client.post(
+        "/activity/auto/",
+        headers={"Authorization": f"Bearer {user1_token}"},
+        files={"file": ("MyWhoosh_1.fit", fit_content, "application/octet-stream")},
+        params={"add_default_equipment": True, "type_id": 1, "sub_type_id": 1},
+    )
+
+    assert response.status_code == 200
+    _activity = ActivityPublic.model_validate(response.json())
+    activity = db.get(Activity, _activity.id)
+    assert activity is not None
+    assert all(e in activity.equipment for e in e_set.items)
+
+
+def test_create_default_equipment_set_enabled_but_none_set(
+    mocker: MockerFixture,
+    db: Session,
+    client: TestClient,
+    user1_token: str,
+    user1_id: UUID,
+) -> None:
+    set_id = crud.get_default_equipment_set(
+        session=db,
+        user_id=user1_id,
+        activity_type_id=1,
+        activity_sub_type_id=2,
+    ).unwrap()
+    assert set_id is None
+
+    mocker.patch("verve_backend.api.routes.activity.process_activity_highlights.delay")
+    with resources.files("tests.resources").joinpath("MyWhoosh_1.fit").open("rb") as f:
+        fit_content = f.read()
+
+    response = client.post(
+        "/activity/auto/",
+        headers={"Authorization": f"Bearer {user1_token}"},
+        files={"file": ("MyWhoosh_1.fit", fit_content, "application/octet-stream")},
+        params={"add_default_equipment": True, "type_id": 1, "sub_type_id": 2},
+    )
+
+    assert response.status_code == 200
+    _activity = ActivityPublic.model_validate(response.json())
+    activity = db.get(Activity, _activity.id)
+    assert activity is not None
+    assert len(activity.equipment) == 0
+
+
+def test_create_activity_with_default_equipment_set(
+    client: TestClient,
+    db: Session,
+    user1_token: str,
+    user1_id: UUID,
+) -> None:
+    set_id = crud.get_default_equipment_set(
+        session=db,
+        user_id=user1_id,
+        # NOTE: Created in conftest
+        activity_type_id=1,
+        activity_sub_type_id=1,
+    ).unwrap()
+    assert set_id is not None
+    e_set = db.get(EquipmentSet, set_id)
+    assert e_set is not None
+    assert len(e_set.items) > 0
+
+    activity_create = ActivityCreate(
+        start=datetime(2024, 3, 1, 10),
+        duration=timedelta(minutes=30),
+        distance=1.0,
+        moving_duration=timedelta(minutes=25),
+        type_id=1,
+        sub_type_id=1,
+        name="Some Name",
+    )
+    response = client.post(
+        "/activity",
+        json=activity_create.model_dump(exclude_unset=True, mode="json"),
+        headers={"Authorization": f"Bearer {user1_token}"},
+        params={"add_default_equipment": True},
+    )
+    assert response.status_code == 200
+    _activity = ActivityPublic.model_validate(response.json())
+    activity = db.get(Activity, _activity.id)
+    assert activity is not None
+    assert all(e in activity.equipment for e in e_set.items)

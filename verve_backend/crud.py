@@ -7,6 +7,7 @@ from geo_track_analyzer import Track
 from geo_track_analyzer.exceptions import GPXPointExtensionError
 from geo_track_analyzer.processing import get_extension_value
 from pyproj import Transformer
+from sqlalchemy.exc import DatabaseError
 from sqlmodel import Session, insert, select
 
 from verve_backend.api.common.locale import get_activity_name
@@ -15,15 +16,17 @@ from verve_backend.core.config import settings
 from verve_backend.core.meta_data import ActivityMetaData, validate_meta_data
 from verve_backend.core.security import get_password_hash, verify_password
 from verve_backend.enums import GoalAggregation, GoalType
-from verve_backend.exceptions import InvalidCombinationError, InvalidDataError
+from verve_backend.exceptions import InvalidDataError
 from verve_backend.models import (
     Activity,
     ActivityCreate,
     ActivitySubType,
     ActivityType,
     ActivityTypeCreate,
+    DefaultEquipmentSet,
     Equipment,
     EquipmentCreate,
+    EquipmentSet,
     Goal,
     GoalCreate,
     TrackPoint,
@@ -362,3 +365,73 @@ def create_equipment(
     return Ok(equipment)
 
 
+def create_equipment_set(
+    *,
+    session: Session,
+    name: str,
+    data: list[Equipment],
+    user_id: uuid.UUID,
+) -> Result[EquipmentSet, uuid.UUID]:
+    e_set = EquipmentSet(user_id=user_id, name=name, items=data)
+
+    session.add(e_set)
+    session.commit()
+    session.refresh(e_set)
+
+    return Ok(e_set)
+
+
+def put_default_equipment_set(
+    *,
+    session: Session,
+    user_id: uuid.UUID,
+    set_id: uuid.UUID,
+    activity_type_id: int,
+    activity_sub_type_id: int | None = None,
+) -> Result[None, uuid.UUID]:
+    stmt = (
+        select(DefaultEquipmentSet)
+        .where(DefaultEquipmentSet.type_id == activity_type_id)
+        .where(DefaultEquipmentSet.user_id == user_id)
+    )
+    if activity_sub_type_id:
+        stmt = stmt.where(DefaultEquipmentSet.sub_type_id == activity_sub_type_id)
+    existing_default = session.exec(stmt).first()
+    if existing_default:
+        try:
+            session.delete(existing_default)
+        except DatabaseError as e:
+            err_uuid = uuid.uuid4()
+            logger.error(f"[{err_uuid}] Got DB Error")
+            logger.exception(e)
+            return Err(err_uuid)
+
+    new_default = DefaultEquipmentSet(
+        user_id=user_id,
+        set_id=set_id,
+        type_id=activity_type_id,
+        sub_type_id=activity_sub_type_id,
+    )
+    session.add(new_default)
+    session.commit()
+
+    return Ok(None)
+
+
+def get_default_equipment_set(
+    *,
+    session: Session,
+    user_id: uuid.UUID,
+    activity_type_id: int,
+    activity_sub_type_id: int | None,
+) -> Result[uuid.UUID | None, uuid.UUID]:
+    stmt = (
+        select(DefaultEquipmentSet)
+        .where(DefaultEquipmentSet.type_id == activity_type_id)
+        .where(DefaultEquipmentSet.user_id == user_id)
+    )
+    if activity_sub_type_id is not None:
+        stmt = stmt.where(DefaultEquipmentSet.sub_type_id == activity_sub_type_id)
+    e_set = session.exec(stmt).first()
+
+    return Ok(e_set.set_id if e_set else None)

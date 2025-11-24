@@ -11,7 +11,6 @@ from geo_track_analyzer import FITTrack, PyTrack, Track
 from sqlmodel import Session, SQLModel
 
 from verve_backend.models import User
-from verve_backend.result import Err, Ok, is_ok
 
 
 # This runs right after cmd arg parsing but after imports
@@ -57,6 +56,17 @@ def user1_token(client: TestClient) -> str:
     assert response.status_code == 200
     data = response.json()
     return data["access_token"]
+
+
+@pytest.fixture(scope="session")
+def user1_id(client: TestClient, user1_token: str) -> UUID:
+    response = client.get(
+        "/users/me",
+        headers={"Authorization": f"Bearer {user1_token}"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    return data["id"]
 
 
 @pytest.fixture
@@ -114,7 +124,7 @@ def temp_user_token(temp_user_id: UUID, client: TestClient) -> str:
 
 
 @pytest.fixture
-def celery_eager(monkeypatch):
+def celery_eager(monkeypatch) -> None:
     """
     A pytest fixture that forces Celery to run tasks synchronously (eagerly)
     for the duration of a single test by directly patching the existing
@@ -199,7 +209,7 @@ def create_dummy_activity(
     type_id: int = 1,
     track: Track | None = None,
     name: str | None = None,
-):
+) -> Any:
     """Creates a simple activity, saves it to the DB, and returns it."""
     from verve_backend.api.common.track import update_activity_with_track
     from verve_backend.crud import insert_track
@@ -292,7 +302,7 @@ def generate_data(session: Session) -> None:
     )
     process_activity_highlights(activity_1.id, created_users[0].id)
 
-    activity_2 = crud.create_activity(
+    activity_2 = crud.create_activity(  # noqa: F841
         session=session,
         create=models.ActivityCreate(
             start=datetime(year=2025, month=1, day=2, hour=13),
@@ -305,7 +315,7 @@ def generate_data(session: Session) -> None:
         user=created_users[1],
     ).unwrap()
 
-    activity_3 = crud.create_activity(
+    activity_3 = crud.create_activity(  # noqa: F841
         session=session,
         create=models.ActivityCreate(
             start=datetime(year=2025, month=1, day=2, hour=13),
@@ -327,3 +337,35 @@ def generate_data(session: Session) -> None:
         ),
         user=created_users[0],
     ).unwrap()
+
+    equipment_1 = crud.create_equipment(
+        session=session,
+        data=models.EquipmentCreate(
+            name="Basic Bike",
+            equipment_type=models.EquipmentType.BIKE,
+        ),
+        user_id=created_users[0].id,
+    ).unwrap()
+    equipment_2 = crud.create_equipment(
+        session=session,
+        data=models.EquipmentCreate(
+            name="Basic Shoes",
+            equipment_type=models.EquipmentType.SHOES,
+        ),
+        user_id=created_users[0].id,
+    ).unwrap()
+
+    equipment_set = crud.create_equipment_set(
+        session=session,
+        name="Basic Set",
+        data=[equipment_1, equipment_2],
+        user_id=created_users[0].id,
+    ).unwrap()
+
+    crud.put_default_equipment_set(
+        session=session,
+        user_id=created_users[0].id,
+        set_id=equipment_set.id,
+        activity_type_id=1,
+        activity_sub_type_id=1,
+    )

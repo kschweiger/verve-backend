@@ -14,7 +14,7 @@ from verve_backend.core.meta_data import (
 def test_activity_meta_data_target() -> None:
     ActivityMetaData(target="ActivityMetaData")
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # noqa: PT011
         ActivityMetaData(target="WrongTarget")
 
 

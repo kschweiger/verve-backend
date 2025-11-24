@@ -94,7 +94,7 @@ def get_weekly_stats(
     user_session: UserSession,
     params: StatsParam = Depends(),
 ) -> Any:
-    _, session = user_session
+    _, session = user_session  # noqa: RUF059
     raise HTTPException(status_code=HTTP_501_NOT_IMPLEMENTED)
 
 

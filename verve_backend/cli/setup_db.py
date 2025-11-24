@@ -31,6 +31,8 @@ RSL_TABLES = [
     ("user_setting", "user_settings"),
     ("zone_interval", "zone_intervals"),
     ("equipment", "equipment"),
+    ("equipment_set", "equipment_sets"),
+    ("default_equipment_set", "default_equipment_sets"),
 ]
 
 
@@ -86,7 +88,8 @@ def setup_db(session: Session, schema: str = "verve") -> None:
 def main() -> None:
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
-        description="Verve Backend Database Setup - Sets up activity types and RLS policies"
+        description="Verve Backend Database Setup - Sets up activity types and "
+        "RLS policies"
     )
     parser.add_argument(
         "--schema",
