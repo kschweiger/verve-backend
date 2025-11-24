@@ -12,6 +12,7 @@ from starlette.status import (
     HTTP_200_OK,
     HTTP_400_BAD_REQUEST,
     HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+    HTTP_500_INTERNAL_SERVER_ERROR,
     HTTP_501_NOT_IMPLEMENTED,
 )
 
@@ -36,6 +37,7 @@ from verve_backend.models import (
     ActivityPublic,
     ActivitySubType,
     ActivityType,
+    EquipmentSet,
     Image,
     User,
     UserSettings,
@@ -189,6 +191,7 @@ def create_activity(
     user_session: UserSession,
     locale: LocaleQuery | None = None,
     data: ActivityCreate,
+    add_default_equipment: bool = False,
 ) -> Any:
     user_id, session = user_session
     user = session.get(User, user_id)
@@ -205,14 +208,37 @@ def create_activity(
         locale=locale,
     )
     match result:
-        case Ok(activity):
-            return activity
+        case Ok(_activity):
+            activity = _activity
         case Err(error_id):
             raise HTTPException(
                 status_code=HTTP_400_BAD_REQUEST,
                 detail="Received invilaid meta_data for activity. "
                 f"Error code: {error_id}",
             )
+
+    if add_default_equipment:
+        match crud.get_default_equipment_set(
+            session=session,
+            user_id=user.id,
+            activity_type_id=data.type_id,
+            activity_sub_type_id=data.sub_type_id,
+        ):
+            case Ok(set_id):
+                if set_id:
+                    logger.debug("Found default equipment set %s", set_id)
+                    equipment_set = session.get(EquipmentSet, set_id)
+                    assert equipment_set is not None
+                    activity.equipment.extend(equipment_set.items)
+                    session.commit()
+                    session.refresh(activity)
+            case Err(err):
+                raise HTTPException(
+                    status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Could not retrieve default equipment. Error code: {err}",
+                )
+
+    return activity
 
 
 @router.post("/auto/", response_model=ActivityPublic)
@@ -224,6 +250,7 @@ def create_auto_activity(
     type_id: int | None = None,
     sub_type_id: int | None = None,
     locale: LocaleQuery | None = None,
+    add_default_equipment: bool = False,
 ) -> Any:
     _user_id, session = user_session
     user_id = uuid.UUID(_user_id)
@@ -259,6 +286,27 @@ def create_auto_activity(
     session.add(activity)
     session.commit()
     session.refresh(activity)
+
+    if add_default_equipment:
+        match crud.get_default_equipment_set(
+            session=session,
+            user_id=user_id,
+            activity_type_id=_type_id,
+            activity_sub_type_id=_sub_type_id,
+        ):
+            case Ok(set_id):
+                if set_id:
+                    logger.debug("Found default equipment set %s", set_id)
+                    equipment_set = session.get(EquipmentSet, set_id)
+                    assert equipment_set is not None
+                    activity.equipment.extend(equipment_set.items)
+                    session.commit()
+                    session.refresh(activity)
+            case Err(err):
+                raise HTTPException(
+                    status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Could not retrieve default equipment. Error code: {err}",
+                )
 
     activity_type = session.get(ActivityType, activity.type_id)
     assert activity_type is not None

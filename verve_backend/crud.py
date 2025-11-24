@@ -389,16 +389,14 @@ def put_default_equipment_set(
     activity_type_id: int,
     activity_sub_type_id: int | None = None,
 ) -> Result[None, uuid.UUID]:
-    stmt = select(DefaultEquipmentSet).where(
-        DefaultEquipmentSet.type_id == activity_type_id
+    stmt = (
+        select(DefaultEquipmentSet)
+        .where(DefaultEquipmentSet.type_id == activity_type_id)
+        .where(DefaultEquipmentSet.user_id == user_id)
     )
     if activity_sub_type_id:
         stmt = stmt.where(DefaultEquipmentSet.sub_type_id == activity_sub_type_id)
-    existing_default = session.exec(
-        select(DefaultEquipmentSet)
-        .where(DefaultEquipmentSet.type_id == activity_type_id)
-        .where(DefaultEquipmentSet.sub_type_id == activity_sub_type_id)
-    ).first()
+    existing_default = session.exec(stmt).first()
     if existing_default:
         try:
             session.delete(existing_default)
@@ -423,11 +421,14 @@ def put_default_equipment_set(
 def get_default_equipment_set(
     *,
     session: Session,
+    user_id: uuid.UUID,
     activity_type_id: int,
     activity_sub_type_id: int | None,
 ) -> Result[uuid.UUID | None, uuid.UUID]:
-    stmt = select(DefaultEquipmentSet).where(
-        DefaultEquipmentSet.type_id == activity_type_id
+    stmt = (
+        select(DefaultEquipmentSet)
+        .where(DefaultEquipmentSet.type_id == activity_type_id)
+        .where(DefaultEquipmentSet.user_id == user_id)
     )
     if activity_sub_type_id is not None:
         stmt = stmt.where(DefaultEquipmentSet.sub_type_id == activity_sub_type_id)
