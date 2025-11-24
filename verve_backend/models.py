@@ -245,7 +245,7 @@ class EquipmentPublic(EquipmentBase):
     id: uuid.UUID
 
 
-class DefaultEquipmentSets(SQLModel, table=True):
+class DefaultEquipmentSet(SQLModel, table=True):
     __tablename__: str = "default_equipment_sets"  # type: ignore
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)

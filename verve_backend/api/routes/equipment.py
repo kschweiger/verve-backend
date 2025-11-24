@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from sqlmodel import select
 from starlette.status import (
     HTTP_204_NO_CONTENT,
+    HTTP_500_INTERNAL_SERVER_ERROR,
 )
 
 from verve_backend import crud
@@ -16,7 +17,7 @@ from verve_backend.api.deps import UserSession
 from verve_backend.models import (
     Activity,
     ActivityType,
-    DefaultEquipmentSets,
+    DefaultEquipmentSet,
     DictResponse,
     Equipment,
     EquipmentCreate,
@@ -342,27 +343,20 @@ def set_default_set(
     if activity_sub_type_id:
         validate_sub_type_id(session, activity_type_id, activity_sub_type_id)
 
-    stmt = select(DefaultEquipmentSets).where(
-        DefaultEquipmentSets.type_id == activity_type_id
-    )
-    if activity_sub_type_id:
-        stmt = stmt.where(DefaultEquipmentSets.sub_type_id == activity_sub_type_id)
-    existing_default = session.exec(
-        select(DefaultEquipmentSets)
-        .where(DefaultEquipmentSets.type_id == activity_type_id)
-        .where(DefaultEquipmentSets.sub_type_id == activity_sub_type_id)
-    ).first()
-    if existing_default:
-        session.delete(existing_default)
-
-    new_default = DefaultEquipmentSets(
+    match crud.put_default_equipment_set(
+        session=session,
         user_id=user_id,
         set_id=set_id,
-        type_id=activity_type_id,
-        sub_type_id=activity_sub_type_id,
-    )
-    session.add(new_default)
-    session.commit()
+        activity_type_id=activity_type_id,
+        activity_sub_type_id=activity_sub_type_id,
+    ):
+        case Ok(_):
+            return
+        case Err(err_id):
+            raise HTTPException(
+                status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to set default equipment set. Error code: {err_id}",
+            )
 
 
 @router.get(
@@ -374,7 +368,7 @@ def get_default_sets(
 ) -> Any:
     _, session = user_session
 
-    all_sets = session.exec(select(DefaultEquipmentSets)).all()
+    all_sets = session.exec(select(DefaultEquipmentSet)).all()
 
     resp = {}
     for _set in all_sets:

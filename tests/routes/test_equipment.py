@@ -11,7 +11,7 @@ from verve_backend.models import (
     Activity,
     ActivityCreate,
     ActivityPublic,
-    DefaultEquipmentSets,
+    DefaultEquipmentSet,
     Equipment,
     EquipmentCreate,
     EquipmentPublic,
@@ -376,9 +376,7 @@ def test_create_default_set(
     assert response.status_code == 204
 
     default_sets = db.exec(
-        select(DefaultEquipmentSets).where(
-            DefaultEquipmentSets.set_id == created_set.id
-        )
+        select(DefaultEquipmentSet).where(DefaultEquipmentSet.set_id == created_set.id)
     ).all()
 
     assert len(default_sets) == 1

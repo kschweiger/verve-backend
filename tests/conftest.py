@@ -344,9 +344,17 @@ def generate_data(session: Session) -> None:
         user_id=created_users[0].id,
     ).unwrap()
 
-    uequipment_set = crud.create_equipment_set(  # noqa: F841
+    equipment_set = crud.create_equipment_set(
         session=session,
         name="Basic Set",
         data=[equipment_1, equipment_2],
         user_id=created_users[0].id,
     ).unwrap()
+
+    crud.put_default_equipment_set(
+        session=session,
+        user_id=created_users[0].id,
+        set_id=equipment_set.id,
+        activity_type_id=1,
+        activity_sub_type_id=1,
+    )
