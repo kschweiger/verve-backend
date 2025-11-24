@@ -63,7 +63,7 @@ class CalendarResponse(BaseModel):
 
     year: int
     month: int
-    weeks: Annotated[list[CalendarWeek], Field(min_length=4, max_length=5)]
+    weeks: Annotated[list[CalendarWeek], Field(min_length=4, max_length=6)]
 
 
 def process_metric_data(
