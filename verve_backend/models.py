@@ -277,14 +277,23 @@ class Equipment(EquipmentBase, table=True):
     )
 
 
-class EquipmentSet(SQLModel, table=True):
+class EquipmentSetBase(SQLModel):
+    name: str = Field(nullable=False)
+
+
+class EquipmentSetPublic(EquipmentSetBase):
+    id: uuid.UUID
+    items: list[uuid.UUID]
+
+
+class EquipmentSet(EquipmentSetBase, table=True):
     __tablename__: str = "equipment_sets"  # type: ignore
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(
         foreign_key="users.id", nullable=False, ondelete="CASCADE"
     )
-    name: str = Field(nullable=False)
+
     items: list[Equipment] = Relationship(
         back_populates="sets", link_model=EquipmentSetLink
     )
