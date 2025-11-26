@@ -52,8 +52,8 @@ def get_goals(
     _data = session.exec(stmt).all()
     data = []
     for goal in _data:
-        reached = False
-        progress = 0.0
+        progress = goal.current / goal.target
+        reached = progress >= 1
 
         data.append(
             GoalPublic.model_validate(
