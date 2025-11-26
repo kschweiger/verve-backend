@@ -404,18 +404,6 @@ def generate_data(session: Session) -> None:
         user_id=created_users[0].id,
         session=session,
         goal=models.GoalCreate(
-            name="Multi Month Goal",
-            temporal_type=models.TemportalType.MONTHLY,
-            year=2025,
-            target=100,
-            type=models.GoalType.ACTIVITY,
-            aggregation=models.GoalAggregation.TOTAL_DISTANCE,
-        ),
-    ).unwrap()
-    goal_3 = crud.create_goal(  # noqa: F841
-        user_id=created_users[0].id,
-        session=session,
-        goal=models.GoalCreate(
             name="Fixed Month Goal",
             temporal_type=models.TemportalType.MONTHLY,
             year=2025,

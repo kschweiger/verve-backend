@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query
-from sqlmodel import col, or_, select
+from sqlmodel import Session, col, or_, select
 from starlette.status import (
     HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST,
@@ -16,8 +16,8 @@ from starlette.status import (
 from verve_backend import crud
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import UserSession
-from verve_backend.enums import GoalType
-from verve_backend.models import Goal, GoalCreate, GoalPublic, GoalsPublic
+from verve_backend.enums import GoalType, TemportalType
+from verve_backend.models import Goal, GoalCreate, GoalPublic, GoalsPublic, ListResponse
 from verve_backend.result import Err, ErrorType, Ok
 
 # logger = logging.getLogger(__name__)
@@ -66,10 +66,7 @@ def get_goals(
     )
 
 
-@router.put("/", response_model=GoalPublic)
-def add_goal(user_session: UserSession, data: GoalCreate) -> Any:
-    user_id, session = user_session
-
+def _add_single_goal(user_id: str, session: Session, data: GoalCreate) -> GoalPublic:
     result = crud.create_goal(session=session, goal=data, user_id=user_id)
     match result:
         case Ok(goal):
@@ -84,6 +81,22 @@ def add_goal(user_session: UserSession, data: GoalCreate) -> Any:
                 status_code=code,
                 detail=msg,
             )
+
+
+@router.put("/", response_model=ListResponse[GoalPublic])
+def add_goal(user_session: UserSession, data: GoalCreate) -> Any:
+    user_id, session = user_session
+
+    if data.temporal_type == TemportalType.MONTHLY and data.month is None:
+        _goals = []
+        for i in range(1, 13):
+            _data = data.model_copy()
+            _data.month = i
+            _goals.append(_add_single_goal(user_id, session, _data))
+        return ListResponse(data=_goals)
+
+    else:
+        return ListResponse(data=[_add_single_goal(user_id, session, data)])
 
 
 @router.delete(

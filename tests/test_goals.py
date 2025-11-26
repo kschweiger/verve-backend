@@ -13,7 +13,7 @@ from verve_backend.models import GoalCreate
     [
         (TemportalType.YEARLY, 2025, None, True),
         (TemportalType.YEARLY, 2025, 2, False),
-        (TemportalType.MONTHLY, 2025, None, True),
+        (TemportalType.MONTHLY, 2025, None, False),
         (TemportalType.MONTHLY, 2025, 2, True),
     ],
 )

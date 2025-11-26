@@ -6,8 +6,8 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session
 
 from verve_backend import crud
-from verve_backend.enums import GoalAggregation, GoalType
-from verve_backend.models import GoalCreate, GoalPublic, GoalsPublic
+from verve_backend.enums import GoalAggregation, GoalType, TemportalType
+from verve_backend.models import GoalCreate, GoalPublic, GoalsPublic, ListResponse
 
 
 # NOTE: Test against the default gaols creating in test setup
@@ -15,11 +15,11 @@ from verve_backend.models import GoalCreate, GoalPublic, GoalsPublic
     ("year", "month", "exp_count"),
     [
         # Load all in 2025
-        (2025, None, 3),
+        (2025, None, 2),
         # Load all in Feb 2025
-        (2025, 2, 3),
+        (2025, 2, 2),
         # Load all in match 2025
-        (2025, 3, 2),
+        (2025, 3, 1),
         # Load all in Jan 2024
         (2024, 1, 1),
         # Load all in Feb 2024
@@ -63,7 +63,33 @@ def test_add_goal(
     )
 
     assert response.status_code == 200
-    GoalPublic.model_validate(response.json())
+    added_goals = ListResponse[GoalPublic].model_validate(response.json())
+    assert len(added_goals.data) == 1
+
+
+def test_add_multiple_goals_month(
+    client: TestClient,
+    temp_user_token: str,
+):
+    goal_data = {
+        "name": "New Goal",
+        "description": "A newly created goal",
+        "target": 15,
+        "temporal_type": TemportalType.MONTHLY,
+        "month": None,
+        "type": GoalType.ACTIVITY,
+        "aggregation": GoalAggregation.DURATION,
+    }
+
+    response = client.put(
+        "/goal",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        json=goal_data,
+    )
+
+    assert response.status_code == 200
+    added_goals = ListResponse[GoalPublic].model_validate(response.json())
+    assert len(added_goals.data) == 12
 
 
 def test_add_goal_invalid_configuration(

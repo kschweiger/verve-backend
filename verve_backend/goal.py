@@ -36,6 +36,11 @@ def _validate_temporal_setup(goal: GoalCreate) -> tuple[str, ErrorType] | None:
             "Invalid combination: Yearly goals should not have month set",
             ErrorType.VALIDATION,
         )
+    if goal.temporal_type == TemportalType.MONTHLY and goal.month is None:
+        return (
+            "Invalid combination: Monthly goals must have month set",
+            ErrorType.VALIDATION,
+        )
 
 
 def validate_goal_creation(
