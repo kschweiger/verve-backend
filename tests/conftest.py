@@ -256,6 +256,7 @@ def generate_data(session: Session) -> None:
     from verve_backend.tasks import process_activity_highlights
 
     setup_db(session, "verve_testing")
+    # --------------------- USERS ------------------------------
     created_users: list[User] = []
     for name, pw, email, full_name in [
         ("username1", "12345678", "user1@mail.com", "User Name"),
@@ -272,6 +273,8 @@ def generate_data(session: Session) -> None:
                 ),
             ).unwrap()
         )
+
+    # -------------------- ACTIVITIES ---------------------------
     activity_1 = crud.create_activity(
         session=session,
         create=models.ActivityCreate(
@@ -338,6 +341,7 @@ def generate_data(session: Session) -> None:
         user=created_users[0],
     ).unwrap()
 
+    # ------------------------------- EQUIPMENT & SETS ---------------------------
     equipment_1 = crud.create_equipment(
         session=session,
         data=models.EquipmentCreate(
@@ -369,3 +373,55 @@ def generate_data(session: Session) -> None:
         activity_type_id=1,
         activity_sub_type_id=1,
     )
+
+    # ------------------------------- GOALS ---------------------------
+    goal_0 = crud.create_goal(  # noqa: F841
+        user_id=created_users[0].id,
+        session=session,
+        goal=models.GoalCreate(
+            name="Fix Month Goal 0",
+            temporal_type=models.TemportalType.MONTHLY,
+            year=2024,
+            month=1,
+            target=200,
+            type=models.GoalType.MANUAL,
+            aggregation=models.GoalAggregation.COUNT,
+        ),
+    ).unwrap()
+    goal_1 = crud.create_goal(  # noqa: F841
+        user_id=created_users[0].id,
+        session=session,
+        goal=models.GoalCreate(
+            name="Yearly Goal",
+            temporal_type=models.TemportalType.YEARLY,
+            year=2025,
+            target=1000,
+            type=models.GoalType.ACTIVITY,
+            aggregation=models.GoalAggregation.TOTAL_DISTANCE,
+        ),
+    ).unwrap()
+    goal_2 = crud.create_goal(  # noqa: F841
+        user_id=created_users[0].id,
+        session=session,
+        goal=models.GoalCreate(
+            name="Multi Month Goal",
+            temporal_type=models.TemportalType.MONTHLY,
+            year=2025,
+            target=100,
+            type=models.GoalType.ACTIVITY,
+            aggregation=models.GoalAggregation.TOTAL_DISTANCE,
+        ),
+    ).unwrap()
+    goal_3 = crud.create_goal(  # noqa: F841
+        user_id=created_users[0].id,
+        session=session,
+        goal=models.GoalCreate(
+            name="Fixed Month Goal",
+            temporal_type=models.TemportalType.MONTHLY,
+            year=2025,
+            month=2,
+            target=10,
+            type=models.GoalType.ACTIVITY,
+            aggregation=models.GoalAggregation.DURATION,
+        ),
+    ).unwrap()
