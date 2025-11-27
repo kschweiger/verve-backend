@@ -16,7 +16,11 @@ from verve_backend.core.config import settings
 from verve_backend.core.meta_data import ActivityMetaData, validate_meta_data
 from verve_backend.core.security import get_password_hash, verify_password
 from verve_backend.exceptions import InvalidDataError
-from verve_backend.goal import validate_goal_creation
+from verve_backend.goal import (
+    GoalContraints,
+    validate_constraints,
+    validate_goal_creation,
+)
 from verve_backend.models import (
     Activity,
     ActivityCreate,
@@ -304,9 +308,23 @@ def update_activity_with_track_data(
 def create_goal(
     *, session: Session, goal: GoalCreate, user_id: uuid.UUID | str
 ) -> TypedResult[Goal, str]:
+    # Basic validation for base attributes
     validation_result = validate_goal_creation(goal)
     if validation_result is not None:
         return Err(validation_result)
+
+    # Validate constraints if provided
+    if goal.constraints:
+        validation_result = validate_constraints(
+            session=session,
+            constraints=goal.constraints,
+        )
+        if isinstance(validation_result, GoalContraints):
+            goal.constraints = validation_result.model_dump(
+                mode="json", exclude_unset=True
+            )
+        else:
+            return Err(validation_result)
 
     db_obj = Goal.model_validate(goal, update={"user_id": user_id})
     session.add(db_obj)
