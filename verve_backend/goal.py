@@ -1,10 +1,12 @@
 import logging
+from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel
 from sqlmodel import Session, col, func, select
 
+from verve_backend.core.timing import log_timing
 from verve_backend.enums import GoalAggregation, GoalType, TemportalType
 from verve_backend.models import (
     Activity,
@@ -135,13 +137,14 @@ def validate_goal_creation(
     return None
 
 
-def update_goal_state(*, session: Session, user_id: UUID, goal: Goal) -> None:
+@log_timing
+def update_goal_state(*, session: Session, user_id: UUID, goal: Goal) -> Goal:
     if goal.type == GoalType.MANUAL:
         # Manual goals are updated manually, so we don't update them here
-        return
+        return goal
     elif goal.type == GoalType.LOCATION:
         # TODO: Location not implemented yet
-        return
+        return goal
     else:
         contraints = GoalContraints.model_validate(goal.constraints)
 
@@ -186,8 +189,8 @@ def update_goal_state(*, session: Session, user_id: UUID, goal: Goal) -> None:
             stmt = stmt.where(col(Activity.created_at) > last_updated)
         activities = session.exec(stmt).all()
         if len(activities) == 0:
-            logger.debug("No new activities found for goal update")
-            return
+            logger.debug("Goal %s: No new activities found", goal.id)
+            return goal
         if goal.aggregation == GoalAggregation.COUNT:
             goal.current += len(activities)
         elif goal.aggregation == GoalAggregation.DURATION:
@@ -201,6 +204,9 @@ def update_goal_state(*, session: Session, user_id: UUID, goal: Goal) -> None:
             goal.current = max(goal.current, max((a.distance for a in activities)))
         else:
             raise NotImplementedError(f"Aggregation {goal.aggregation} not implemented")
-
+        goal.current_updated = datetime.now()
         session.add(goal)
         session.commit()
+        session.refresh(goal)
+        logger.debug("Goal %s: Progrss updated", goal.id)
+        return goal

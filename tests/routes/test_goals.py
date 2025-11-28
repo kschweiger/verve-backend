@@ -70,7 +70,7 @@ def test_add_goal(
 def test_add_multiple_goals_month(
     client: TestClient,
     temp_user_token: str,
-):
+) -> None:
     goal_data = {
         "name": "New Goal",
         "description": "A newly created goal",

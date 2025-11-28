@@ -17,6 +17,7 @@ from verve_backend import crud
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import UserSession
 from verve_backend.enums import GoalType, TemportalType
+from verve_backend.goal import update_goal_state
 from verve_backend.models import Goal, GoalCreate, GoalPublic, GoalsPublic, ListResponse
 from verve_backend.result import Err, ErrorType, Ok
 
@@ -43,7 +44,8 @@ def get_goals(
     year: Annotated[int, Query(ge=2000, default_factory=lambda: datetime.now().year)],
     month: Annotated[int | None, Query(ge=1, lt=13)] = None,
 ) -> Any:
-    _, session = user_session
+    _user_id, session = user_session
+    user_id = uuid.UUID(_user_id)
 
     stmt = select(Goal).where(Goal.year == year)
     if month:
@@ -52,6 +54,8 @@ def get_goals(
     _data = session.exec(stmt).all()
     data = []
     for goal in _data:
+        goal = update_goal_state(session=session, user_id=user_id, goal=goal)
+
         progress = goal.current / goal.target
         reached = progress >= 1
 
