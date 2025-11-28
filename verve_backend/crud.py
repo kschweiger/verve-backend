@@ -15,8 +15,12 @@ from verve_backend.api.deps import SupportedLocale
 from verve_backend.core.config import settings
 from verve_backend.core.meta_data import ActivityMetaData, validate_meta_data
 from verve_backend.core.security import get_password_hash, verify_password
-from verve_backend.enums import GoalAggregation, GoalType
 from verve_backend.exceptions import InvalidDataError
+from verve_backend.goal import (
+    GoalContraints,
+    validate_constraints,
+    validate_goal_creation,
+)
 from verve_backend.models import (
     Activity,
     ActivityCreate,
@@ -35,7 +39,7 @@ from verve_backend.models import (
     UserPublic,
     UserSettings,
 )
-from verve_backend.result import Err, ErrorType, Ok, Result, TypedResult
+from verve_backend.result import Err, Ok, Result, TypedResult
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -304,33 +308,23 @@ def update_activity_with_track_data(
 def create_goal(
     *, session: Session, goal: GoalCreate, user_id: uuid.UUID | str
 ) -> TypedResult[Goal, str]:
-    # Validate GoalType / GoalAggregation combination
-    match goal.type:
-        case GoalType.LOCATION:
-            if goal.aggregation != GoalAggregation.COUNT:
-                return Err(
-                    (
-                        "Invalid combination: Location goal only support count "
-                        "aggregation",
-                        ErrorType.VALIDATION,
-                    )
-                )
-        case GoalType.MANUAL:
-            if goal.aggregation not in [
-                GoalAggregation.COUNT,
-                GoalAggregation.DURATION,
-            ]:
-                return Err(
-                    (
-                        "Invalid combination: Manual goal only support count and "
-                        "duration aggregation",
-                        ErrorType.VALIDATION,
-                    )
-                )
-        case GoalType.ACTIVITY:
-            pass
-        case _:
-            raise NotImplementedError(f"{goal.type} is not supported")
+    # Basic validation for base attributes
+    validation_result = validate_goal_creation(goal)
+    if validation_result is not None:
+        return Err(validation_result)
+
+    # Validate constraints if provided
+    if goal.constraints:
+        validation_result = validate_constraints(
+            session=session,
+            constraints=goal.constraints,
+        )
+        if isinstance(validation_result, GoalContraints):
+            goal.constraints = validation_result.model_dump(
+                mode="json", exclude_unset=True
+            )
+        else:
+            return Err(validation_result)
 
     db_obj = Goal.model_validate(goal, update={"user_id": user_id})
     session.add(db_obj)

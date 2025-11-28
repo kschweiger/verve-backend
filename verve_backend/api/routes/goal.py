@@ -4,22 +4,21 @@ from datetime import datetime
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import JSONResponse
-from sqlmodel import select
+from sqlmodel import Session, col, or_, select
 from starlette.status import (
-    HTTP_200_OK,
+    HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST,
     HTTP_404_NOT_FOUND,
     HTTP_405_METHOD_NOT_ALLOWED,
     HTTP_422_UNPROCESSABLE_CONTENT,
-    HTTP_422_UNPROCESSABLE_ENTITY,
 )
 
 from verve_backend import crud
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import UserSession
-from verve_backend.enums import GoalType
-from verve_backend.models import Goal, GoalCreate, GoalPublic, GoalsPublic
+from verve_backend.enums import GoalType, TemportalType
+from verve_backend.goal import update_goal_state
+from verve_backend.models import Goal, GoalCreate, GoalPublic, GoalsPublic, ListResponse
 from verve_backend.result import Err, ErrorType, Ok
 
 # logger = logging.getLogger(__name__)
@@ -45,17 +44,20 @@ def get_goals(
     year: Annotated[int, Query(ge=2000, default_factory=lambda: datetime.now().year)],
     month: Annotated[int | None, Query(ge=1, lt=13)] = None,
 ) -> Any:
-    _, session = user_session
+    _user_id, session = user_session
+    user_id = uuid.UUID(_user_id)
 
     stmt = select(Goal).where(Goal.year == year)
     if month:
-        stmt = stmt.where(Goal.month == month)
+        stmt = stmt.where(or_(Goal.month == month, col(Goal.month).is_(None)))
 
     _data = session.exec(stmt).all()
     data = []
     for goal in _data:
-        reached = False
-        progress = 0.0
+        goal = update_goal_state(session=session, user_id=user_id, goal=goal)
+
+        progress = goal.current / goal.target
+        reached = progress >= 1
 
         data.append(
             GoalPublic.model_validate(
@@ -68,14 +70,11 @@ def get_goals(
     )
 
 
-@router.put("/", response_model=GoalPublic)
-def add_goal(user_session: UserSession, data: GoalCreate) -> Any:
-    user_id, session = user_session
-
+def _add_single_goal(user_id: str, session: Session, data: GoalCreate) -> GoalPublic:
     result = crud.create_goal(session=session, goal=data, user_id=user_id)
     match result:
         case Ok(goal):
-            return goal
+            return get_public_goal(goal)
         case Err((msg, err_type)):
             if err_type == ErrorType.VALIDATION:
                 code = HTTP_422_UNPROCESSABLE_CONTENT
@@ -88,8 +87,30 @@ def add_goal(user_session: UserSession, data: GoalCreate) -> Any:
             )
 
 
-@router.delete("/")
-def remove_goal(user_session: UserSession, id: uuid.UUID | str) -> Any:
+@router.put("/", response_model=ListResponse[GoalPublic])
+def add_goal(user_session: UserSession, data: GoalCreate) -> Any:
+    user_id, session = user_session
+
+    if data.temporal_type == TemportalType.MONTHLY and data.month is None:
+        _goals = []
+        for i in range(1, 13):
+            _data = data.model_copy()
+            _data.month = i
+            _goals.append(_add_single_goal(user_id, session, _data))
+        return ListResponse(data=_goals)
+
+    else:
+        return ListResponse(data=[_add_single_goal(user_id, session, data)])
+
+
+@router.delete(
+    "/",
+    status_code=HTTP_204_NO_CONTENT,
+)
+def remove_goal(
+    user_session: UserSession,
+    id: uuid.UUID | str,
+) -> None:
     _, session = user_session
     goal = session.get(Goal, id)
     if not goal:
@@ -97,13 +118,6 @@ def remove_goal(user_session: UserSession, id: uuid.UUID | str) -> Any:
 
     session.delete(goal)
     session.commit()
-
-    return JSONResponse(
-        status_code=HTTP_200_OK,
-        content={
-            "message": f"Goal {id} deleted",
-        },
-    )
 
 
 @router.get("/{id}/modify_amount", response_model=GoalPublic)
@@ -127,7 +141,7 @@ def modify_manual_goal(
     else:
         update_amout -= amount
 
-    goal.current = update_amout
+    goal.current = 0 if update_amout < 0 else update_amout
     session.add(goal)
     session.commit()
     session.refresh(goal)
@@ -135,7 +149,7 @@ def modify_manual_goal(
     return get_public_goal(goal)
 
 
-@router.get("/{id}/update", response_model=GoalPublic)
+@router.post("/{id}/update", response_model=GoalPublic)
 def update_goal(
     user_session: UserSession,
     id: uuid.UUID,
@@ -144,7 +158,7 @@ def update_goal(
 ) -> Any:
     if attribute not in ["name", "description", "target"]:
         raise HTTPException(
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Attribute {attribute} is not allowed to be updated",
         )
     if attribute == "target":
@@ -152,7 +166,7 @@ def update_goal(
             float(value)
         except ValueError:
             raise HTTPException(
-                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="New value must be a number if *target* is passed "
                 f"as attribute. Got: {value}",
             )

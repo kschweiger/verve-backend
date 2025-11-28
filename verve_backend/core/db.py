@@ -12,7 +12,6 @@ logger = logging.getLogger("uvicorn.error")
 
 def get_engine(echo: bool = False, rls: bool = False) -> Engine:
     _connect_args = {"options": f"-csearch_path={settings.POSTGRES_SCHEMA},public"}
-    logger.debug(_connect_args)
     return create_engine(
         str(
             settings.SQLALCHEMY_RLS_DATABASE_URI

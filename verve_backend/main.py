@@ -1,3 +1,6 @@
+import logging
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
@@ -9,6 +12,10 @@ from verve_backend.core.config import settings
 def custom_generate_unique_id(route: APIRoute) -> str:
     return f"{route.tags[0]}-{route.name}"
 
+
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.getLogger("uvicorn.error").setLevel(getattr(logging, log_level))
+logging.getLogger("uvicorn.access").setLevel(getattr(logging, log_level))
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

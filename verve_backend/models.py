@@ -393,6 +393,8 @@ class GoalBase(SQLModel):
 
     current: float = 0
     target: PositiveNumber[float] = Field()
+    current_updated: datetime | None = Field(default=None)
+
     upper_bound: bool = Field(default=True)
     active: bool = Field(default=True)
 
