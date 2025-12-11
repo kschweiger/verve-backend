@@ -140,3 +140,4 @@ cov.xml
 *.html
 scripts/tracks/
 *.png
+digest.txt
