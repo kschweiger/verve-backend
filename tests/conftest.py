@@ -251,11 +251,15 @@ def generate_data(session: Session) -> None:
         crud,
         models,
     )
-    from verve_backend.cli.setup_db import setup_db
+    from verve_backend.cli.setup_db import (
+        setup_activity_types,
+        setup_rls_policies,
+    )
     from verve_backend.core.meta_data import LapData, SwimmingMetaData, SwimStyle
     from verve_backend.tasks import process_activity_highlights
 
-    setup_db(session, "verve_testing")
+    setup_activity_types(session)
+    setup_rls_policies(session, "verve_testing")
     # --------------------- USERS ------------------------------
     created_users: list[User] = []
     for name, pw, email, full_name in [

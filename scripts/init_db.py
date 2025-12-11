@@ -21,7 +21,7 @@ print("---------------------------------------")
 print("---------------------------------------")
 print("---------------------------------------")
 with Session(engine) as session:
-    setup_db(session)
+    setup_db(session, admin_pw="changeme")
 
 # Testing data.
 with Session(engine) as session:
