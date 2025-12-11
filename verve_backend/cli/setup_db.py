@@ -4,7 +4,8 @@ import sys
 from sqlmodel import Session, text
 
 from verve_backend.core.db import get_engine
-from verve_backend.models import ActivitySubType, ActivityType
+from verve_backend.models import ActivitySubType, ActivityType, UserCreate
+from verve_backend.result import Err, Ok
 
 ACTIVITY_TYPES = {
     "Cycling": [
@@ -79,10 +80,26 @@ def setup_rls_policies(session: Session, schema: str = "verve") -> None:
     print("RLS policies setup complete!")
 
 
-def setup_db(session: Session, schema: str = "verve") -> None:
+def create_admin_user(session: Session, password: str) -> None:
+    from verve_backend.crud import create_user
+
+    user = UserCreate(
+        name="verve_admin",
+        email="admin@verve-outdoors.com",
+        password=password,
+    )
+    match create_user(session=session, user_create=user):
+        case Ok(user):
+            print("Admin user created")
+        case Err(_id):
+            print("Creating admin user failed")
+
+
+def setup_db(session: Session, admin_pw: str, schema: str = "verve") -> None:
     """Run full database setup (activity types + RLS)."""
     setup_activity_types(session)
     setup_rls_policies(session, schema)
+    create_admin_user(session, admin_pw)
 
 
 def main() -> None:
@@ -97,7 +114,16 @@ def main() -> None:
         default="verve",
         help="Database schema name (default: verve)",
     )
-
+    parser.add_argument(
+        "--admin-pw",
+        type=str,
+        help="Password for the admin user",
+    )
+    parser.add_argument(
+        "--create-tables",
+        action="store_true",
+        help="Create all database tables",
+    )
     args = parser.parse_args()
 
     try:
@@ -105,7 +131,16 @@ def main() -> None:
         engine = get_engine()
 
         with Session(engine) as session:
-            setup_db(session, schema=args.schema)
+            if args.create_tables:
+                print("Creating all database tables...")
+                from sqlmodel import SQLModel
+
+                from verve_backend import models  # noqa: F401
+
+                SQLModel.metadata.create_all(engine)
+                print("Database tables created successfully!\n")
+
+            setup_db(session, schema=args.schema, admin_pw=args.admin_pw)
 
         print("\n✓ Database setup completed successfully!")
 
