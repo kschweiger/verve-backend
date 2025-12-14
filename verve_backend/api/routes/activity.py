@@ -4,14 +4,11 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query, UploadFile
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import func, select
 from starlette.status import (
-    HTTP_200_OK,
     HTTP_400_BAD_REQUEST,
-    HTTP_415_UNSUPPORTED_MEDIA_TYPE,
     HTTP_500_INTERNAL_SERVER_ERROR,
     HTTP_501_NOT_IMPLEMENTED,
 )
@@ -29,7 +26,6 @@ from verve_backend.api.deps import (
     ObjectStoreClient,
     UserSession,
 )
-from verve_backend.core.config import settings
 from verve_backend.models import (
     ActivitiesPublic,
     Activity,
@@ -38,7 +34,6 @@ from verve_backend.models import (
     ActivitySubType,
     ActivityType,
     EquipmentSet,
-    Image,
     User,
     UserSettings,
 )
@@ -336,65 +331,3 @@ def create_auto_activity(
     process_activity_highlights.delay(activity.id, user_id)  # type: ignore
 
     return activity
-
-
-@router.put("/add_image", tags=[Tag.IMAGE, Tag.UPLOAD])
-async def add_image(
-    *,
-    user_session: UserSession,
-    activity_id: uuid.UUID,
-    obj_store_client: ObjectStoreClient,
-    file: UploadFile,
-) -> Any:
-    user_id, session = user_session
-    activity = session.get(Activity, activity_id)
-    if not activity:
-        raise HTTPException(status_code=404, detail="Activity not found")
-
-    file_name = file.filename
-    assert file_name is not None, "Could not retrieve file name"
-
-    if file_name.endswith(".jpg") or file_name.endswith(".jpeg"):
-        content_type = "image/jpeg"
-    elif file_name.endswith(".png"):
-        content_type = "image/png"
-    else:
-        raise HTTPException(
-            status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="Only .jpg, .jpeg and .png files are supported.",
-        )
-
-    db_obj = Image(
-        user_id=user_id,  # type: ignore
-        activity_id=activity_id,
-    )
-    session.add(db_obj)
-    session.commit()
-    session.refresh(db_obj)
-
-    obj_path = f"images/{db_obj.id}"
-
-    obj_store_client.upload_fileobj(
-        file.file,
-        Bucket=settings.BOTO3_BUCKET,
-        Key=obj_path,
-        ExtraArgs={
-            "ContentType": file.content_type,  # Preserve the MIME type
-            "Metadata": {
-                "original_filename": file.filename,
-                "uploaded_by": str(user_id),
-                "activity_id": str(activity_id),
-                "file_type": content_type,
-            },
-        },
-    )
-
-    logger.info("Uploaded image to %s", obj_path)
-    return JSONResponse(
-        status_code=HTTP_200_OK,
-        content={
-            "message": "Image uploaded successfully",
-            "activity_id": str(activity_id),
-            "id": str(db_obj.id),
-        },
-    )

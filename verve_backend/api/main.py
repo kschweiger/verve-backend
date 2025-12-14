@@ -11,6 +11,7 @@ from verve_backend.api.routes import (
     heatmap,
     highlights,
     login,
+    media,
     resolver,
     statistics,
     track,
@@ -26,6 +27,7 @@ api_router.include_router(activity.router)
 api_router.include_router(track.router)
 api_router.include_router(heatmap.router)
 api_router.include_router(goal.router)
+api_router.include_router(media.router)
 api_router.include_router(resolver.router)
 api_router.include_router(statistics.router)
 api_router.include_router(equipment.router)

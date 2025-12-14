@@ -12,3 +12,4 @@ class Tag(StrEnum):
     HEATMAP = auto()
     EQUIPMENT = auto()
     HIGHLIGHTS = auto()
+    MEDIA = auto()

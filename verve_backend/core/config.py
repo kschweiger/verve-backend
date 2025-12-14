@@ -50,6 +50,8 @@ class Settings(BaseSettings):
     BOTO3_REGION: str = "us-east-1"
     BOTO3_BUCKET_NAME: str = "verve"
 
+    MAX_FILE_SIZE_MB: int = 10
+
     DEFAULTSETTINGS: DefautlSettings = DefautlSettings(
         activity_type=1, activity_sub_type=None
     )
