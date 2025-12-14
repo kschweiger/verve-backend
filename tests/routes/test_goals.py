@@ -92,6 +92,40 @@ def test_add_multiple_goals_month(
     assert len(added_goals.data) == 12
 
 
+@pytest.mark.parametrize(
+    ("month", "week", "exp_number_of_goals"),
+    [(None, 1, 1), (1, None, 5), (None, None, 52)],
+)
+def test_add_goals_week(
+    client: TestClient,
+    temp_user_token: str,
+    month: int | None,
+    week: int | None,
+    exp_number_of_goals: int,
+) -> None:
+    goal_data = {
+        "name": "New Goal",
+        "description": "A newly created goal",
+        "target": 2,
+        "temporal_type": TemportalType.WEEKLY,
+        "year": 2025,
+        "month": month,
+        "week": week,
+        "type": GoalType.ACTIVITY,
+        "aggregation": GoalAggregation.COUNT,
+    }
+
+    response = client.put(
+        "/goal",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        json=goal_data,
+    )
+
+    assert response.status_code == 200
+    added_goals = ListResponse[GoalPublic].model_validate(response.json())
+    assert len(added_goals.data) == exp_number_of_goals
+
+
 def test_add_goal_invalid_configuration(
     client: TestClient,
     temp_user_token: str,

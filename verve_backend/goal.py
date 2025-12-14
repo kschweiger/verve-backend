@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel
 from sqlmodel import Session, col, func, select
 
+from verve_backend.core.date_utils import get_week_date_range
 from verve_backend.core.timing import log_timing
 from verve_backend.enums import GoalAggregation, GoalType, TemportalType
 from verve_backend.models import (
@@ -56,16 +57,45 @@ def _validate_type_aggregation_combination(
 
 
 def _validate_temporal_setup(goal: GoalCreate) -> tuple[str, ErrorType] | None:
-    if goal.temporal_type == TemportalType.YEARLY and goal.month is not None:
-        return (
-            "Invalid combination: Yearly goals should not have month set",
-            ErrorType.VALIDATION,
-        )
-    if goal.temporal_type == TemportalType.MONTHLY and goal.month is None:
-        return (
-            "Invalid combination: Monthly goals must have month set",
-            ErrorType.VALIDATION,
-        )
+    if goal.temporal_type == TemportalType.YEARLY:
+        if goal.month is not None:
+            return (
+                "Invalid combination: Yearly goals should not have month set",
+                ErrorType.VALIDATION,
+            )
+        if goal.week is not None:
+            return (
+                "Invalid combination: Yearly goals should not have week set",
+                ErrorType.VALIDATION,
+            )
+    elif goal.temporal_type == TemportalType.MONTHLY:
+        if goal.month is None:
+            return (
+                "Invalid combination: Monthly goals must have month set",
+                ErrorType.VALIDATION,
+            )
+        if goal.week is not None:
+            return (
+                "Invalid combination: Monthly goals should not have week set",
+                ErrorType.VALIDATION,
+            )
+    elif goal.temporal_type == TemportalType.WEEKLY:
+        if goal.week is None:
+            return (
+                "Invalid combination: Weekly goals must have week set",
+                ErrorType.VALIDATION,
+            )
+        if goal.month is not None:
+            return (
+                "Invalid combination: Weekly goals should not have month set",
+                ErrorType.VALIDATION,
+            )
+        if goal.week < 1 or goal.week > 53:
+            return (
+                "Invalid combination: Week must be between 1 and 53",
+                ErrorType.VALIDATION,
+            )
+    return None
 
 
 def validate_constraints(
@@ -149,22 +179,26 @@ def update_goal_state(*, session: Session, user_id: UUID, goal: Goal) -> Goal:
         contraints = GoalContraints.model_validate(goal.constraints)
 
         last_updated = goal.current_updated
-        stmt = (
-            select(Activity)
-            .where(func.extract("year", col(Activity.start)) == goal.year)
-            .where(Activity.user_id == user_id)
-        )
+        stmt = select(Activity).where(Activity.user_id == user_id)
+
         if contraints.type_id:
             stmt = stmt.where(Activity.type_id == contraints.type_id)
         if contraints.sub_type_id:
             stmt = stmt.where(Activity.sub_type_id == contraints.sub_type_id)
 
         if goal.month is not None:
-            stmt = stmt.where(func.extract("month", col(Activity.start)) == goal.month)
+            stmt = stmt.where(
+                func.extract("year", col(Activity.start)) == goal.year
+            ).where(func.extract("month", col(Activity.start)) == goal.month)
+        elif goal.week is not None:
+            start_date, end_date = get_week_date_range(goal.year, goal.week)
+            stmt = stmt.where(col(Activity.start) >= start_date).where(
+                col(Activity.start) < end_date
+            )
+        else:
+            stmt = stmt.where(func.extract("year", col(Activity.start)) == goal.year)
 
         if contraints.equipment_ids:
-            # Join with activity_equipment and filter by equipment_ids
-            # Group by activity and ensure ALL equipment_ids are present
             stmt = (
                 stmt.join(
                     ActivityEquipment,

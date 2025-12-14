@@ -16,6 +16,10 @@ from starlette.status import (
 from verve_backend import crud
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import UserSession
+from verve_backend.core.date_utils import (
+    get_all_dates_in_month,
+    get_week_numbers_between_dates,
+)
 from verve_backend.enums import GoalType, TemportalType
 from verve_backend.goal import update_goal_state
 from verve_backend.models import Goal, GoalCreate, GoalPublic, GoalsPublic, ListResponse
@@ -98,7 +102,21 @@ def add_goal(user_session: UserSession, data: GoalCreate) -> Any:
             _data.month = i
             _goals.append(_add_single_goal(user_id, session, _data))
         return ListResponse(data=_goals)
-
+    elif data.temporal_type == TemportalType.WEEKLY and data.week is None:
+        _goals = []
+        if data.month is None:
+            week_numbers = list(
+                range(1, datetime(data.year, 12, 28).isocalendar()[1] + 1)
+            )
+        else:
+            _dates = get_all_dates_in_month(data.year, data.month)
+            week_numbers = get_week_numbers_between_dates(_dates[0], _dates[-1])
+        for week_num in week_numbers:
+            _data = data.model_copy()
+            _data.month = None
+            _data.week = week_num
+            _goals.append(_add_single_goal(user_id, session, _data))
+        return ListResponse(data=_goals)
     else:
         return ListResponse(data=[_add_single_goal(user_id, session, data)])
 
