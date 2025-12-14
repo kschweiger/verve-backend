@@ -401,6 +401,7 @@ class GoalBase(SQLModel):
     temporal_type: TemportalType = Field(default=TemportalType.YEARLY)
     year: int = Field(default=datetime.now().year)
     month: int | None = Field(default=None)
+    week: int | None = Field(default=None)
 
     type: GoalType = Field()
     aggregation: GoalAggregation = Field()
