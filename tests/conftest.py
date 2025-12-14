@@ -335,7 +335,7 @@ def generate_data(session: Session) -> None:
                 segments=[
                     LapData(
                         count=4,
-                        lap_lenths=50,
+                        lap_lengths=50,
                         duration=timedelta(minutes=20),
                         style=SwimStyle.FREESTYLE,
                     )

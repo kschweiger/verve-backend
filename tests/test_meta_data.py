@@ -22,7 +22,7 @@ def test_activity_meta_data_target() -> None:
     "initial_data",
     [
         SwimmingMetaData(
-            segments=[LapData(count=5, lap_lenths=50, style=SwimStyle.FREESTYLE)]
+            segments=[LapData(count=5, lap_lengths=50, style=SwimStyle.FREESTYLE)]
         ),
     ],
 )

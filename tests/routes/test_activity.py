@@ -290,7 +290,7 @@ def test_update_activity_errors(
                         count=10,
                         style=SwimStyle.FREESTYLE,
                         duration=timedelta(minutes=20),
-                        lap_lenths=50,
+                        lap_lengths=50,
                     ),
                     LapData(count=10),
                     LapData(count=10, style=SwimStyle.FREESTYLE),

@@ -32,7 +32,7 @@ class SwimStyle(StrEnum):
 
 class LapData(BaseModel):
     count: int
-    lap_lenths: int | None = None
+    lap_lengths: int | None = None
     style: SwimStyle | None = None
     duration: timedelta | None = None
 
