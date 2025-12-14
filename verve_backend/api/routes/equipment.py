@@ -136,6 +136,27 @@ def remove_equipment_to_activity(
     return {"detail": "Equipment removed from activity"}
 
 
+@router.get("/set/", response_model=ListResponse[EquipmentSetPublic])
+def get_sets(
+    *,
+    user_session: UserSession,
+) -> Any:
+    _, session = user_session
+
+    user_sets = session.exec(select(EquipmentSet)).all()
+
+    return ListResponse(
+        data=[
+            EquipmentSetPublic(
+                id=equip_set.id,
+                name=equip_set.name,
+                items=[item.id for item in equip_set.items],
+            )
+            for equip_set in user_sets
+        ]
+    )
+
+
 @router.post("/set/", response_model=EquipmentSetPublic)
 def create_set(
     *,
