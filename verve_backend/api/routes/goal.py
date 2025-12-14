@@ -47,13 +47,22 @@ def get_goals(
     user_session: UserSession,
     year: Annotated[int, Query(ge=2000, default_factory=lambda: datetime.now().year)],
     month: Annotated[int | None, Query(ge=1, lt=13)] = None,
+    week: Annotated[int | None, Query(ge=1, lt=54)] = None,
 ) -> Any:
     _user_id, session = user_session
     user_id = uuid.UUID(_user_id)
 
+    if week is not None and month is not None:
+        raise HTTPException(
+            status_code=HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Cannot filter by both month and week simultaneously.",
+        )
+
     stmt = select(Goal).where(Goal.year == year)
     if month:
         stmt = stmt.where(or_(Goal.month == month, col(Goal.month).is_(None)))
+    if week:
+        stmt = stmt.where(Goal.week == week)
 
     _data = session.exec(stmt).all()
     data = []
