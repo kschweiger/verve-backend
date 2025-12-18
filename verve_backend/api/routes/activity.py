@@ -6,11 +6,11 @@ from typing import Annotated, Any
 from fastapi import APIRouter, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import func, select
+from sqlmodel import col, delete, func, select
 from starlette.status import (
+    HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST,
     HTTP_500_INTERNAL_SERVER_ERROR,
-    HTTP_501_NOT_IMPLEMENTED,
 )
 
 from verve_backend import crud
@@ -19,6 +19,7 @@ from verve_backend.api.common.db_utils import (
     validate_sub_type_id,
 )
 from verve_backend.api.common.locale import get_activity_name
+from verve_backend.api.common.store_utils import remove_object_from_store
 from verve_backend.api.common.track import add_track, update_activity_with_track
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import (
@@ -26,6 +27,7 @@ from verve_backend.api.deps import (
     ObjectStoreClient,
     UserSession,
 )
+from verve_backend.api.routes.media import delete_image
 from verve_backend.models import (
     ActivitiesPublic,
     Activity,
@@ -34,10 +36,13 @@ from verve_backend.models import (
     ActivitySubType,
     ActivityType,
     EquipmentSet,
+    Image,
+    RawTrackData,
+    TrackPoint,
     User,
     UserSettings,
 )
-from verve_backend.result import Err, Ok
+from verve_backend.result import Err, Ok, is_ok
 from verve_backend.tasks import process_activity_highlights
 
 
@@ -112,24 +117,77 @@ def update_activity(
     return activity
 
 
-@router.delete("/{id}")
-def delete_activity(
+@router.delete(
+    "/{id}",
+    status_code=HTTP_204_NO_CONTENT,
+)
+async def delete_activity(
     user_session: UserSession,
+    obj_store_client: ObjectStoreClient,
     id: uuid.UUID,
-) -> Any:
+) -> None:
     _, session = user_session
 
     activity = session.get(Activity, id)
     if not activity:
         raise HTTPException(status_code=404, detail="Activity not found")
 
-    # TODO: Delete track
-    # -> From DB
-    # -> From Store
+    track_point_count_stmt = (
+        select(func.count())
+        .select_from(TrackPoint)
+        .where(TrackPoint.activity_id == activity.id)
+    )
+    track_point_count = session.exec(track_point_count_stmt).one()
+    if track_point_count > 0:
+        track_point_del_stmt = delete(TrackPoint).where(
+            col(TrackPoint.activity_id) == activity.id
+        )
 
-    # TODO: Delete Activity
+        try:
+            session.exec(track_point_del_stmt)
+        except Exception as e:
+            raise HTTPException(
+                status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Could not delete activity track points. Error: {e}",
+            )
 
-    raise HTTPException(status_code=HTTP_501_NOT_IMPLEMENTED)
+        raw_data = session.get(RawTrackData, activity.id)
+        if raw_data:
+            result = remove_object_from_store(obj_store_client, raw_data.store_path)
+            if is_ok(result):
+                session.delete(raw_data)
+            else:
+                session.rollback()
+                raise HTTPException(
+                    status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Could not delete activity raw data. "
+                    f"Error code: {result.error}",
+                )
+    images = session.exec(select(Image).where(Image.activity_id == id)).all()
+    for image in images:
+        await delete_image(
+            user_session=user_session,
+            image_id=image.id,
+            obj_store_client=obj_store_client,
+        )
+        try:
+            session.delete(image)
+        except Exception as e:
+            session.rollback()
+            raise HTTPException(
+                status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Could not delete activity image {image.id}. Error: {e}",
+            )
+
+    try:
+        session.delete(activity)
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Could not delete activity. Error: {e}",
+        )
+    session.commit()
 
 
 @router.get("/", response_model=ActivitiesPublic)

@@ -1,3 +1,4 @@
+import io
 from datetime import datetime, timedelta
 from importlib import resources
 from uuid import UUID
@@ -18,6 +19,9 @@ from verve_backend.models import (
     ActivityPublic,
     ActivityType,
     EquipmentSet,
+    Image,
+    RawTrackData,
+    TrackPoint,
     UserPublic,
 )
 
@@ -450,3 +454,150 @@ def test_create_activity_with_default_equipment_set(
     activity = db.get(Activity, _activity.id)
     assert activity is not None
     assert all(e in activity.equipment for e in e_set.items)
+
+
+def test_delete_activity_without_track_and_images(
+    client: TestClient,
+    db: Session,
+    temp_user_token: str,
+    temp_user_id: UUID,
+) -> None:
+    """Test deleting an activity without track or images."""
+    # Create activity
+    activity = Activity(
+        start=datetime(2024, 1, 1, 10),
+        duration=timedelta(minutes=30),
+        distance=1.0,
+        type_id=1,
+        sub_type_id=1,
+        name="Test Activity",
+        user_id=temp_user_id,
+    )
+    db.add(activity)
+    db.commit()
+    db.refresh(activity)
+
+    activity_id = activity.id
+    # Delete activity
+    response = client.delete(
+        f"/activity/{activity_id}",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+
+    assert response.status_code == 204
+
+    db.expire_all()
+    # Verify activity is deleted
+    deleted_activity = db.get(Activity, activity_id)
+    assert deleted_activity is None
+
+
+def test_delete_activity_with_track_no_images(
+    mocker: MockerFixture,
+    client: TestClient,
+    db: Session,
+    temp_user_token: str,
+) -> None:
+    """Test deleting an activity with track but no images."""
+    mocker.patch("verve_backend.api.routes.activity.process_activity_highlights.delay")
+
+    # Upload activity with track
+    with resources.files("tests.resources").joinpath("MyWhoosh_1.fit").open("rb") as f:
+        fit_content = f.read()
+
+    response = client.post(
+        "/activity/auto/",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        files={"file": ("MyWhoosh_1.fit", fit_content, "application/octet-stream")},
+    )
+    assert response.status_code == 200
+    activity_id = response.json()["id"]
+
+    # Verify track data exists
+    track_points = db.exec(
+        select(TrackPoint).where(TrackPoint.activity_id == activity_id)
+    ).all()
+    assert len(track_points) > 0
+
+    raw_track_data = db.exec(
+        select(RawTrackData).where(RawTrackData.activity_id == activity_id)
+    ).first()
+    assert raw_track_data is not None
+
+    # Delete activity
+    response = client.delete(
+        f"/activity/{activity_id}",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+
+    assert response.status_code == 204
+
+    db.expire_all()
+    # Verify activity is deleted
+    deleted_activity = db.get(Activity, activity_id)
+    assert deleted_activity is None
+
+    # Verify track points are deleted
+    remaining_track_points = db.exec(
+        select(TrackPoint).where(TrackPoint.activity_id == activity_id)
+    ).all()
+    assert len(remaining_track_points) == 0
+
+    # Verify raw track data is deleted
+    remaining_raw_track_data = db.exec(
+        select(RawTrackData).where(RawTrackData.activity_id == activity_id)
+    ).first()
+    assert remaining_raw_track_data is None
+
+
+def test_delete_activity_with_track_and_images(
+    mocker: MockerFixture,
+    client: TestClient,
+    db: Session,
+    temp_user_token: str,
+) -> None:
+    """Test deleting an activity with both track and images."""
+    mocker.patch("verve_backend.api.routes.activity.process_activity_highlights.delay")
+
+    # Upload activity with track
+    with resources.files("tests.resources").joinpath("MyWhoosh_1.fit").open("rb") as f:
+        fit_content = f.read()
+
+    response = client.post(
+        "/activity/auto/",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        files={"file": ("MyWhoosh_1.fit", fit_content, "application/octet-stream")},
+    )
+    assert response.status_code == 200
+    activity_id = response.json()["id"]
+
+    # Add image to activity
+    png_data = bytes.fromhex(
+        "89504E470D0A1A0A0000000D494844520000000100000001080200000090"
+        "77530E0000000C49444154089963000000020001E221BC330000000049454E44AE426082"
+    )
+    response = client.put(
+        f"/media/image/activity/{activity_id}",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        files={"file": ("test.png", io.BytesIO(png_data), "image/png")},
+    )
+
+    assert response.status_code == 200
+    image_id = response.json()["id"]
+
+    # Delete activity
+    response = client.delete(
+        f"/activity/{activity_id}",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+
+    assert response.status_code == 204
+
+    db.expire_all()
+    # Verify activity is deleted
+    deleted_activity = db.get(Activity, activity_id)
+    assert deleted_activity is None
+
+    # Verify image is deleted
+    deleted_image = db.get(Image, image_id)
+    assert deleted_image is None

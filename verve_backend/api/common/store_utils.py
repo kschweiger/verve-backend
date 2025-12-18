@@ -17,6 +17,7 @@ def remove_object_from_store(
     try:
         obj_store_client.head_object(Bucket=settings.BOTO3_BUCKET, Key=obj_path)
         object_exists = True
+        logger.debug("Object %s exists in storage", obj_path)
     except ClientError as e:
         if e.response["Error"]["Code"] == "404":  # type: ignore
             object_exists = False
@@ -47,4 +48,5 @@ def remove_object_from_store(
         logger.error(str(e))
         return Err(err_uuid)
 
+    logger.debug("Image %s deletion process completed", obj_path)
     return Ok(None)
