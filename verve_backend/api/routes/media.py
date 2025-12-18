@@ -3,7 +3,6 @@ import uuid
 from io import BytesIO
 from typing import Any
 
-from botocore.client import ClientError
 from fastapi import APIRouter, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -16,6 +15,7 @@ from starlette.status import (
     HTTP_500_INTERNAL_SERVER_ERROR,
 )
 
+from verve_backend.api.common.store_utils import remove_object_from_store
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import (
     ObjectStoreClient,
@@ -27,6 +27,7 @@ from verve_backend.models import (
     Image,
     ListResponse,
 )
+from verve_backend.result import is_ok
 
 
 class ImageURLResponse(BaseModel):
@@ -165,38 +166,17 @@ async def delete_image(
 
     obj_path = f"images/{image_id}"
 
-    try:
-        obj_store_client.head_object(Bucket=settings.BOTO3_BUCKET, Key=obj_path)
-        object_exists = True
-    except ClientError as e:
-        if e.response["Error"]["Code"] == "404":  # type: ignore
-            object_exists = False
-            logger.warning(f"Image {image_id} exists in DB but not in storage")
-        else:
-            raise HTTPException(status_code=500, detail="Failed to check image")
-
-    try:
-        response = obj_store_client.delete_object(
-            Bucket=settings.BOTO3_BUCKET,
-            Key=obj_path,
-        )
-
-        # Check if versioning is enabled and object had a DeleteMarker
-        if "DeleteMarker" in response:
-            logger.debug(f"Delete marker added for image {image_id}")
-
-        if object_exists:
-            logger.info(f"Successfully deleted image {image_id} from storage")
-        else:
-            logger.warning(f"Image {image_id} was already missing from storage")
-
-    except ClientError as e:
-        logger.error(f"Failed to delete image {image_id} from storage: {e}")
+    result = remove_object_from_store(
+        obj_store_client=obj_store_client,
+        obj_path=obj_path,
+    )
+    if is_ok(result):
+        session.delete(image)
+        session.commit()
+    else:
         raise HTTPException(
-            status_code=500, detail="Failed to delete image from storage"
+            status_code=500, detail=f"Failed to check image. Error code {result.error}"
         )
-    session.delete(image)
-    session.commit()
 
 
 @router.get(
