@@ -17,7 +17,7 @@ from verve_backend.core.config import settings
 from verve_backend.core.db import get_engine
 from verve_backend.models import SupportedLocale, TokenPayload, User
 
-logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger(__name__)
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/login/access-token"
 )

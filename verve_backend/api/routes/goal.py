@@ -26,7 +26,7 @@ from verve_backend.models import Goal, GoalCreate, GoalPublic, GoalsPublic, List
 from verve_backend.result import Err, ErrorType, Ok
 
 # logger = logging.getLogger(__name__)
-logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/goal", tags=[Tag.GOAL])
 

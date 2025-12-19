@@ -41,7 +41,7 @@ from verve_backend.models import (
 )
 from verve_backend.result import Err, Ok, Result, TypedResult
 
-logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger(__name__)
 
 
 def create_user(

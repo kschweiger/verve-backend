@@ -30,7 +30,7 @@ from verve_backend.models import (
 from verve_backend.result import Err, Ok
 
 # logger = logging.getLogger(__name__)
-logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/equipment", tags=[Tag.EQUIPMENT])
 

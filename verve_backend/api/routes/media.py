@@ -37,7 +37,7 @@ class ImageURLResponse(BaseModel):
 
 router = APIRouter(prefix="/media", tags=[Tag.MEDIA])
 
-logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger(__name__)
 
 
 @router.put("/image/activity/{activity_id}", tags=[Tag.IMAGE, Tag.UPLOAD])

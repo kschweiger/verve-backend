@@ -7,7 +7,7 @@ from sqlmodel import Session
 
 from verve_backend.models import HighlightMetric
 
-logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger(__name__)
 
 
 @dataclass

@@ -20,7 +20,7 @@ from verve_backend.models import (
 )
 
 # logger = logging.getLogger(__name__)
-logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/highlights",

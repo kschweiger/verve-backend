@@ -20,7 +20,7 @@ from verve_backend.models import (
 )
 from verve_backend.result import ErrorType
 
-logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger(__name__)
 
 
 class GoalContraints(BaseModel):

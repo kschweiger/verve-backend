@@ -12,7 +12,7 @@ from sqlmodel import Session, select, text
 from verve_backend.highlights.registry import CalculatorResult, registry
 from verve_backend.models import Activity, HighlightMetric
 
-logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger(__name__)
 
 
 def _get_value_from_acitivty_tabel(

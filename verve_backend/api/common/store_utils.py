@@ -7,7 +7,7 @@ from verve_backend.api.deps import ObjectStoreClient
 from verve_backend.core.config import settings
 from verve_backend.result import Err, Ok, Result
 
-logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger(__name__)
 
 
 def remove_object_from_store(

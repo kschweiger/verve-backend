@@ -25,7 +25,7 @@ class HeatMapResponse(BaseModel):
 
 
 # logger = logging.getLogger(__name__)
-logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/heatmap",

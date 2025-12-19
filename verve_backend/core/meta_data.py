@@ -8,7 +8,7 @@ from pydantic import BaseModel, ValidationError, model_validator
 
 from verve_backend.models import ActivitySubType, ActivityType
 
-logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger(__name__)
 
 
 class ActivityMetaData(BaseModel):

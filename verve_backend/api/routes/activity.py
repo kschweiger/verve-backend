@@ -55,7 +55,7 @@ class ActivityUpdate(BaseModel):
 
 router = APIRouter(prefix="/activity", tags=[Tag.ACTIVITY])
 
-logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger(__name__)
 
 
 @router.get("/{id}", response_model=ActivityPublic)

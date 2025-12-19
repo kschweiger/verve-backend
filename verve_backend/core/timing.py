@@ -3,7 +3,7 @@ import logging
 import time
 from typing import Any, Callable
 
-logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger(__name__)
 # logger = logging.getLogger(__name__)
 
 

@@ -26,6 +26,9 @@ class Settings(BaseSettings):
         env_ignore_empty=True,
         extra="ignore",
     )
+    LOG_LEVEL: str = "INFO"
+    LOG_FORMAT: Literal["console", "json"] = "console"
+
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str = secrets.token_urlsafe(32)
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8

@@ -23,7 +23,7 @@ from verve_backend.models import (
 from verve_backend.tasks import process_activity_highlights
 
 # logger = logging.getLogger(__name__)
-logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/track", tags=[Tag.TRACK])
 
