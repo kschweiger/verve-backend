@@ -84,16 +84,18 @@ async def get_all_locations(
     ):
         stmt = stmt.where(
             func.ST_Intersects(
-                Location.loc,
+                func.ST_GeomFromWKB(Location.loc),
                 func.ST_MakeEnvelope(
-                    latitude_lower_bound or -90,
-                    latitude_upper_bound or 90,
-                    longitude_lower_bound or -180,
-                    longitude_upper_bound or 180,
+                    longitude_lower_bound or -179.999,
+                    latitude_lower_bound or -89.999,
+                    longitude_upper_bound or 179.999,
+                    latitude_upper_bound or 89.999,
+                    4326,
                 ),
             )
         )
 
+    logger.debug("Executing location query: %s", stmt)
     location = session.exec(stmt).all()
     return ListResponse[LocationPublic](
         data=[to_public_location(loc) for loc in location],
