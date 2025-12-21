@@ -2,7 +2,7 @@ import re
 import uuid
 from datetime import datetime, timedelta
 from enum import StrEnum, auto
-from typing import Annotated, Generic, TypeVar
+from typing import Annotated, Any, Generic, TypeVar
 
 from geoalchemy2 import Geography, Geometry
 from pydantic import AfterValidator, BaseModel, EmailStr
@@ -438,22 +438,26 @@ class LocationBase(SQLModel):
     name: str
     description: str | None = None
 
-    loc: str = Field(sa_column=Column(Geography("POINT", 4326)))
-
 
 class LocationCreate(LocationBase):
-    pass
+    latitude: float
+    longitude: float
 
 
 class LocationPublic(LocationBase):
     id: uuid.UUID
     created_at: datetime
 
+    latitude: float
+    longitude: float
+
 
 class Location(LocationBase, table=True):
     __tablename__: str = "locations"  # type: ignore
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    loc: Any = Field(sa_column=Column(Geography("POINT", 4326)))
+
     user_id: uuid.UUID = Field(
         foreign_key="users.id", nullable=False, ondelete="CASCADE"
     )

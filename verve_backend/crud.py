@@ -6,7 +6,9 @@ from typing import Generator
 from geo_track_analyzer import Track
 from geo_track_analyzer.exceptions import GPXPointExtensionError
 from geo_track_analyzer.processing import get_extension_value
+from geoalchemy2.shape import from_shape
 from pyproj import Transformer
+from shapely.geometry import Point
 from sqlalchemy.exc import DatabaseError
 from sqlmodel import Session, insert, select
 
@@ -33,6 +35,8 @@ from verve_backend.models import (
     EquipmentSet,
     Goal,
     GoalCreate,
+    Location,
+    LocationCreate,
     TrackPoint,
     User,
     UserCreate,
@@ -429,3 +433,28 @@ def get_default_equipment_set(
     e_set = session.exec(stmt).first()
 
     return Ok(e_set.set_id if e_set else None)
+
+
+def create_location(
+    *, session: Session, user_id: uuid.UUID, data: LocationCreate
+) -> Result[Location, uuid.UUID]:
+    point = Point(data.longitude, data.latitude)
+    wkb_element = from_shape(point, srid=4326)
+    db_obj = Location.model_validate(
+        data,
+        update={
+            "user_id": user_id,
+            "loc": wkb_element,
+        },
+    )
+
+    try:
+        session.add(db_obj)
+        session.commit()
+        session.refresh(db_obj)
+        return Ok(db_obj)
+    except DatabaseError as e:
+        err_id = uuid.uuid4()
+        logger.error("[%s] Database error while creating location", err_id)
+        logger.error("[%s] %s", err_id, e)
+        return Err(err_id)
