@@ -7,7 +7,7 @@ from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
-from geo_track_analyzer import FITTrack, PyTrack, Track
+from geo_track_analyzer import FITTrack, GPXFileTrack, PyTrack, Track
 from sqlmodel import Session, SQLModel
 
 from verve_backend.models import User
@@ -63,6 +63,17 @@ def user1_id(client: TestClient, user1_token: str) -> UUID:
     response = client.get(
         "/users/me",
         headers={"Authorization": f"Bearer {user1_token}"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    return data["id"]
+
+
+@pytest.fixture(scope="session")
+def user2_id(client: TestClient, user2_token: str) -> UUID:
+    response = client.get(
+        "/users/me",
+        headers={"Authorization": f"Bearer {user2_token}"},
     )
     assert response.status_code == 200
     data = response.json()
@@ -289,7 +300,7 @@ def generate_data(session: Session) -> None:
             sub_type_id=1,
             name=None,
         ),
-        user=created_users[0],
+        user=created_users[0],  # type: ignore
     ).unwrap()
 
     resource_files = resources.files("tests.resources")
@@ -319,7 +330,7 @@ def generate_data(session: Session) -> None:
             sub_type_id=2,
             name=None,
         ),
-        user=created_users[1],
+        user=created_users[1],  # type: ignore
     ).unwrap()
 
     activity_3 = crud.create_activity(  # noqa: F841
@@ -342,8 +353,47 @@ def generate_data(session: Session) -> None:
                 ]
             ).model_dump(mode="json"),
         ),
-        user=created_users[0],
+        user=created_users[0],  # type: ignore
     ).unwrap()
+
+    activity_4 = crud.create_activity(
+        session=session,
+        create=models.ActivityCreate(
+            start=datetime(year=2025, month=7, day=9, hour=10),
+            duration=timedelta(days=0, seconds=60 * 60 * 2),
+            distance=10.0,
+            type_id=1,
+            sub_type_id=1,
+            name="Mont Venntoux Ride",
+        ),
+        user=created_users[1],  # type: ignore
+    ).unwrap()
+
+    track = GPXFileTrack(resource_files / "mont_ventoux.gpx")  # type: ignore
+    crud.insert_track(
+        session=session,
+        track=track,
+        activity_id=activity_4.id,
+        user_id=created_users[1].id,
+        batch_size=500,
+    )
+    crud.update_activity_with_track_data(
+        session=session,
+        activity_id=activity_4.id,
+        track=track,
+    )
+
+    process_activity_highlights(activity_4.id, created_users[1].id)
+
+    crud.create_location(
+        session=session,
+        user_id=created_users[1].id,
+        data=models.LocationCreate(
+            name="Mont Vontoux",
+            latitude=44.17349080796914,
+            longitude=5.277152032653785,
+        ),
+    )
 
     # ------------------------------- EQUIPMENT & SETS ---------------------------
     equipment_1 = crud.create_equipment(

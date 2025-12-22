@@ -1,20 +1,26 @@
+import importlib.resources
 import logging
 import uuid
+from collections import defaultdict
 from datetime import timedelta
 from typing import Generator
 
 from geo_track_analyzer import Track
 from geo_track_analyzer.exceptions import GPXPointExtensionError
 from geo_track_analyzer.processing import get_extension_value
+from geoalchemy2.shape import from_shape, to_shape
 from pyproj import Transformer
+from shapely.geometry import Point
 from sqlalchemy.exc import DatabaseError
-from sqlmodel import Session, insert, select
+from sqlmodel import Session, insert, select, text
 
 from verve_backend.api.common.locale import get_activity_name
 from verve_backend.api.deps import SupportedLocale
 from verve_backend.core.config import settings
 from verve_backend.core.meta_data import ActivityMetaData, validate_meta_data
 from verve_backend.core.security import get_password_hash, verify_password
+from verve_backend.core.timing import log_timing
+from verve_backend.enums import GoalType
 from verve_backend.exceptions import InvalidDataError
 from verve_backend.goal import (
     GoalContraints,
@@ -33,13 +39,15 @@ from verve_backend.models import (
     EquipmentSet,
     Goal,
     GoalCreate,
+    Location,
+    LocationCreate,
     TrackPoint,
     User,
     UserCreate,
     UserPublic,
     UserSettings,
 )
-from verve_backend.result import Err, Ok, Result, TypedResult
+from verve_backend.result import Err, ErrorType, Ok, Result, TypedResult
 
 logger = logging.getLogger(__name__)
 
@@ -317,6 +325,7 @@ def create_goal(
     if goal.constraints:
         validation_result = validate_constraints(
             session=session,
+            goal_type=goal.type,
             constraints=goal.constraints,
         )
         if isinstance(validation_result, GoalContraints):
@@ -325,6 +334,11 @@ def create_goal(
             )
         else:
             return Err(validation_result)
+
+    if goal.type == GoalType.LOCATION and not goal.constraints:
+        return Err(
+            ("Location goals must have a location_id specified", ErrorType.VALIDATION)
+        )
 
     db_obj = Goal.model_validate(goal, update={"user_id": user_id})
     session.add(db_obj)
@@ -429,3 +443,99 @@ def get_default_equipment_set(
     e_set = session.exec(stmt).first()
 
     return Ok(e_set.set_id if e_set else None)
+
+
+def create_location(
+    *, session: Session, user_id: uuid.UUID, data: LocationCreate
+) -> Result[Location, uuid.UUID]:
+    point = Point(data.longitude, data.latitude)
+    wkb_element = from_shape(point, srid=4326)
+    db_obj = Location.model_validate(
+        data,
+        update={
+            "user_id": user_id,
+            "loc": wkb_element,
+        },
+    )
+
+    try:
+        session.add(db_obj)
+        session.commit()
+        session.refresh(db_obj)
+        return Ok(db_obj)
+    except DatabaseError as e:
+        err_id = uuid.uuid4()
+        logger.error("[%s] Database error while creating location", err_id)
+        logger.error("[%s] %s", err_id, e)
+        return Err(err_id)
+
+
+@log_timing
+def get_activities_for_location(
+    session: Session,
+    location: Location,
+    match_distance: int = 50,
+) -> list[uuid.UUID]:
+    point = to_shape(location.loc)
+    latitude = point.y  # type: ignore
+    longitude = point.x  # type: ignore
+
+    stmt = (
+        importlib.resources.files("verve_backend.queries")
+        .joinpath("match_location_to_tracks.sql")
+        .read_text()
+    )
+
+    data = session.exec(
+        text(stmt),  # type: ignore
+        params={
+            "longitude": longitude,
+            "latitude": latitude,
+            "match_distance_meters": match_distance,
+        },
+    ).all()
+
+    return [_id for _id, _ in data]
+
+
+@log_timing
+def get_location_activity_map(
+    session: Session,
+    match_distance: int = 50,
+) -> dict[uuid.UUID, set[uuid.UUID]]:
+    stmt = (
+        importlib.resources.files("verve_backend.queries")
+        .joinpath("join_locations_to_tracks.sql")
+        .read_text()
+    )
+    data = session.exec(
+        text(stmt),  # type: ignore
+        params={
+            "match_distance_meters": match_distance,
+        },
+    ).all()
+
+    _map = defaultdict(set)
+    for location_id, activity_id, _, _ in data:
+        _map[location_id].add(activity_id)
+
+    return _map
+
+
+@log_timing
+def get_activity_locations(
+    session: Session,
+    activity_id: uuid.UUID,
+    match_distance: int = 50,
+) -> set[uuid.UUID]:
+    stmt = (
+        importlib.resources.files("verve_backend.queries")
+        .joinpath("locations_by_activity_id.sql")
+        .read_text()
+    )
+    data = session.exec(
+        text(stmt),  # type: ignore
+        params={"match_distance_meters": match_distance, "activity_id": activity_id},
+    ).all()
+
+    return {_id for _id, _, _ in data}

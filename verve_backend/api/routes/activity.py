@@ -19,6 +19,7 @@ from verve_backend.api.common.db_utils import (
     validate_sub_type_id,
 )
 from verve_backend.api.common.locale import get_activity_name
+from verve_backend.api.common.location import to_public_location
 from verve_backend.api.common.store_utils import remove_object_from_store
 from verve_backend.api.common.track import add_track, update_activity_with_track
 from verve_backend.api.definitions import Tag
@@ -37,6 +38,9 @@ from verve_backend.models import (
     ActivityType,
     EquipmentSet,
     Image,
+    ListResponse,
+    Location,
+    LocationPublic,
     RawTrackData,
     TrackPoint,
     User,
@@ -188,6 +192,31 @@ async def delete_activity(
             detail=f"Could not delete activity. Error: {e}",
         )
     session.commit()
+
+
+@router.get(
+    "/{id}/locations", response_model=ListResponse[LocationPublic], tags=[Tag.LOCATION]
+)
+async def get_locations_for_activity(
+    user_session: UserSession,
+    id: uuid.UUID,
+) -> Any:
+    _, session = user_session
+
+    activity = session.get(Activity, id)
+    if not activity:
+        raise HTTPException(status_code=404, detail="Activity not found")
+
+    response_data = []
+
+    location_ids = crud.get_activity_locations(session, activity.id)
+    for _id in location_ids:
+        location = session.get(Location, _id)
+        assert location is not None
+
+        response_data.append(to_public_location(location))
+
+    return ListResponse(data=response_data)
 
 
 @router.get("/", response_model=ActivitiesPublic)

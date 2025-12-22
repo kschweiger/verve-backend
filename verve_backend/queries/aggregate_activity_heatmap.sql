@@ -7,7 +7,7 @@ WITH grid_clusters AS (
         ST_Centroid(ST_Collect(geometry)) as centroid_geom,
         array_agg(ST_Y(geography::geometry)) as cluster_latitudes,
         array_agg(ST_X(geography::geometry)) as cluster_longitudes
-    FROM verve.track_points
+    FROM track_points
     WHERE :activity_ids IS NULL OR activity_id = ANY(:activity_ids)
     GROUP BY grid_x, grid_y
 )

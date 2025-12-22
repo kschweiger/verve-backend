@@ -34,6 +34,7 @@ RSL_TABLES = [
     ("equipment", "equipment"),
     ("equipment_set", "equipment_sets"),
     ("default_equipment_set", "default_equipment_sets"),
+    ("location", "locations"),
 ]
 
 

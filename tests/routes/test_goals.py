@@ -7,7 +7,13 @@ from sqlmodel import Session
 
 from verve_backend import crud
 from verve_backend.enums import GoalAggregation, GoalType, TemportalType
-from verve_backend.models import GoalCreate, GoalPublic, GoalsPublic, ListResponse
+from verve_backend.models import (
+    GoalCreate,
+    GoalPublic,
+    GoalsPublic,
+    ListResponse,
+    LocationPublic,
+)
 
 
 # NOTE: Test against the default gaols creating in test setup
@@ -141,6 +147,73 @@ def test_add_goal_invalid_configuration(
     response = client.put(
         "/goal",
         headers={"Authorization": f"Bearer {temp_user_token}"},
+        json=goal_data,
+    )
+
+    assert response.status_code == 422
+
+
+def test_add_location_goal(client: TestClient, user2_token: str) -> None:
+    response = client.get(
+        "/location/",
+        headers={"Authorization": f"Bearer {user2_token}"},
+    )
+
+    assert response.status_code == 200
+    all_locations = ListResponse[LocationPublic].model_validate(response.json())
+    # NOTE: We expect the Mont Vontoux location to be present from the dummy data
+    assert len(all_locations.data) == 1
+
+    goal_data = {
+        "name": "Location Goal",
+        "target": 1,
+        "type": GoalType.LOCATION,
+        "aggregation": GoalAggregation.COUNT,
+        "constraints": {"location_id": str(all_locations.data[0].id)},
+    }
+
+    response = client.put(
+        "/goal",
+        headers={"Authorization": f"Bearer {user2_token}"},
+        json=goal_data,
+    )
+
+    assert response.status_code == 200
+
+
+def test_add_location_goal_fail_no_constain(
+    client: TestClient, user2_token: str
+) -> None:
+    goal_data = {
+        "name": "Location Goal",
+        "target": 1,
+        "type": GoalType.LOCATION,
+        "aggregation": GoalAggregation.COUNT,
+    }
+
+    response = client.put(
+        "/goal",
+        headers={"Authorization": f"Bearer {user2_token}"},
+        json=goal_data,
+    )
+
+    assert response.status_code == 422
+
+
+def test_add_location_goal_fail_no_id_in_constain(
+    client: TestClient, user2_token: str
+) -> None:
+    goal_data = {
+        "name": "Location Goal",
+        "target": 1,
+        "type": GoalType.LOCATION,
+        "aggregation": GoalAggregation.COUNT,
+        "constraints": {"type_id": 1},
+    }
+
+    response = client.put(
+        "/goal",
+        headers={"Authorization": f"Bearer {user2_token}"},
         json=goal_data,
     )
 

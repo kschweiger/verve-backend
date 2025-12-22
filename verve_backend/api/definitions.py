@@ -13,3 +13,4 @@ class Tag(StrEnum):
     EQUIPMENT = auto()
     HIGHLIGHTS = auto()
     MEDIA = auto()
+    LOCATION = auto()

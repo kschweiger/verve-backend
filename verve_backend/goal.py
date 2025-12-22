@@ -17,6 +17,7 @@ from verve_backend.models import (
     Equipment,
     Goal,
     GoalCreate,
+    Location,
 )
 from verve_backend.result import ErrorType
 
@@ -27,6 +28,7 @@ class GoalContraints(BaseModel):
     type_id: int | None = None
     sub_type_id: int | None = None
     equipment_ids: list[UUID] | None = None
+    location_id: UUID | None = None
 
 
 def _validate_type_aggregation_combination(
@@ -99,7 +101,7 @@ def _validate_temporal_setup(goal: GoalCreate) -> tuple[str, ErrorType] | None:
 
 
 def validate_constraints(
-    *, session: Session, constraints: dict[str, Any]
+    *, session: Session, goal_type: GoalType, constraints: dict[str, Any]
 ) -> GoalContraints | tuple[str, ErrorType]:
     try:
         contraints_obj = GoalContraints.model_validate(constraints)
@@ -144,6 +146,25 @@ def validate_constraints(
                 ErrorType.VALIDATION,
             )
 
+    if contraints_obj.location_id:
+        if goal_type != GoalType.LOCATION:
+            return (
+                "Location constraints can only be set for location goals",
+                ErrorType.VALIDATION,
+            )
+        location = session.get(Location, contraints_obj.location_id)
+        if location is None:
+            return (
+                "Invalid constraints: Location with id %s not found"
+                % contraints_obj.location_id,
+                ErrorType.VALIDATION,
+            )
+    if goal_type == GoalType.LOCATION and not contraints_obj.location_id:
+        return (
+            "Location goals must have location_id constraint set",
+            ErrorType.VALIDATION,
+        )
+
     return contraints_obj
 
 
@@ -167,61 +188,111 @@ def validate_goal_creation(
     return None
 
 
+def _build_activity_stmt(
+    user_id: UUID,
+    contraints: GoalContraints,
+    year: int,
+    month: int | None,
+    week: int | None,
+    last_updated: datetime | None,
+    possible_activity_ids: list[UUID] | None,
+):
+    stmt = select(Activity).where(Activity.user_id == user_id)
+
+    if contraints.type_id:
+        stmt = stmt.where(Activity.type_id == contraints.type_id)
+    if contraints.sub_type_id:
+        stmt = stmt.where(Activity.sub_type_id == contraints.sub_type_id)
+
+    if month is not None:
+        stmt = stmt.where(func.extract("year", col(Activity.start)) == year).where(
+            func.extract("month", col(Activity.start)) == month
+        )
+    elif week is not None:
+        start_date, end_date = get_week_date_range(year, week)
+        stmt = stmt.where(col(Activity.start) >= start_date).where(
+            col(Activity.start) < end_date
+        )
+    else:
+        stmt = stmt.where(func.extract("year", col(Activity.start)) == year)
+
+    if contraints.equipment_ids:
+        stmt = (
+            stmt.join(
+                ActivityEquipment,
+                col(Activity.id) == col(ActivityEquipment.activity_id),
+            )
+            .where(col(ActivityEquipment.equipment_id).in_(contraints.equipment_ids))
+            .group_by(col(Activity.id))
+            .having(
+                func.count(col(ActivityEquipment.equipment_id))
+                == len(contraints.equipment_ids)
+            )
+        )
+
+    if last_updated is not None:
+        stmt = stmt.where(col(Activity.created_at) > last_updated)
+    if possible_activity_ids:
+        stmt = stmt.where(col(Activity.id).in_(possible_activity_ids))
+
+    return stmt
+
+
 @log_timing
 def update_goal_state(*, session: Session, user_id: UUID, goal: Goal) -> Goal:
+    from verve_backend import crud
+
+    contraints = GoalContraints.model_validate(goal.constraints)
+    last_updated = goal.current_updated
+
     if goal.type == GoalType.MANUAL:
         # Manual goals are updated manually, so we don't update them here
         return goal
     elif goal.type == GoalType.LOCATION:
-        # TODO: Location not implemented yet
-        return goal
-    else:
-        contraints = GoalContraints.model_validate(goal.constraints)
+        location_id = contraints.location_id
+        assert location_id is not None
+        location = session.get(Location, location_id)
+        assert location is not None
 
-        last_updated = goal.current_updated
-        stmt = select(Activity).where(Activity.user_id == user_id)
+        stmt = _build_activity_stmt(
+            user_id=user_id,
+            contraints=contraints,
+            year=goal.year,
+            month=goal.month,
+            week=goal.week,
+            last_updated=last_updated,
+            possible_activity_ids=crud.get_activities_for_location(
+                session=session,
+                location=location,
+            ),
+        )
 
-        if contraints.type_id:
-            stmt = stmt.where(Activity.type_id == contraints.type_id)
-        if contraints.sub_type_id:
-            stmt = stmt.where(Activity.sub_type_id == contraints.sub_type_id)
-
-        if goal.month is not None:
-            stmt = stmt.where(
-                func.extract("year", col(Activity.start)) == goal.year
-            ).where(func.extract("month", col(Activity.start)) == goal.month)
-        elif goal.week is not None:
-            start_date, end_date = get_week_date_range(goal.year, goal.week)
-            stmt = stmt.where(col(Activity.start) >= start_date).where(
-                col(Activity.start) < end_date
-            )
-        else:
-            stmt = stmt.where(func.extract("year", col(Activity.start)) == goal.year)
-
-        if contraints.equipment_ids:
-            stmt = (
-                stmt.join(
-                    ActivityEquipment,
-                    col(Activity.id) == col(ActivityEquipment.activity_id),
-                )
-                .where(
-                    col(ActivityEquipment.equipment_id).in_(contraints.equipment_ids)
-                )
-                .group_by(col(Activity.id))
-                .having(
-                    func.count(col(ActivityEquipment.equipment_id))
-                    == len(contraints.equipment_ids)
-                )
-            )
-
-        last_updated_added = False
-        if (
-            last_updated is not None
-            and goal.aggregation != GoalAggregation.AVG_DISTANCE
-        ):
-            last_updated_added = True
-            stmt = stmt.where(col(Activity.created_at) > last_updated)
         activities = session.exec(stmt).all()
+
+        if len(activities) == 0:
+            logger.debug("Goal %s: No new activities found", goal.id)
+            return goal
+        if goal.aggregation == GoalAggregation.COUNT:
+            goal.current += len(activities)
+        else:
+            raise NotImplementedError(
+                f"Aggregation {goal.aggregation} not implemented for location goals"
+            )
+    else:
+        stmt = _build_activity_stmt(
+            user_id=user_id,
+            contraints=contraints,
+            year=goal.year,
+            month=goal.month,
+            week=goal.week,
+            last_updated=last_updated
+            if goal.aggregation != GoalAggregation.AVG_DISTANCE
+            else None,
+            possible_activity_ids=None,
+        )
+
+        activities = session.exec(stmt).all()
+
         if len(activities) == 0:
             logger.debug("Goal %s: No new activities found", goal.id)
             return goal
@@ -232,15 +303,15 @@ def update_goal_state(*, session: Session, user_id: UUID, goal: Goal) -> Goal:
         elif goal.aggregation == GoalAggregation.TOTAL_DISTANCE:
             goal.current += sum(a.distance for a in activities)
         elif goal.aggregation == GoalAggregation.AVG_DISTANCE:
-            assert not last_updated_added, "AVG_DISTANCE cannot be incremental"
             goal.current = sum(a.distance for a in activities) / len(activities)
         elif goal.aggregation == GoalAggregation.MAX_DISTANCE:
             goal.current = max(goal.current, max((a.distance for a in activities)))
         else:
             raise NotImplementedError(f"Aggregation {goal.aggregation} not implemented")
-        goal.current_updated = datetime.now()
-        session.add(goal)
-        session.commit()
-        session.refresh(goal)
-        logger.debug("Goal %s: Progrss updated", goal.id)
-        return goal
+
+    goal.current_updated = datetime.now()
+    session.add(goal)
+    session.commit()
+    session.refresh(goal)
+    logger.debug("Goal %s: Progrss updated", goal.id)
+    return goal

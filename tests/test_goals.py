@@ -3,7 +3,9 @@ from typing import Any
 from uuid import UUID
 
 import pytest
-from sqlmodel import Session
+from geoalchemy2.shape import from_shape
+from shapely import Point
+from sqlmodel import Session, select
 
 from verve_backend.enums import GoalAggregation, GoalType, TemportalType
 from verve_backend.goal import (
@@ -13,7 +15,14 @@ from verve_backend.goal import (
     update_goal_state,
     validate_constraints,
 )
-from verve_backend.models import Activity, Equipment, EquipmentType, Goal, GoalCreate
+from verve_backend.models import (
+    Activity,
+    Equipment,
+    EquipmentType,
+    Goal,
+    GoalCreate,
+    Location,
+)
 
 
 @pytest.mark.parametrize(
@@ -265,30 +274,82 @@ def test_update_activity_goal(
     assert updated_goal.current == exp_current_value
 
 
+def test_update_location_goal(
+    db: Session,
+    user2_id: str,
+) -> None:
+    # NOTE: We expect the Mont Vontoux location to be present from the dummy data
+    _locations = db.exec(
+        select(Location).where(Location.user_id == UUID(user2_id))
+    ).all()
+
+    assert len(_locations) == 1
+    goal = Goal(
+        user_id=UUID(user2_id),
+        name="Mont Vontoux updated Test Goal",
+        target=1,
+        temporal_type=TemportalType.YEARLY,
+        year=2025,
+        type=GoalType.LOCATION,
+        aggregation=GoalAggregation.COUNT,
+        current=0,
+        current_updated=None,
+        constraints=dict(location_id=str(_locations[0].id)),
+    )
+    db.add_all([goal])
+    db.commit()
+    db.refresh(goal)
+
+    update_goal_state(session=db, user_id=user2_id, goal=goal)
+
+    updated_goal = db.get(Goal, goal.id)
+    assert updated_goal is not None
+    assert updated_goal.current == 1
+
+    update_goal_state(session=db, user_id=user2_id, goal=goal)
+
+    updated_goal = db.get(Goal, goal.id)
+    assert updated_goal is not None
+    assert updated_goal.current == 1
+
+
 @pytest.mark.parametrize(
-    ("constraint_dict", "should_pass"),
+    ("constraint_dict", "goal_type", "should_pass"),
     [
-        ({}, True),
-        ({"type_id": 1}, True),
-        ({"type_id": 1, "sub_type_id": 1}, True),
+        ({}, GoalType.ACTIVITY, True),
+        ({"type_id": 1}, GoalType.ACTIVITY, True),
+        ({"type_id": 1, "sub_type_id": 1}, GoalType.ACTIVITY, True),
         (
             {
                 "type_id": 1,
                 "sub_type_id": 1,
                 "equipment_ids": ["51a7c843-977b-4c29-89dd-32286a361abf"],
             },
+            GoalType.ACTIVITY,
             True,
         ),
-        ({"sub_type_id": 1}, False),
-        ({"type_id": 99}, False),
-        ({"type_id": 1, "sub_type_id": 8}, False),
-        ({"type_id": 1, "sub_type_id": 87}, False),
+        ({"sub_type_id": 1}, GoalType.ACTIVITY, False),
+        ({"type_id": 99}, GoalType.ACTIVITY, False),
+        ({"type_id": 1, "sub_type_id": 8}, GoalType.ACTIVITY, False),
+        ({"type_id": 1, "sub_type_id": 87}, GoalType.ACTIVITY, False),
         (
             {
                 "type_id": 1,
                 "sub_type_id": 1,
                 "equipment_ids": ["51ed27d8-0710-4cf2-8fc9-c7ef6602da8f"],
             },
+            GoalType.ACTIVITY,
+            False,
+        ),
+        ({}, GoalType.LOCATION, False),
+        (
+            {"location_id": "8d6fd71e-bc7d-4a8d-94c2-4910520a7c7a"},
+            GoalType.LOCATION,
+            True,
+        ),
+        (
+            {"location_id": "8d6fd71e-bc7d-4a8d-94c2-4910520a7c7a"},
+            GoalType.ACTIVITY,
             False,
         ),
     ],
@@ -297,6 +358,7 @@ def test_validate_contraints(
     db: Session,
     temp_user_id: UUID,
     constraint_dict: dict[str, Any],
+    goal_type: GoalType,
     should_pass: bool,
 ) -> None:
     equipment_id = "51a7c843-977b-4c29-89dd-32286a361abf"
@@ -306,10 +368,19 @@ def test_validate_contraints(
         user_id=temp_user_id,
         id=UUID(equipment_id),
     )
-    db.add_all([equipment])
+    location_id = "8d6fd71e-bc7d-4a8d-94c2-4910520a7c7a"
+    location = Location(
+        name="Goal Validation Test Location",
+        loc=from_shape(Point(1, 1), srid=4326),
+        user_id=temp_user_id,
+        id=UUID(location_id),
+    )
+    db.add_all([equipment, location])
     db.commit()
 
-    res = validate_constraints(session=db, constraints=constraint_dict)
+    res = validate_constraints(
+        session=db, goal_type=goal_type, constraints=constraint_dict
+    )
     if should_pass:
         assert isinstance(res, GoalContraints)
     else:
