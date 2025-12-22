@@ -1,11 +1,9 @@
-import importlib.resources
 import logging
 import uuid
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query
-from geoalchemy2.shape import to_shape
-from sqlmodel import Session, col, func, select, text
+from sqlmodel import col, func, select
 from starlette.status import (
     HTTP_404_NOT_FOUND,
     HTTP_422_UNPROCESSABLE_CONTENT,
@@ -13,13 +11,18 @@ from starlette.status import (
 )
 
 from verve_backend import crud
+from verve_backend.api.common.location import (
+    get_activities_for_location,
+    get_location_activity_map,
+    to_public_location,
+)
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import UserSession
-from verve_backend.core.timing import log_timing
 from verve_backend.models import (
     ActivitiesPublic,
     Activity,
     ActivityPublic,
+    DictResponse,
     ListResponse,
     Location,
     LocationCreate,
@@ -30,17 +33,6 @@ from verve_backend.result import Err, Ok
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/location", tags=[Tag.LOCATION])
-
-
-def to_public_location(location: Location) -> LocationPublic:
-    point = to_shape(location.loc)
-    return LocationPublic.model_validate(
-        location,
-        update={
-            "latitude": point.y,  # type: ignore
-            "longitude": point.x,  # type: ignore
-        },
-    )
 
 
 @router.put("/", response_model=LocationPublic)
@@ -105,6 +97,17 @@ async def get_all_locations(
     return ListResponse[LocationPublic](
         data=[to_public_location(loc) for loc in location],
     )
+
+
+@router.get("/activities", response_model=DictResponse[uuid.UUID, set[uuid.UUID]])
+async def get_all_activities(
+    user_session: UserSession,
+) -> Any:
+    _, session = user_session
+
+    location_activity_map = get_location_activity_map(session, 100)
+
+    return DictResponse(data=location_activity_map)
 
 
 @router.get("/{id}", response_model=LocationPublic)
@@ -180,30 +183,6 @@ async def update_location(
     return to_public_location(location)
 
 
-@log_timing
-def _get_activities(session: Session, location: Location) -> list[uuid.UUID]:
-    point = to_shape(location.loc)
-    latitude = point.y  # type: ignore
-    longitude = point.x  # type: ignore
-
-    stmt = (
-        importlib.resources.files("verve_backend.queries")
-        .joinpath("match_location_to_tracks.sql")
-        .read_text()
-    )
-
-    data = session.exec(
-        text(stmt),  # type: ignore
-        params={
-            "longitude": longitude,
-            "latitude": latitude,
-            "match_distance_meters": 50,
-        },
-    ).all()
-
-    return [_id for _id, _ in data]
-
-
 @router.get(
     "/{id}/activities", response_model=ActivitiesPublic, tags=[Tag.ACTIVITY, Tag.TRACK]
 )
@@ -220,7 +199,7 @@ def get_activities_with_location(
         )
 
     activities = []
-    for _id in _get_activities(session, location):
+    for _id in get_activities_for_location(session, location):
         _activity = session.get(Activity, _id)
         assert _activity is not None
         activities.append(ActivityPublic.model_validate(_activity))
