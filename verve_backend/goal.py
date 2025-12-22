@@ -17,6 +17,7 @@ from verve_backend.models import (
     Equipment,
     Goal,
     GoalCreate,
+    Location,
 )
 from verve_backend.result import ErrorType
 
@@ -27,6 +28,7 @@ class GoalContraints(BaseModel):
     type_id: int | None = None
     sub_type_id: int | None = None
     equipment_ids: list[UUID] | None = None
+    location_id: UUID | None = None
 
 
 def _validate_type_aggregation_combination(
@@ -99,7 +101,7 @@ def _validate_temporal_setup(goal: GoalCreate) -> tuple[str, ErrorType] | None:
 
 
 def validate_constraints(
-    *, session: Session, constraints: dict[str, Any]
+    *, session: Session, goal_type: GoalType, constraints: dict[str, Any]
 ) -> GoalContraints | tuple[str, ErrorType]:
     try:
         contraints_obj = GoalContraints.model_validate(constraints)
@@ -143,6 +145,25 @@ def validate_constraints(
                 "Invalid constraints: Equipment with id %s not found" % equipment_id,
                 ErrorType.VALIDATION,
             )
+
+    if contraints_obj.location_id:
+        if goal_type != GoalType.LOCATION:
+            return (
+                "Location constraints can only be set for location goals",
+                ErrorType.VALIDATION,
+            )
+        location = session.get(Location, contraints_obj.location_id)
+        if location is None:
+            return (
+                "Invalid constraints: Location with id %s not found"
+                % contraints_obj.location_id,
+                ErrorType.VALIDATION,
+            )
+    if goal_type == GoalType.LOCATION and not contraints_obj.location_id:
+        return (
+            "Location goals must have location_id constraint set",
+            ErrorType.VALIDATION,
+        )
 
     return contraints_obj
 

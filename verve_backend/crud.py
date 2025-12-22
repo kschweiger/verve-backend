@@ -20,6 +20,7 @@ from verve_backend.core.config import settings
 from verve_backend.core.meta_data import ActivityMetaData, validate_meta_data
 from verve_backend.core.security import get_password_hash, verify_password
 from verve_backend.core.timing import log_timing
+from verve_backend.enums import GoalType
 from verve_backend.exceptions import InvalidDataError
 from verve_backend.goal import (
     GoalContraints,
@@ -46,7 +47,7 @@ from verve_backend.models import (
     UserPublic,
     UserSettings,
 )
-from verve_backend.result import Err, Ok, Result, TypedResult
+from verve_backend.result import Err, ErrorType, Ok, Result, TypedResult
 
 logger = logging.getLogger(__name__)
 
@@ -324,6 +325,7 @@ def create_goal(
     if goal.constraints:
         validation_result = validate_constraints(
             session=session,
+            goal_type=goal.type,
             constraints=goal.constraints,
         )
         if isinstance(validation_result, GoalContraints):
@@ -332,6 +334,11 @@ def create_goal(
             )
         else:
             return Err(validation_result)
+
+    if goal.type == GoalType.LOCATION and not goal.constraints:
+        return Err(
+            ("Location goals must have a location_id specified", ErrorType.VALIDATION)
+        )
 
     db_obj = Goal.model_validate(goal, update={"user_id": user_id})
     session.add(db_obj)
