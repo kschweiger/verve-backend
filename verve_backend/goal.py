@@ -267,10 +267,8 @@ def update_goal_state(*, session: Session, user_id: UUID, goal: Goal) -> Goal:
             ),
         )
 
-        logger.error(stmt)
         activities = session.exec(stmt).all()
 
-        logger.error(activities)
         if len(activities) == 0:
             logger.debug("Goal %s: No new activities found", goal.id)
             return goal
