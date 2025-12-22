@@ -5,7 +5,7 @@ SELECT
 	SUM(elevation_change_up),
 	SUM(duration)
 FROM
-	verve.activities
+	activities
 WHERE
 	extract(WEEK FROM START) = :week
 	AND extract(ISOYEAR FROM START) = :year
