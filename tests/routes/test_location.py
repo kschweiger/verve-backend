@@ -1,7 +1,15 @@
+import uuid
+
 import pytest
 from fastapi.testclient import TestClient
 
-from verve_backend.models import ListResponse, LocationCreate, LocationPublic
+from verve_backend.models import (
+    ActivitiesPublic,
+    DictResponse,
+    ListResponse,
+    LocationCreate,
+    LocationPublic,
+)
 
 
 def test_add_loacation(
@@ -58,7 +66,7 @@ def test_get_locations(
 ) -> None:
     for i, (lat, long) in enumerate([(1, 1), (1.2, 1.2), (3, 3), (-3, -3)]):
         response = client.put(
-            "/location",
+            "/location/",
             headers={"Authorization": f"Bearer {temp_user_token}"},
             json=LocationCreate(
                 name=f"Test Location {i}",
@@ -70,7 +78,7 @@ def test_get_locations(
         assert response.status_code == 200
 
     response = client.get(
-        "/location",
+        "/location/",
         headers={"Authorization": f"Bearer {temp_user_token}"},
     )
 
@@ -178,3 +186,45 @@ def test_update_location(
 
     assert location.name == "New name"
     assert location.description == "New description"
+
+
+def test_activities_with_location(
+    client: TestClient,
+    user2_token: str,
+) -> None:
+    response = client.get(
+        "/location/",
+        headers={"Authorization": f"Bearer {user2_token}"},
+    )
+
+    assert response.status_code == 200
+    all_locatons = ListResponse[LocationPublic].model_validate(response.json())
+    # NOTE: We expect the Mont Vontoux location to be present from the dummy data
+    assert len(all_locatons.data) == 1
+
+    respones = client.get(
+        f"/location/{all_locatons.data[0].id}/activities",
+        headers={"Authorization": f"Bearer {user2_token}"},
+    )
+
+    assert respones.status_code == 200
+
+    activities = ActivitiesPublic.model_validate(respones.json())
+
+    assert activities.count == 1
+
+
+def test_get_all_activities(
+    client: TestClient,
+    user2_token: str,
+) -> None:
+    response = client.get(
+        "/location/activities", headers={"Authorization": f"Bearer {user2_token}"}
+    )
+
+    assert response.status_code == 200
+
+    data = DictResponse[uuid.UUID, set[uuid.UUID]].model_validate(response.json())
+
+    assert len(data.data) == 1
+    assert len(data.data[next(iter(data.data))]) == 1
