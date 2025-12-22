@@ -19,7 +19,7 @@ from verve_backend.api.common.db_utils import (
     validate_sub_type_id,
 )
 from verve_backend.api.common.locale import get_activity_name
-from verve_backend.api.common.location import get_activity_locations, to_public_location
+from verve_backend.api.common.location import to_public_location
 from verve_backend.api.common.store_utils import remove_object_from_store
 from verve_backend.api.common.track import add_track, update_activity_with_track
 from verve_backend.api.definitions import Tag
@@ -209,7 +209,7 @@ async def get_locations_for_activity(
 
     response_data = []
 
-    location_ids = get_activity_locations(session, activity.id)
+    location_ids = crud.get_activity_locations(session, activity.id)
     for _id in location_ids:
         location = session.get(Location, _id)
         assert location is not None

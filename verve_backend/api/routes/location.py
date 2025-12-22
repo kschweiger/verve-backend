@@ -12,8 +12,6 @@ from starlette.status import (
 
 from verve_backend import crud
 from verve_backend.api.common.location import (
-    get_activities_for_location,
-    get_location_activity_map,
     to_public_location,
 )
 from verve_backend.api.definitions import Tag
@@ -105,7 +103,7 @@ async def get_all_activities(
 ) -> Any:
     _, session = user_session
 
-    location_activity_map = get_location_activity_map(session, 100)
+    location_activity_map = crud.get_location_activity_map(session, 100)
 
     return DictResponse(data=location_activity_map)
 
@@ -199,7 +197,7 @@ def get_activities_with_location(
         )
 
     activities = []
-    for _id in get_activities_for_location(session, location):
+    for _id in crud.get_activities_for_location(session, location):
         _activity = session.get(Activity, _id)
         assert _activity is not None
         activities.append(ActivityPublic.model_validate(_activity))
