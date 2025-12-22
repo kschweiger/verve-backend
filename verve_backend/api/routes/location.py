@@ -1,10 +1,11 @@
+import importlib.resources
 import logging
 import uuid
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query
 from geoalchemy2.shape import to_shape
-from sqlmodel import col, func, select
+from sqlmodel import Session, col, func, select, text
 from starlette.status import (
     HTTP_404_NOT_FOUND,
     HTTP_422_UNPROCESSABLE_CONTENT,
@@ -14,7 +15,11 @@ from starlette.status import (
 from verve_backend import crud
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import UserSession
+from verve_backend.core.timing import log_timing
 from verve_backend.models import (
+    ActivitiesPublic,
+    Activity,
+    ActivityPublic,
     ListResponse,
     Location,
     LocationCreate,
@@ -173,3 +178,51 @@ async def update_location(
     session.refresh(location)
 
     return to_public_location(location)
+
+
+@log_timing
+def _get_activities(session: Session, location: Location) -> list[uuid.UUID]:
+    point = to_shape(location.loc)
+    latitude = point.y  # type: ignore
+    longitude = point.x  # type: ignore
+
+    stmt = (
+        importlib.resources.files("verve_backend.queries")
+        .joinpath("match_location_to_tracks.sql")
+        .read_text()
+    )
+
+    data = session.exec(
+        text(stmt),  # type: ignore
+        params={
+            "longitude": longitude,
+            "latitude": latitude,
+            "match_distance_meters": 50,
+        },
+    ).all()
+
+    return [_id for _id, _ in data]
+
+
+@router.get(
+    "/{id}/activities", response_model=ActivitiesPublic, tags=[Tag.ACTIVITY, Tag.TRACK]
+)
+def get_activities_with_location(
+    user_session: UserSession,
+    id: uuid.UUID,
+) -> Any:
+    _, session = user_session
+
+    location = session.get(Location, id)
+    if not location:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND, detail=f"Location {id} not found"
+        )
+
+    activities = []
+    for _id in _get_activities(session, location):
+        _activity = session.get(Activity, _id)
+        assert _activity is not None
+        activities.append(ActivityPublic.model_validate(_activity))
+
+    return ActivitiesPublic(data=activities, count=len(activities))
