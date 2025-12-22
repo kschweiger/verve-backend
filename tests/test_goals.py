@@ -5,7 +5,7 @@ from uuid import UUID
 import pytest
 from geoalchemy2.shape import from_shape
 from shapely import Point
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from verve_backend.enums import GoalAggregation, GoalType, TemportalType
 from verve_backend.goal import (
@@ -272,6 +272,45 @@ def test_update_activity_goal(
     updated_goal = db.get(Goal, goal.id)
     assert updated_goal is not None
     assert updated_goal.current == exp_current_value
+
+
+def test_update_location_goal(
+    db: Session,
+    user2_id: str,
+) -> None:
+    # NOTE: We expect the Mont Vontoux location to be present from the dummy data
+    _locations = db.exec(
+        select(Location).where(Location.user_id == UUID(user2_id))
+    ).all()
+
+    assert len(_locations) == 1
+    goal = Goal(
+        user_id=UUID(user2_id),
+        name="Mont Vontoux updated Test Goal",
+        target=1,
+        temporal_type=TemportalType.YEARLY,
+        year=2025,
+        type=GoalType.LOCATION,
+        aggregation=GoalAggregation.COUNT,
+        current=0,
+        current_updated=None,
+        constraints=dict(location_id=str(_locations[0].id)),
+    )
+    db.add_all([goal])
+    db.commit()
+    db.refresh(goal)
+
+    update_goal_state(session=db, user_id=user2_id, goal=goal)
+
+    updated_goal = db.get(Goal, goal.id)
+    assert updated_goal is not None
+    assert updated_goal.current == 1
+
+    update_goal_state(session=db, user_id=user2_id, goal=goal)
+
+    updated_goal = db.get(Goal, goal.id)
+    assert updated_goal is not None
+    assert updated_goal.current == 1
 
 
 @pytest.mark.parametrize(

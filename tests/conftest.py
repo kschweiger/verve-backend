@@ -69,6 +69,17 @@ def user1_id(client: TestClient, user1_token: str) -> UUID:
     return data["id"]
 
 
+@pytest.fixture(scope="session")
+def user2_id(client: TestClient, user2_token: str) -> UUID:
+    response = client.get(
+        "/users/me",
+        headers={"Authorization": f"Bearer {user2_token}"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    return data["id"]
+
+
 @pytest.fixture
 def temp_user_id() -> Generator[UUID, Any, Any]:
     from verve_backend import (
