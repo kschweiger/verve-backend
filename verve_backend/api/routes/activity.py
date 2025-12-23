@@ -14,14 +14,15 @@ from starlette.status import (
 )
 
 from verve_backend import crud
-from verve_backend.api.common.db_utils import (
-    check_and_raise_primary_key,
-    validate_sub_type_id,
-)
 from verve_backend.api.common.locale import get_activity_name
 from verve_backend.api.common.location import to_public_location
 from verve_backend.api.common.store_utils import remove_object_from_store
 from verve_backend.api.common.track import add_track, update_activity_with_track
+from verve_backend.api.common.utils import (
+    check_and_raise_primary_key,
+    check_distance_requirement,
+    validate_sub_type_id,
+)
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import (
     LocaleQuery,
@@ -99,6 +100,13 @@ def update_activity(
         if "sub_type_id" not in update_data and activity.sub_type_id is not None:
             # Check that the current sub_type fits to the new type
             validate_sub_type_id(session, update_data["type_id"], activity.sub_type_id)
+
+        # Check that the new type_id works with the activity distance
+        check_distance_requirement(
+            session=session,
+            type_id=update_data["type_id"],
+            distance=activity.distance,
+        )
     # Check that ne new sub_id matches the current type_id
     if (
         "type_id" not in update_data
@@ -282,6 +290,10 @@ def create_activity(
         settings = session.get(UserSettings, user_id)
         assert settings is not None
         locale = settings.locale
+
+    check_distance_requirement(
+        session=session, type_id=data.type_id, distance=data.distance
+    )
 
     result = crud.create_activity(
         session=session,

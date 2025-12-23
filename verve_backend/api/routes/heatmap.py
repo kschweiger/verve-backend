@@ -9,7 +9,7 @@ from starlette.status import (
     HTTP_400_BAD_REQUEST,
 )
 
-from verve_backend.api.common.db_utils import check_and_raise_primary_key
+from verve_backend.api.common.utils import check_and_raise_primary_key
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import UserSession
 from verve_backend.models import (

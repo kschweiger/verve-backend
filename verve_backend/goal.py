@@ -196,6 +196,7 @@ def _build_activity_stmt(
     week: int | None,
     last_updated: datetime | None,
     possible_activity_ids: list[UUID] | None,
+    filter_distance: bool,
 ):
     stmt = select(Activity).where(Activity.user_id == user_id)
 
@@ -234,6 +235,9 @@ def _build_activity_stmt(
         stmt = stmt.where(col(Activity.created_at) > last_updated)
     if possible_activity_ids:
         stmt = stmt.where(col(Activity.id).in_(possible_activity_ids))
+        stmt = stmt.where(col(Activity.distance) != 0)
+    if filter_distance:
+        stmt = stmt.where(col(Activity.distance) != None)  # noqa: E711
 
     return stmt
 
@@ -265,6 +269,7 @@ def update_goal_state(*, session: Session, user_id: UUID, goal: Goal) -> Goal:
                 session=session,
                 location=location,
             ),
+            filter_distance=False,
         )
 
         activities = session.exec(stmt).all()
@@ -279,6 +284,12 @@ def update_goal_state(*, session: Session, user_id: UUID, goal: Goal) -> Goal:
                 f"Aggregation {goal.aggregation} not implemented for location goals"
             )
     else:
+        distance_aggregations = [
+            GoalAggregation.TOTAL_DISTANCE,
+            GoalAggregation.AVG_DISTANCE,
+            GoalAggregation.MAX_DISTANCE,
+        ]
+
         stmt = _build_activity_stmt(
             user_id=user_id,
             contraints=contraints,
@@ -289,6 +300,7 @@ def update_goal_state(*, session: Session, user_id: UUID, goal: Goal) -> Goal:
             if goal.aggregation != GoalAggregation.AVG_DISTANCE
             else None,
             possible_activity_ids=None,
+            filter_distance=goal.aggregation in distance_aggregations,
         )
 
         activities = session.exec(stmt).all()
@@ -300,12 +312,19 @@ def update_goal_state(*, session: Session, user_id: UUID, goal: Goal) -> Goal:
             goal.current += len(activities)
         elif goal.aggregation == GoalAggregation.DURATION:
             goal.current += sum(a.duration.total_seconds() for a in activities)
-        elif goal.aggregation == GoalAggregation.TOTAL_DISTANCE:
-            goal.current += sum(a.distance for a in activities)
-        elif goal.aggregation == GoalAggregation.AVG_DISTANCE:
-            goal.current = sum(a.distance for a in activities) / len(activities)
-        elif goal.aggregation == GoalAggregation.MAX_DISTANCE:
-            goal.current = max(goal.current, max((a.distance for a in activities)))
+        elif goal.aggregation in distance_aggregations:
+            distances = [a.distance for a in activities if a.distance is not None]
+            assert len(distances) == len(activities)
+            if goal.aggregation == GoalAggregation.TOTAL_DISTANCE:
+                goal.current += sum(distances)
+            elif goal.aggregation == GoalAggregation.AVG_DISTANCE:
+                goal.current = sum(distances) / len(activities)
+            elif goal.aggregation == GoalAggregation.MAX_DISTANCE:
+                goal.current = max(goal.current, max((distances)))
+            else:
+                raise RuntimeError(
+                    "Error in distance goal aggreagtion with %s", goal.aggregation
+                )
         else:
             raise NotImplementedError(f"Aggregation {goal.aggregation} not implemented")
 

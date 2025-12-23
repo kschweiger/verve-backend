@@ -40,6 +40,12 @@ class EquipmentType(StrEnum):
     HOMETRAINER = auto()
 
 
+class DistanceRequirement(StrEnum):
+    REQUIRED = "required"
+    OPTIONAL = "optional"
+    NOT_APPLICABLE = "not_applicable"
+
+
 class HeatmapSettings(BaseModel):
     """Settings for the heatmap view."""
 
@@ -114,6 +120,11 @@ class TokenPayload(SQLModel):
 
 class ActivityTypeBase(SQLModel):
     name: str = Field(unique=True)
+    distance_requirement: DistanceRequirement = Field(
+        default=DistanceRequirement.REQUIRED,
+        description="Defines if distance is required, optional, "
+        "or irrelevant for this activity type.",
+    )
 
 
 class ActivityTypeCreate(ActivityTypeBase):
@@ -159,7 +170,7 @@ class ActivityBase(SQLModel):
     duration: timedelta = Field(
         description="Duration of the activity. If string, encoded as ISO8601"
     )
-    distance: float = Field(description="Distance traveled in kilometers")
+    distance: float | None = Field(description="Distance traveled in kilometers")
     moving_duration: timedelta | None = Field(
         default=None,
         description="Duration of the activity excluding all points w/o movement."

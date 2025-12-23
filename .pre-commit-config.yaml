@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: "v0.14.2"
+    rev: "v0.14.10"
     hooks:
       - id: ruff-check
         args: [--fix, --exit-non-zero-on-fix, --output-format, concise]
@@ -12,3 +12,7 @@ repos:
       - id: check-toml
       - id: trailing-whitespace
       - id: check-added-large-files
+  - repo: https://github.com/kschweiger/pre-commit-hooks
+    rev: a34afbe181aa96a616bb17e6ede65e079d5d198d
+    hooks:
+      - id: comment-keywords

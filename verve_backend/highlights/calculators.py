@@ -15,7 +15,10 @@ from verve_backend.models import Activity, HighlightMetric
 logger = logging.getLogger(__name__)
 
 
-def _get_value_from_acitivty_tabel(
+# TODO: See if I need to change something here because of none-set distance
+
+
+def _get_value_from_acitivty_table(
     session: Session, activity_id: UUID, col
 ) -> timedelta | float | None:
     data = session.exec(select(col).where(Activity.id == activity_id)).all()
@@ -36,7 +39,7 @@ def _create_numeric_calculator(
     def calculator(
         activity_id: UUID, user_id: UUID, session: Session
     ) -> CalculatorResult | None:
-        value = _get_value_from_acitivty_tabel(session, activity_id, column)
+        value = _get_value_from_acitivty_table(session, activity_id, column)
         assert not isinstance(value, timedelta)
         if value is None:
             return None
@@ -49,11 +52,11 @@ def _create_numeric_calculator(
 def calculate_duration(
     activity_id: UUID, user_id: UUID, session: Session
 ) -> CalculatorResult | None:
-    value = _get_value_from_acitivty_tabel(
+    value = _get_value_from_acitivty_table(
         session, activity_id, Activity.moving_duration
     )
     if value is None:
-        value = _get_value_from_acitivty_tabel(session, activity_id, Activity.duration)
+        value = _get_value_from_acitivty_table(session, activity_id, Activity.duration)
     assert isinstance(value, timedelta)
     return CalculatorResult(value=value.total_seconds()) if value else None
 

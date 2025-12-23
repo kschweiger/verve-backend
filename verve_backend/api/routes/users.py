@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
 from starlette.status import HTTP_400_BAD_REQUEST
 
-from verve_backend.api.common.db_utils import check_and_raise_primary_key
+from verve_backend.api.common.utils import check_and_raise_primary_key
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import CurrentUser, UserSession
 from verve_backend.core.security import get_password_hash, verify_password

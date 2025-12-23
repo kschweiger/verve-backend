@@ -11,7 +11,7 @@ from starlette.status import (
 )
 
 from verve_backend import crud
-from verve_backend.api.common.db_utils import validate_sub_type_id
+from verve_backend.api.common.utils import validate_sub_type_id
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import UserSession
 from verve_backend.models import (

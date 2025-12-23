@@ -12,7 +12,7 @@ from starlette.status import (
     HTTP_501_NOT_IMPLEMENTED,
 )
 
-from verve_backend.api.common.db_utils import check_and_raise_primary_key
+from verve_backend.api.common.utils import check_and_raise_primary_key
 from verve_backend.api.deps import UserSession
 from verve_backend.core.date_utils import get_month_grid, get_week_date_range
 from verve_backend.models import Activity, ActivityType, UserSettings

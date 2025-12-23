@@ -4,7 +4,12 @@ import sys
 from sqlmodel import Session, text
 
 from verve_backend.core.db import get_engine
-from verve_backend.models import ActivitySubType, ActivityType, UserCreate
+from verve_backend.models import (
+    ActivitySubType,
+    ActivityType,
+    DistanceRequirement,
+    UserCreate,
+)
 from verve_backend.result import Err, Ok
 
 ACTIVITY_TYPES = {
@@ -16,11 +21,32 @@ ACTIVITY_TYPES = {
         "Indoor",
         "E-Mountain Bike",
     ],
-    "Foot Sports": ["Run", "Hike", "Trail Run", "Nordic Walking"],
+    "Foot Sports": ["Run", "Hike", "Trail Run", "Nordic Walking", "Treadmill"],
     "Winter Sports": ["Cross-country Skiing", "Snowshoeing", "Downhill Skiing"],
     "Swimming": ["Indoor", "Outdoor Pool", "Open Water"],
+    "Strength Training": [
+        "Weight Training",
+        "Bodyweight",
+        "Powerlifting",
+        "CrossFit",
+        "Circuit Training",
+    ],
+    "Indoor Cardio": [
+        "Elliptical",  # Cross Trainer
+        "Stair Stepper",
+        "Indoor Rowing",
+    ],
+    "Fitness & Flexibility": [
+        "Yoga",
+        "Pilates",
+        "HIIT",
+    ],
     "Other": ["Climbing", "Skateboarding", "Other"],
 }
+
+DISTANCE_FORBIDDEN_TYPES = ["Strength Training", "Fitness & Flexibility"]
+
+DISTANCE_OPTIONAL_TYPES = ["Winter Sports", "Indoor Cardio", "Other"]
 
 RSL_TABLES = [
     ("activity", "activities"),
@@ -42,7 +68,14 @@ def setup_activity_types(session: Session) -> None:
     """Set up activity types and subtypes in the database."""
     print("Setting up activity types and subtypes...")
     for _type, sub_types in ACTIVITY_TYPES.items():
-        atype = ActivityType(name=_type)
+        if _type in DISTANCE_FORBIDDEN_TYPES:
+            req = DistanceRequirement.NOT_APPLICABLE
+        elif _type in DISTANCE_OPTIONAL_TYPES:
+            req = DistanceRequirement.OPTIONAL
+        else:
+            req = DistanceRequirement.REQUIRED
+
+        atype = ActivityType(name=_type, distance_requirement=req)
         session.add(atype)
         session.commit()
         session.refresh(atype)

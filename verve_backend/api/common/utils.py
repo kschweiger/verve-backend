@@ -8,7 +8,11 @@ from starlette.status import (
     HTTP_404_NOT_FOUND,
 )
 
-from verve_backend.models import ActivitySubType
+from verve_backend.models import (
+    ActivitySubType,
+    ActivityType,
+    DistanceRequirement,
+)
 
 T = TypeVar("T", bound=SQLModel)
 
@@ -34,4 +38,25 @@ def validate_sub_type_id(session: Session, type_id: int, sub_type_id: int) -> No
         raise HTTPException(
             status_code=HTTP_400_BAD_REQUEST,
             detail=f"sub_type {sub_type_id} does not belong to type {type_id}",
+        )
+
+
+def check_distance_requirement(
+    session: Session, type_id: int, distance: float | None
+) -> None:
+    _type = session.get(ActivityType, type_id)
+    assert _type is not None
+
+    if _type.distance_requirement == DistanceRequirement.REQUIRED and distance is None:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail="Distance is required for this activity type",
+        )
+    if (
+        _type.distance_requirement == DistanceRequirement.NOT_APPLICABLE
+        and distance is not None
+    ):
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail="Distance is not applicable for this activity type",
         )

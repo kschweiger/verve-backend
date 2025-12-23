@@ -369,6 +369,19 @@ def generate_data(session: Session) -> None:
         user=created_users[1],  # type: ignore
     ).unwrap()
 
+    activity_5 = crud.create_activity(  # noqa: F841
+        session=session,
+        create=models.ActivityCreate(
+            start=datetime(year=2025, month=1, day=2, hour=13),
+            duration=timedelta(days=0, seconds=60 * 60 * 1),
+            distance=None,
+            type_id=5,  # Should be Strengh training
+            sub_type_id=18,  # Should be weight training
+            name=None,
+        ),
+        user=created_users[0],  # type: ignore
+    ).unwrap()
+
     track = GPXFileTrack(resource_files / "mont_ventoux.gpx")  # type: ignore
     crud.insert_track(
         session=session,

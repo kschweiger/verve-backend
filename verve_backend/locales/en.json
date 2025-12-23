@@ -17,6 +17,24 @@
       "afternoon": "Afternoon Run",
       "evening": "Evening Run",
       "night": "Night Run"
+    },
+    "strength_training": {
+      "morning": "Morning Strength Training",
+      "afternoon": "Afternoon Strength Training",
+      "evening": "Evening Strength Training",
+      "night": "Night Strength Training"
+    },
+    "indoor_cardio": {
+      "morning": "Morning Cardio",
+      "afternoon": "Afternoon Cardio",
+      "evening": "Evening Cardio",
+      "night": "Night Cardio"
+    },
+    "fitness_&_flexibility": {
+      "morning": "Morning Fitness Session",
+      "afternoon": "Afternoon Fitness Session",
+      "evening": "Evening Fitness Session",
+      "night": "Night Fitness Session"
     }
   }
 }

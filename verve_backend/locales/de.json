@@ -17,6 +17,24 @@
       "afternoon": "Lauf am Nachmittag",
       "evening": "Lauf am Abend",
       "night": "Lauf in der Nacht"
+    },
+    "strength_training": {
+      "morning": "Krafttraining am Morgen",
+      "afternoon": "Krafttraining am Nachmittag",
+      "evening": "Krafttraining am Abend",
+      "night": "Krafttraining in der Nacht"
+    },
+    "indoor_cardio": {
+      "morning": "Cardiotraining am Morgen",
+      "afternoon": "Cardiotraining am Nachmittag",
+      "evening": "Cardiotraining am Abend",
+      "night": "Cardiotraining in der Nacht"
+    },
+    "fitness_&_flexibility": {
+      "morning": "Fitnesstraining am Morgen",
+      "afternoon": "Fitnesstraining am Nachmittag",
+      "evening": "Fitnesstraining am Abend",
+      "night": "Fitnesstraining in der Nacht"
     }
   }
 }
