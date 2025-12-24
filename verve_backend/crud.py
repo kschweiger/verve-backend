@@ -300,14 +300,11 @@ def update_activity_with_track_data(
     activity.avg_speed = overview.velocity_kmh.avg
     activity.max_speed = overview.velocity_kmh.max
     if overview.power:
-        activity.avg_speed = overview.power.avg
-        activity.max_speed = overview.power.max
+        activity.avg_power = overview.power.avg
+        activity.max_power = overview.power.max
     if overview.heartrate:
-        activity.avg_speed = overview.heartrate.avg
-        activity.max_speed = overview.heartrate.max
-    if overview.cadence:
-        activity.avg_speed = overview.cadence.avg
-        activity.max_speed = overview.cadence.max
+        activity.avg_heartrate = overview.heartrate.avg
+        activity.max_heartrate = overview.heartrate.max
     session.add(activity)
     session.commit()
     session.refresh(activity)
