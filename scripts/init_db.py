@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from geo_track_analyzer import FITTrack
-from sqlmodel import Session, SQLModel
+from sqlmodel import Session
 
 from verve_backend import crud, models
 from verve_backend.cli.setup_db import setup_db
@@ -11,8 +11,8 @@ from verve_backend.enums import GoalAggregation, GoalType, TemporalType
 from verve_backend.tasks import process_activity_highlights
 
 engine = get_engine(echo=True)
-SQLModel.metadata.drop_all(engine)  # DANGERZONE:
-SQLModel.metadata.create_all(engine)
+# SQLModel.metadata.drop_all(engine)  # DANGERZONE:
+# SQLModel.metadata.create_all(engine)
 
 print("---------------------------------------")
 print("---------------------------------------")

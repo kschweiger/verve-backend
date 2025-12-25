@@ -132,7 +132,7 @@ def create_admin_user(session: Session, password: str) -> None:
 def setup_db(session: Session, admin_pw: str, schema: str = "verve") -> None:
     """Run full database setup (activity types + RLS)."""
     setup_activity_types(session)
-    setup_rls_policies(session, schema)
+    # setup_rls_policies(session, schema)
     create_admin_user(session, admin_pw)
 
 
