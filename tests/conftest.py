@@ -447,7 +447,7 @@ def generate_data(session: Session) -> None:
         session=session,
         goal=models.GoalCreate(
             name="Fix Month Goal 0",
-            temporal_type=models.TemportalType.MONTHLY,
+            temporal_type=models.TemporalType.MONTHLY,
             year=2024,
             month=1,
             target=200,
@@ -460,7 +460,7 @@ def generate_data(session: Session) -> None:
         session=session,
         goal=models.GoalCreate(
             name="Yearly Goal",
-            temporal_type=models.TemportalType.YEARLY,
+            temporal_type=models.TemporalType.YEARLY,
             year=2025,
             target=1000,
             type=models.GoalType.ACTIVITY,
@@ -472,7 +472,7 @@ def generate_data(session: Session) -> None:
         session=session,
         goal=models.GoalCreate(
             name="Fixed Month Goal",
-            temporal_type=models.TemportalType.MONTHLY,
+            temporal_type=models.TemporalType.MONTHLY,
             year=2025,
             month=2,
             target=10,

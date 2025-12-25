@@ -8,7 +8,7 @@ from sqlmodel import Session, col, func, select
 
 from verve_backend.core.date_utils import get_week_date_range
 from verve_backend.core.timing import log_timing
-from verve_backend.enums import GoalAggregation, GoalType, TemportalType
+from verve_backend.enums import GoalAggregation, GoalType, TemporalType
 from verve_backend.models import (
     Activity,
     ActivityEquipment,
@@ -59,7 +59,7 @@ def _validate_type_aggregation_combination(
 
 
 def _validate_temporal_setup(goal: GoalCreate) -> tuple[str, ErrorType] | None:
-    if goal.temporal_type == TemportalType.YEARLY:
+    if goal.temporal_type == TemporalType.YEARLY:
         if goal.month is not None:
             return (
                 "Invalid combination: Yearly goals should not have month set",
@@ -70,7 +70,7 @@ def _validate_temporal_setup(goal: GoalCreate) -> tuple[str, ErrorType] | None:
                 "Invalid combination: Yearly goals should not have week set",
                 ErrorType.VALIDATION,
             )
-    elif goal.temporal_type == TemportalType.MONTHLY:
+    elif goal.temporal_type == TemporalType.MONTHLY:
         if goal.month is None:
             return (
                 "Invalid combination: Monthly goals must have month set",
@@ -81,7 +81,7 @@ def _validate_temporal_setup(goal: GoalCreate) -> tuple[str, ErrorType] | None:
                 "Invalid combination: Monthly goals should not have week set",
                 ErrorType.VALIDATION,
             )
-    elif goal.temporal_type == TemportalType.WEEKLY:
+    elif goal.temporal_type == TemporalType.WEEKLY:
         if goal.week is None:
             return (
                 "Invalid combination: Weekly goals must have week set",

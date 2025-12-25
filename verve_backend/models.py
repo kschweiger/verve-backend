@@ -9,7 +9,7 @@ from pydantic import AfterValidator, BaseModel, EmailStr
 from sqlalchemy import JSON, Column
 from sqlmodel import Field, Index, Relationship, SQLModel, UniqueConstraint
 
-from verve_backend.enums import GoalAggregation, GoalType, TemportalType
+from verve_backend.enums import GoalAggregation, GoalType, TemporalType
 
 T = TypeVar("T", bound=int | float)
 
@@ -409,7 +409,7 @@ class GoalBase(SQLModel):
     upper_bound: bool = Field(default=True)
     active: bool = Field(default=True)
 
-    temporal_type: TemportalType = Field(default=TemportalType.YEARLY)
+    temporal_type: TemporalType = Field(default=TemporalType.YEARLY)
     year: int = Field(default=datetime.now().year)
     month: int | None = Field(default=None)
     week: int | None = Field(default=None)

@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session
 
 from verve_backend import crud
-from verve_backend.enums import GoalAggregation, GoalType, TemportalType
+from verve_backend.enums import GoalAggregation, GoalType, TemporalType
 from verve_backend.models import (
     GoalCreate,
     GoalPublic,
@@ -81,7 +81,7 @@ def test_add_multiple_goals_month(
         "name": "New Goal",
         "description": "A newly created goal",
         "target": 15,
-        "temporal_type": TemportalType.MONTHLY,
+        "temporal_type": TemporalType.MONTHLY,
         "month": None,
         "type": GoalType.ACTIVITY,
         "aggregation": GoalAggregation.DURATION,
@@ -113,7 +113,7 @@ def test_add_goals_week(
         "name": "New Goal",
         "description": "A newly created goal",
         "target": 2,
-        "temporal_type": TemportalType.WEEKLY,
+        "temporal_type": TemporalType.WEEKLY,
         "year": 2025,
         "month": month,
         "week": week,
