@@ -15,7 +15,7 @@ class GoalAggregation(StrEnum):
     DURATION = "duration"
 
 
-class TemportalType(StrEnum):
+class TemporalType(StrEnum):
     YEARLY = "yearly"
     MONTHLY = "monthly"
     WEEKLY = "weekly"

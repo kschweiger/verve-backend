@@ -2,17 +2,17 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from geo_track_analyzer import FITTrack
-from sqlmodel import Session, SQLModel
+from sqlmodel import Session
 
 from verve_backend import crud, models
 from verve_backend.cli.setup_db import setup_db
 from verve_backend.core.db import get_engine
-from verve_backend.enums import GoalAggregation, GoalType, TemportalType
+from verve_backend.enums import GoalAggregation, GoalType, TemporalType
 from verve_backend.tasks import process_activity_highlights
 
 engine = get_engine(echo=True)
-SQLModel.metadata.drop_all(engine)  # DANGERZONE:
-SQLModel.metadata.create_all(engine)
+# SQLModel.metadata.drop_all(engine)  # DANGERZONE:
+# SQLModel.metadata.create_all(engine)
 
 print("---------------------------------------")
 print("---------------------------------------")
@@ -100,7 +100,7 @@ with Session(engine) as session:
         goal=models.GoalCreate(
             name="Montly 500 km",
             target=500,
-            temporal_type=TemportalType.MONTHLY,
+            temporal_type=TemporalType.MONTHLY,
             type=GoalType.ACTIVITY,
             aggregation=GoalAggregation.TOTAL_DISTANCE,
         ),
@@ -111,7 +111,7 @@ with Session(engine) as session:
         goal=models.GoalCreate(
             name="3 Activities per week",
             target=3,
-            temporal_type=TemportalType.WEEKLY,
+            temporal_type=TemporalType.WEEKLY,
             type=GoalType.ACTIVITY,
             aggregation=GoalAggregation.COUNT,
         ),
@@ -122,7 +122,7 @@ with Session(engine) as session:
         goal=models.GoalCreate(
             name="Counting goal",
             target=5,
-            temporal_type=TemportalType.YEARLY,
+            temporal_type=TemporalType.YEARLY,
             type=GoalType.MANUAL,
             aggregation=GoalAggregation.COUNT,
         ),
@@ -133,7 +133,7 @@ with Session(engine) as session:
         goal=models.GoalCreate(
             name="2 hours per week",
             target=60 * 60 * 2,
-            temporal_type=TemportalType.WEEKLY,
+            temporal_type=TemporalType.WEEKLY,
             type=GoalType.ACTIVITY,
             aggregation=GoalAggregation.DURATION,
         ),

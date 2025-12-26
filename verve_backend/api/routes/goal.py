@@ -20,7 +20,7 @@ from verve_backend.core.date_utils import (
     get_all_dates_in_month,
     get_week_numbers_between_dates,
 )
-from verve_backend.enums import GoalType, TemportalType
+from verve_backend.enums import GoalType, TemporalType
 from verve_backend.goal import update_goal_state
 from verve_backend.models import Goal, GoalCreate, GoalPublic, GoalsPublic, ListResponse
 from verve_backend.result import Err, ErrorType, Ok
@@ -104,14 +104,14 @@ def _add_single_goal(user_id: str, session: Session, data: GoalCreate) -> GoalPu
 def add_goal(user_session: UserSession, data: GoalCreate) -> Any:
     user_id, session = user_session
 
-    if data.temporal_type == TemportalType.MONTHLY and data.month is None:
+    if data.temporal_type == TemporalType.MONTHLY and data.month is None:
         _goals = []
         for i in range(1, 13):
             _data = data.model_copy()
             _data.month = i
             _goals.append(_add_single_goal(user_id, session, _data))
         return ListResponse(data=_goals)
-    elif data.temporal_type == TemportalType.WEEKLY and data.week is None:
+    elif data.temporal_type == TemporalType.WEEKLY and data.week is None:
         _goals = []
         if data.month is None:
             week_numbers = list(

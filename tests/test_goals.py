@@ -7,7 +7,7 @@ from geoalchemy2.shape import from_shape
 from shapely import Point
 from sqlmodel import Session, select
 
-from verve_backend.enums import GoalAggregation, GoalType, TemportalType
+from verve_backend.enums import GoalAggregation, GoalType, TemporalType
 from verve_backend.goal import (
     GoalContraints,
     _validate_temporal_setup,
@@ -28,14 +28,14 @@ from verve_backend.models import (
 @pytest.mark.parametrize(
     ("temporal_type", "year", "month", "is_valid"),
     [
-        (TemportalType.YEARLY, 2025, None, True),
-        (TemportalType.YEARLY, 2025, 2, False),
-        (TemportalType.MONTHLY, 2025, None, False),
-        (TemportalType.MONTHLY, 2025, 2, True),
+        (TemporalType.YEARLY, 2025, None, True),
+        (TemporalType.YEARLY, 2025, 2, False),
+        (TemporalType.MONTHLY, 2025, None, False),
+        (TemporalType.MONTHLY, 2025, 2, True),
     ],
 )
 def test_temporal_validation(
-    temporal_type: TemportalType,
+    temporal_type: TemporalType,
     year: int,
     month: int | None,
     is_valid: bool,
@@ -111,28 +111,28 @@ def test_type_aggregation_validation(
         "exp_current_value",
     ),
     [
-        (5, None, GoalAggregation.TOTAL_DISTANCE, TemportalType.MONTHLY, {}, 60),
-        (None, None, GoalAggregation.TOTAL_DISTANCE, TemportalType.YEARLY, {}, 100),
+        (5, None, GoalAggregation.TOTAL_DISTANCE, TemporalType.MONTHLY, {}, 60),
+        (None, None, GoalAggregation.TOTAL_DISTANCE, TemporalType.YEARLY, {}, 100),
         (
             5,
             datetime(2025, 5, 1, 20),
             GoalAggregation.TOTAL_DISTANCE,
-            TemportalType.MONTHLY,
+            TemporalType.MONTHLY,
             {},
             50,
         ),
-        (5, None, GoalAggregation.MAX_DISTANCE, TemportalType.MONTHLY, {}, 30),
-        (5, None, GoalAggregation.COUNT, TemportalType.MONTHLY, {}, 3),
-        (None, None, GoalAggregation.COUNT, TemportalType.YEARLY, {}, 4),
-        (5, None, GoalAggregation.DURATION, TemportalType.MONTHLY, {}, 60 * 60),
-        (5, None, GoalAggregation.AVG_DISTANCE, TemportalType.MONTHLY, {}, 60 / 3),
-        (None, None, GoalAggregation.MAX_DISTANCE, TemportalType.YEARLY, {}, 40),
+        (5, None, GoalAggregation.MAX_DISTANCE, TemporalType.MONTHLY, {}, 30),
+        (5, None, GoalAggregation.COUNT, TemporalType.MONTHLY, {}, 3),
+        (None, None, GoalAggregation.COUNT, TemporalType.YEARLY, {}, 4),
+        (5, None, GoalAggregation.DURATION, TemporalType.MONTHLY, {}, 60 * 60),
+        (5, None, GoalAggregation.AVG_DISTANCE, TemporalType.MONTHLY, {}, 60 / 3),
+        (None, None, GoalAggregation.MAX_DISTANCE, TemporalType.YEARLY, {}, 40),
         # ----- Constraints -----
         (
             None,
             None,
             GoalAggregation.TOTAL_DISTANCE,
-            TemportalType.YEARLY,
+            TemporalType.YEARLY,
             {"type_id": 1},
             60,
         ),
@@ -140,7 +140,7 @@ def test_type_aggregation_validation(
             None,
             None,
             GoalAggregation.TOTAL_DISTANCE,
-            TemportalType.YEARLY,
+            TemporalType.YEARLY,
             {"type_id": 3},
             0,
         ),
@@ -148,7 +148,7 @@ def test_type_aggregation_validation(
             None,
             None,
             GoalAggregation.TOTAL_DISTANCE,
-            TemportalType.YEARLY,
+            TemporalType.YEARLY,
             {"type_id": 1, "sub_type_id": 1},
             50,
         ),
@@ -156,7 +156,7 @@ def test_type_aggregation_validation(
             None,
             None,
             GoalAggregation.TOTAL_DISTANCE,
-            TemportalType.YEARLY,
+            TemporalType.YEARLY,
             {"equipment_ids": [0]},
             40,
         ),
@@ -164,7 +164,7 @@ def test_type_aggregation_validation(
             None,
             None,
             GoalAggregation.TOTAL_DISTANCE,
-            TemportalType.YEARLY,
+            TemporalType.YEARLY,
             {"equipment_ids": [0, 1]},
             30,
         ),
@@ -176,7 +176,7 @@ def test_update_activity_goal(
     goal_month: int | None,
     current_updated: datetime | None,
     agg: GoalAggregation,
-    temporal_type: TemportalType,
+    temporal_type: TemporalType,
     constraints: dict,
     exp_current_value: float,
 ) -> None:
@@ -288,7 +288,7 @@ def test_update_location_goal(
         user_id=UUID(user2_id),
         name="Mont Vontoux updated Test Goal",
         target=1,
-        temporal_type=TemportalType.YEARLY,
+        temporal_type=TemporalType.YEARLY,
         year=2025,
         type=GoalType.LOCATION,
         aggregation=GoalAggregation.COUNT,
@@ -391,28 +391,28 @@ def test_validate_contraints(
     ("temporal_type", "year", "month", "week", "is_valid"),
     [
         # Valid weekly goals
-        (TemportalType.WEEKLY, 2025, None, 3, True),
-        (TemportalType.WEEKLY, 2025, None, 1, True),
-        (TemportalType.WEEKLY, 2025, None, 52, True),
-        (TemportalType.WEEKLY, 2025, None, 53, True),
+        (TemporalType.WEEKLY, 2025, None, 3, True),
+        (TemporalType.WEEKLY, 2025, None, 1, True),
+        (TemporalType.WEEKLY, 2025, None, 52, True),
+        (TemporalType.WEEKLY, 2025, None, 53, True),
         # Invalid: weekly with month set
-        (TemportalType.WEEKLY, 2025, 5, 3, False),
+        (TemporalType.WEEKLY, 2025, 5, 3, False),
         # Invalid: weekly without week
-        (TemportalType.WEEKLY, 2025, None, None, False),
+        (TemporalType.WEEKLY, 2025, None, None, False),
         # Invalid: weekly with invalid week (0)
-        (TemportalType.WEEKLY, 2025, None, 0, False),
+        (TemporalType.WEEKLY, 2025, None, 0, False),
         # Invalid: weekly with invalid week (54)
-        (TemportalType.WEEKLY, 2025, None, 54, False),
+        (TemporalType.WEEKLY, 2025, None, 54, False),
         # Invalid: weekly with invalid week (-1)
-        (TemportalType.WEEKLY, 2025, None, -1, False),
+        (TemporalType.WEEKLY, 2025, None, -1, False),
         # YEARLY with week set
-        (TemportalType.YEARLY, 2025, None, 3, False),
+        (TemporalType.YEARLY, 2025, None, 3, False),
         # MONTHLY with week set
-        (TemportalType.MONTHLY, 2025, 5, 3, False),
+        (TemporalType.MONTHLY, 2025, 5, 3, False),
     ],
 )
 def test_temporal_validation_weekly(
-    temporal_type: TemportalType,
+    temporal_type: TemporalType,
     year: int,
     month: int | None,
     week: int | None,
@@ -529,7 +529,7 @@ def test_update_weekly_activity_goal(
         user_id=temp_user_id,
         name="Weekly Goal",
         target=100,
-        temporal_type=TemportalType.WEEKLY,
+        temporal_type=TemporalType.WEEKLY,
         year=2025,
         month=None,
         week=goal_week,
@@ -609,7 +609,7 @@ def test_weekly_goal_year_boundary(
         user_id=temp_user_id,
         name="Week 1 Goal",
         target=100,
-        temporal_type=TemportalType.WEEKLY,
+        temporal_type=TemporalType.WEEKLY,
         year=2025,
         month=None,
         week=1,
@@ -681,7 +681,7 @@ def test_weekly_goal_incremental_update(
         user_id=temp_user_id,
         name="Weekly Goal",
         target=100,
-        temporal_type=TemportalType.WEEKLY,
+        temporal_type=TemporalType.WEEKLY,
         year=2025,
         month=None,
         week=3,
