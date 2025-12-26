@@ -8,9 +8,25 @@
 
 ## Database setup
 
-Assuming you have working POSTGRES instance ready:
+Create a user for the *RLS policies* on you database instance
 
-- Create a schema: `CREATE SCHEMA verve;`
+```sql
+CREATE ROLE verve_user LOGIN PASSWORD 'changeme' NOINHERIT;
+```
+
+Initialze the database using *alembic*
+
+```bash
+alembic upgrade head
+```
+
+This also create the relvant schema and *initializes the RLS policy for the tables*.
+
+You can verify the *RLS policies* with the script `./scripts/verify_rls.py`
+
+
+### Notes on the RLS setup
+
 - Create a role for RLS: `CREATE ROLE verve_user LOGIN PASSWORD 'changeme' NOINHERIT;`
 - Grand usage on schema: `GRANT USAGE ON SCHEMA verve TO verve_user;`
 - Set privileges:
