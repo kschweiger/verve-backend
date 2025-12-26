@@ -28,16 +28,17 @@ target_metadata = SQLModel.metadata
 
 
 # Ignore PostGIS internal tables
-def include_object(object, name, type_, reflected, compare_to):
-    if type_ == "table" and name == "spatial_ref_sys":
+def include_object(object, name, type_, reflected, compare_to) -> bool:
+    if type_ == "table" and name == "spatial_ref_sys":  # noqa: SIM103
         return False
     return True
 
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
-    # Note: Offline mode generates SQL scripts.
-    # To ensure they run in the right schema, we can explicitly add the schema to the version table.
+    # NOTE: Offline mode generates SQL scripts.
+    # To ensure they run in the right schema, we can explicitly add the schema to the
+    # version table.
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
@@ -61,7 +62,7 @@ def run_migrations_online() -> None:
 
     # --- CRITICAL CHANGE ---
     # Instead of engine_from_config, we use your app's get_engine().
-    # This ensures connect_args={"options": f"-csearch_path={settings.POSTGRES_SCHEMA},public"}
+    # This ensures connect_args={"options": f"-csearch_path={settings.POSTGRES_SCHEMA},public"}  # noqa: E501
     # is applied to the Alembic connection.
     connectable = get_engine()
 
