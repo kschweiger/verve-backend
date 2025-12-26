@@ -12,6 +12,7 @@ from verve_backend import crud, models
 from verve_backend.api.deps import get_db, get_user_session
 from verve_backend.core.config import settings
 from verve_backend.models import (
+    User,
     UserBase,
     UserCreate,
     UserPublic,
@@ -253,6 +254,13 @@ def check_tables(user: UserPublic, tables: list[str], exp_data: bool) -> bool:
     return overall_success
 
 
+def cleanup(users: list[models.UserPublic]) -> None:
+    with contextmanager(get_db)() as session:
+        for user in users:
+            session.delete(session.get(User, user.id))
+        session.commit()
+
+
 def main() -> None:
     user_a, user_b = create_users()
     create_user_data(user_a)
@@ -262,6 +270,7 @@ def main() -> None:
     user_a_check = check_tables(user_a, tables, exp_data=True)
     console.print("Running test with user B (should see no data)...")
     user_b_check = check_tables(user_b, tables, exp_data=False)
+    cleanup(users=[user_a, user_b])
 
     if user_a_check and user_b_check:
         console.print("[bold green]RLS verification successful![/bold green]")

@@ -139,8 +139,9 @@ def setup_db(session: Session, admin_pw: str, schema: str = "verve") -> None:
 def main() -> None:
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
-        description="Verve Backend Database Setup - Sets up activity types and "
-        "RLS policies"
+        description=(
+            "Verve Backend Database Setup - Sets up activity types and the admin user"
+        )
     )
     parser.add_argument(
         "--schema",
@@ -159,6 +160,10 @@ def main() -> None:
         help="Create all database tables",
     )
     args = parser.parse_args()
+
+    if len(args.admin_pw) < 8:
+        print("Please choose a admin password that is at least 8 characters long")
+        sys.exit(1)
 
     try:
         print("Starting database setup...\n")
