@@ -94,3 +94,8 @@ build-backend = "uv_build"
 [tool.uv.build-backend]
 module-name = "verve_backend"
 module-root = ""
+
+[tool.git-changelog]
+output = "CHANGELOG.md"
+convention = "conventional"
+template = "angular"
