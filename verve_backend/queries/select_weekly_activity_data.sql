@@ -9,7 +9,7 @@ FROM
 WHERE
 	extract(WEEK FROM START) = :week
 	AND extract(ISOYEAR FROM START) = :year
-	AND type_id = 1
+	AND type_id = :activity_type_id
 GROUP BY sub_type_id, date(start)
 ORDER BY
 	date(START) DESC;

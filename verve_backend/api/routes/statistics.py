@@ -21,7 +21,6 @@ from verve_backend.transformations import CalendarWeek, build_calendar_response
 T = TypeVar("T", int, float)
 
 
-# logger = logging.getLogger(__name__)
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/statistics", tags=["statistics"])
@@ -131,13 +130,15 @@ def get_year_stats(
     total_type_count = defaultdict(int)
     for row in data:
         _type_id, _sub_type_id, _count, _distance, _duration = cast(
-            tuple[int, int | None, int, float, timedelta], row
+            tuple[int, int | None, int, float | None, timedelta], row
         )
-        per_type_distance[_type_id][_sub_type_id] = _distance
+        if _distance is not None:
+            per_type_distance[_type_id][_sub_type_id] = _distance
         per_type_duration[_type_id][_sub_type_id] = round(_duration.total_seconds())
         per_type_count[_type_id][_sub_type_id] = _count
 
-        total_type_distance[_type_id] += _distance
+        if _distance is not None:
+            total_type_distance[_type_id] += _distance
         total_type_duration[_type_id] += round(_duration.total_seconds())
         total_type_count[_type_id] += _count
 
@@ -223,12 +224,16 @@ def get_week_stats(
     duration_pie: dict[int | None, float] = defaultdict(float)
 
     for _date, _sub_type_id, _dist, _ele, _ts in data:
-        distance_per_day[_date] = _dist
-        elevation_gain_per_day[_date] = _ele
+        if _dist is not None:
+            distance_per_day[_date] = _dist
+        if _ele is not None:
+            elevation_gain_per_day[_date] = _ele
         duration_per_day[_date] = round(_ts.total_seconds())
 
-        distance_pie[_sub_type_id] += _dist
-        elevation_gain_pie[_sub_type_id] += _ele
+        if _dist is not None:
+            distance_pie[_sub_type_id] += _dist
+        if _ele is not None:
+            elevation_gain_pie[_sub_type_id] += _ele
         duration_pie[_sub_type_id] += _ts.total_seconds()
 
     return WeekStatsResponse(
