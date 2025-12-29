@@ -59,6 +59,11 @@ SELECT
     time_diff_seconds,
     SUM(distance_from_previous) OVER (ORDER BY time) as cumulative_distance_m,
     SUM(distance_from_previous) OVER (ORDER BY time) / 1000.0 as cumulative_distance_km,
-    SUM(time_diff_seconds) OVER (ORDER BY time) as cumulative_time_seconds
+    SUM(time_diff_seconds) OVER (ORDER BY time) as cumulative_time_seconds,
+    CASE
+        WHEN time_diff_seconds > 0
+        THEN distance_from_previous / time_diff_seconds
+        ELSE NULL
+    END as speed_m_s
 FROM recalculated_distances
 ORDER BY time;

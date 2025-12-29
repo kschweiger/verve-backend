@@ -109,6 +109,7 @@ def get_track_data(user_session: UserSession, activity_id: uuid.UUID) -> Any:
             cum_distance=0
             if (i == 0 and row.cumulative_distance_m is None)
             else row.cumulative_distance_m,
+            speed=row.speed_m_s,
             heartrate=row.heartrate,
             cadence=row.cadence,
             power=row.power,

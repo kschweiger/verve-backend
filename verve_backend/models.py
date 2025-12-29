@@ -372,9 +372,10 @@ class TrackPointResponse(BaseModel):
     diff_distance: float | None
     cum_distance: float
 
-    heartrate: int | None
-    cadence: int | None
-    power: int | None
+    speed: float | None = Field(description="Speed in m/s")
+    heartrate: int | None = Field(description="Heartrate in bpm")
+    cadence: int | None = Field(description="Cadence in 1/min")
+    power: int | None = Field(description="Power in W")
 
     add_extensions: dict[str, int | float] | None = None
 
