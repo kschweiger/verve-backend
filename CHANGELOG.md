@@ -1,4 +1,16 @@
 <!-- insertion marker -->
+<a name="1.1.0"></a>
+
+## [1.1.0](https://github.com/kschweiger/verve-backend/compare/1.0.0...1.1.0) (2025-12-29)
+
+### Features
+
+- 📊 expose speed calculation in track data API ([1180c18](https://github.com/kschweiger/verve-backend/commit/1180c188358f49c067eb479b7d4c97f1fea43fdd))
+
+### Bug Fixes
+
+- **statistics:** Fix issues with optional distance in year and week endpoints ([85d90df](https://github.com/kschweiger/verve-backend/commit/85d90df233c3f16dedf6d49c68113d314653c803))
+
 <a name="1.0.0"></a>
 
 ## [1.0.0](https://github.com/kschweiger/verve-backend/compare/4e2c077fa2a0a57f1fcd5587757013e4a22e5589...1.0.0) (2025-12-26)
