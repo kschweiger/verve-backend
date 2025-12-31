@@ -1,5 +1,6 @@
 import logging
 from typing import Any
+from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
@@ -7,13 +8,17 @@ from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
 from starlette.status import HTTP_400_BAD_REQUEST
 
-from verve_backend.api.common.utils import check_and_raise_primary_key
+from verve_backend.api.common.utils import (
+    check_and_raise_primary_key,
+    validate_sub_type_id,
+)
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import CurrentUser, UserSession
 from verve_backend.core.security import get_password_hash, verify_password
 from verve_backend.models import (
     ActivitySubType,
     ActivityType,
+    HeatmapSettings,
     User,
     UserPassword,
     UserPublic,
@@ -132,3 +137,23 @@ def get_user_settings(
     return UserSettingsCollection(
         settings=UserSettingsPublic.model_validate(settings),
     )
+
+
+@router.patch("/me/heatmap_settings")
+async def replace_heatmap_settings(
+    *, user_session: UserSession, data: HeatmapSettings
+) -> Any:
+    _user_id, session = user_session
+    for _type_id, _sub_type_id in data.excluded_activity_types:
+        check_and_raise_primary_key(session, ActivityType, _type_id)
+        if _sub_type_id is not None:
+            check_and_raise_primary_key(session, ActivitySubType, _sub_type_id)
+            validate_sub_type_id(session, _type_id, _sub_type_id)
+
+    user_settings = session.get(UserSettings, UUID(_user_id))
+    assert user_settings is not None
+
+    user_settings.heatmap_settings = data
+
+    session.add(user_settings)
+    session.commit()
