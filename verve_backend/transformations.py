@@ -1,6 +1,7 @@
 from collections import defaultdict
 from datetime import date
 from typing import Annotated, Sequence
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -31,9 +32,21 @@ class TypeStats(StatsMetric):
     by_subtype: dict[int, StatsMetric] = Field(default_factory=dict)
 
 
+class ActivityCalendarItem(BaseModel):
+    id: UUID
+    name: str | None
+    type_id: int
+    sub_type_id: int | None = None
+    distance: float | None  # Nullable for Yoga/Gym
+    duration: int
+    elevation_gain: float | None
+
+
 class CalendarDay(BaseModel):
     date: date
     is_in_month: bool = True  # Helper to gray out padding days from prev/next month
+
+    items: list[ActivityCalendarItem] = Field(default_factory=list)
 
     # -- For the "Simple View" --
     # Just the IDs present on this day (e.g., [1, 4] for Run, Swim)
@@ -83,6 +96,17 @@ def build_calendar_response(
                     acts_of_type = mapped_activities[current_date][type_id]
 
                     for act in acts_of_type:
+                        day_data.items.append(
+                            ActivityCalendarItem(
+                                id=act.id,
+                                name=act.name,
+                                type_id=act.type_id,
+                                sub_type_id=act.sub_type_id,
+                                distance=act.distance,
+                                duration=int(act.duration.total_seconds()),
+                                elevation_gain=act.elevation_change_up,
+                            )
+                        )
                         # Update Day Total
                         day_data.total.add_activity(act)
 
