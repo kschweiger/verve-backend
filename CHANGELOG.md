@@ -1,4 +1,17 @@
 <!-- insertion marker -->
+<a name="1.2.0"></a>
+
+## [1.2.0](https://github.com/kschweiger/verve-backend/compare/1.1.0...1.2.0) (2025-12-31)
+
+### Features
+
+- ✨ add PATCH endpoint for heatmap settings management ([c3d97ab](https://github.com/kschweiger/verve-backend/commit/c3d97ab25f09cb8522731398b20aafdb62382429))
+- 🗺️ add heatmap activity type filtering based on user settings ([9587ffc](https://github.com/kschweiger/verve-backend/commit/9587ffc29b1e52553466820f8a5203b8564e6ef7))
+
+### Code Refactoring
+
+- **calendar:** ✨ add detailed activity items to calendar days ([4bd3ec4](https://github.com/kschweiger/verve-backend/commit/4bd3ec42f8ccf45af928ea24dba7fe2c0e667d04))
+
 <a name="1.1.0"></a>
 
 ## [1.1.0](https://github.com/kschweiger/verve-backend/compare/1.0.0...1.1.0) (2025-12-29)
