@@ -4,8 +4,13 @@ from datetime import datetime, timedelta
 from enum import StrEnum, auto
 from typing import Annotated, Any, Generic, TypeVar
 
+import sqlalchemy.types as types
 from geoalchemy2 import Geography, Geometry
-from pydantic import AfterValidator, BaseModel, EmailStr
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    EmailStr,
+)
 from sqlalchemy import JSON, Column
 from sqlmodel import Field, Index, Relationship, SQLModel, UniqueConstraint
 
@@ -25,6 +30,28 @@ UserPassword = Annotated[str, Field(min_length=8, max_length=40)]
 
 U = TypeVar("U")
 V = TypeVar("V")
+
+
+class PydanticJSON(types.TypeDecorator):
+    """Custom type for storing Pydantic models as JSON in the database."""
+
+    impl = types.JSON
+
+    def __init__(self, pydantic_model) -> None:
+        super().__init__()
+        self.pydantic_model = pydantic_model
+
+    def process_bind_param(self, value, dialect):  # noqa: ANN201
+        if value is None:
+            return None
+        if isinstance(value, self.pydantic_model):
+            return value.model_dump(mode="json")
+        return value
+
+    def process_result_value(self, value, dialect):  # noqa: ANN201
+        if value is None:
+            return None
+        return self.pydantic_model.model_validate(value)
 
 
 class SupportedLocale(StrEnum):
@@ -515,7 +542,7 @@ class UserSettingsBase(SQLModel):
     )
     locale: SupportedLocale = Field(default=SupportedLocale.EN)
     heatmap_settings: HeatmapSettings = Field(
-        sa_column=Column(JSON),
+        sa_column=Column(PydanticJSON(HeatmapSettings)),
         default_factory=lambda: HeatmapSettings().model_dump(mode="json"),
     )
 
