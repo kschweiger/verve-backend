@@ -29,8 +29,13 @@ target_metadata = SQLModel.metadata
 
 # Ignore PostGIS internal tables
 def include_object(object, name, type_, reflected, compare_to) -> bool:
-    if type_ == "table" and name == "spatial_ref_sys":  # noqa: SIM103
+    if type_ == "table" and name == "spatial_ref_sys":
         return False
+
+    # Ignore Alembic's own version table (prevents accidental drops)
+    if type_ == "table" and name == "alembic_version":  # noqa: SIM103
+        return False
+
     return True
 
 
