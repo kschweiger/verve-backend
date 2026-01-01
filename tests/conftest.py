@@ -35,6 +35,18 @@ def db():  # noqa: ANN201
 
 
 @pytest.fixture(scope="session")
+def admin_token(client: TestClient) -> str:
+    response = client.post(
+        "/login/access-token",
+        data={"username": "admin@mail.com", "password": "12345678"},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    return data["access_token"]
+
+
+@pytest.fixture(scope="session")
 def user2_token(client: TestClient) -> str:
     response = client.post(
         "/login/access-token",
@@ -273,9 +285,10 @@ def generate_data(session: Session) -> None:
     setup_rls_policies(session, "verve_testing")
     # --------------------- USERS ------------------------------
     created_users: list[User] = []
-    for name, pw, email, full_name in [
-        ("username1", "12345678", "user1@mail.com", "User Name"),
-        ("username2", "12345678", "user2@mail.com", None),
+    for name, pw, email, full_name, is_admin in [
+        ("username1", "12345678", "user1@mail.com", "User Name", False),
+        ("username2", "12345678", "user2@mail.com", None, False),
+        ("admin_user", "12345678", "admin@mail.com", None, True),
     ]:
         created_users.append(
             crud.create_user(
@@ -286,6 +299,7 @@ def generate_data(session: Session) -> None:
                     email=email,
                     full_name=full_name,
                 ),
+                is_admin=is_admin,
             ).unwrap()
         )
 
