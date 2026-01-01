@@ -122,7 +122,11 @@ def create_admin_user(session: Session, password: str) -> None:
         email="admin@verve-outdoors.com",
         password=password,
     )
-    match create_user(session=session, user_create=user):
+    match create_user(
+        session=session,
+        user_create=user,
+        is_admin=True,
+    ):
         case Ok(user):
             print("Admin user created")
         case Err(_id):
