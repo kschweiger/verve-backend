@@ -53,10 +53,17 @@ logger = logging.getLogger(__name__)
 
 
 def create_user(
-    *, session: Session, user_create: UserCreate
+    *,
+    session: Session,
+    user_create: UserCreate,
+    is_admin: bool = False,
 ) -> Result[User, uuid.UUID]:
     db_obj = User.model_validate(
-        user_create, update={"hashed_password": get_password_hash(user_create.password)}
+        user_create,
+        update={
+            "hashed_password": get_password_hash(user_create.password),
+            "is_admin": is_admin,
+        },
     )
     session.add(db_obj)
     session.commit()

@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from verve_backend.models import User, UserPublic
+from verve_backend.models import User, UserCreate, UserPublic
 
 
 @pytest.mark.parametrize(
@@ -98,3 +98,33 @@ def test_update_password_error(
         json={"old_password": old_password, "new_password": "newtemppassword"},
     )
     assert response.status_code == 400
+
+
+def test_create_user_no_admin(
+    client: TestClient,
+    user1_token: str,
+) -> None:
+    response = client.post(
+        "/users/create",
+        headers={"Authorization": f"Bearer {user1_token}"},
+        json=UserCreate(
+            name="NewestUser", email="newestuser@mail.com", password="12345678"
+        ).model_dump(mode="json"),
+    )
+    assert response.status_code == 403
+
+
+def test_create_user_admin(
+    client: TestClient,
+    admin_token: str,
+) -> None:
+    response = client.post(
+        "/users/create",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json=UserCreate(
+            name="NewestUser", email="newestuser@mail.com", password="12345678"
+        ).model_dump(mode="json"),
+    )
+    assert response.status_code == 200
+
+    UserPublic.model_validate(response.json())

@@ -6,25 +6,28 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
-from starlette.status import HTTP_400_BAD_REQUEST
+from starlette.status import HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN
 
+from verve_backend import crud
 from verve_backend.api.common.utils import (
     check_and_raise_primary_key,
     validate_sub_type_id,
 )
 from verve_backend.api.definitions import Tag
-from verve_backend.api.deps import CurrentUser, UserSession
+from verve_backend.api.deps import CurrentUser, SessionDep, UserSession
 from verve_backend.core.security import get_password_hash, verify_password
 from verve_backend.models import (
     ActivitySubType,
     ActivityType,
     HeatmapSettings,
     User,
+    UserCreate,
     UserPassword,
     UserPublic,
     UserSettings,
     UserSettingsPublic,
 )
+from verve_backend.result import Err, Ok
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/users", tags=[Tag.USER])
@@ -43,6 +46,28 @@ class UserUpdate(BaseModel):
 class PasswordChangeRequest(BaseModel):
     old_password: str
     new_password: UserPassword
+
+
+@router.post("/create", response_model=UserPublic)
+def create_user(
+    *,
+    session: SessionDep,
+    user: CurrentUser,
+    data: UserCreate,
+) -> Any:
+    assert user
+    if not user.is_admin:
+        raise HTTPException(
+            status_code=HTTP_403_FORBIDDEN, detail="Only admin users can create Users"
+        )
+    match crud.create_user(session=session, user_create=data):
+        case Ok(new_user):
+            return new_user
+        case Err(error_id):
+            raise HTTPException(
+                status_code=HTTP_400_BAD_REQUEST,
+                detail=f"Could not create user. Error code: {error_id}",
+            )
 
 
 @router.get("/me", response_model=UserPublic)

@@ -131,6 +131,7 @@ class User(UserBase, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     is_active: bool = True
+    is_admin: bool = False
     hashed_password: str
 
 
