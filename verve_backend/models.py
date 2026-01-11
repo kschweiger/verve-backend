@@ -206,7 +206,7 @@ class ActivityBase(SQLModel):
     )
     elevation_change_up: float | None = None
     elevation_change_down: float | None = None
-    calories: float | None = Field(default=None, description="Total energy in kcal")
+    energy: float | None = Field(default=None, description="Total energy in kcal")
 
     avg_speed: float | None = Field(
         default=None,
@@ -362,6 +362,7 @@ class ActivitiesPublic(SQLModel):
 
 
 class TrackPoint(SQLModel, table=True):
+    # TODO: Update indices and geometry defintions for track with dummy spatial data
     __tablename__ = "track_points"  # type: ignore
 
     id: int = Field(primary_key=True)
