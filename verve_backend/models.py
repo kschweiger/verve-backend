@@ -206,6 +206,8 @@ class ActivityBase(SQLModel):
     )
     elevation_change_up: float | None = None
     elevation_change_down: float | None = None
+    calories: float | None = Field(default=None, description="Total energy in kcal")
+
     avg_speed: float | None = Field(
         default=None,
         description="Average speed over the duration of the activity in km/h",
