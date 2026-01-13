@@ -4,7 +4,7 @@ import uuid
 from io import BytesIO
 from time import perf_counter
 
-from fastapi import HTTPException, UploadFile
+from fastapi import HTTPException
 from geo_track_analyzer import ByteTrack, FITTrack, Track
 from geo_track_analyzer.exceptions import (
     EmptyGeoJsonError,
@@ -32,13 +32,10 @@ def add_track(
     user_id: uuid.UUID,
     session: Session,
     obj_store_client: ObjectStoreClient,
-    file: UploadFile,
+    file_name: str,
+    file_content: bytes,
+    file_content_type: str | None,
 ) -> tuple[Track, int]:
-    file_name = file.filename
-    assert file_name is not None, "Could not retrieve file name"
-    # Read file content into memory
-    file_content = file.file.read()
-
     empty_spatial_flag = False
 
     if file_name.endswith(".fit"):
@@ -87,7 +84,7 @@ def add_track(
     else:
         raise HTTPException(
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="File type not supported. Only .fit and .gpx files are supported.",
+            detail="File type not supported. Only .fit, .gpx, and .json files are supported.",
         )
     # TODO: Deal with the empty_spatial_flag pass it ouside?
 
@@ -107,9 +104,9 @@ def add_track(
         Bucket=settings.BOTO3_BUCKET,
         Key=obj_path,
         ExtraArgs={
-            "ContentType": file.content_type,  # Preserve the MIME type
+            "ContentType": file_content_type,  # Preserve the MIME type
             "Metadata": {
-                "original_filename": file.filename,
+                "original_filename": file_name,
                 "uploaded_by": str(user_id),
                 "activity_id": str(activity_id),
                 "file_type": orig_file_type,

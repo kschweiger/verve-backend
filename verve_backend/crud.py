@@ -543,3 +543,21 @@ def get_activity_locations(
     ).all()
 
     return {_id for _id, _, _ in data}
+
+
+def get_type_by_name(session: Session, name: str) -> Result[ActivityType, None]:
+    _type = session.exec(select(ActivityType).where(ActivityType.name == name)).first()
+    if _type is None:
+        return Err(None)
+
+    return Ok(_type)
+
+
+def get_sub_type_by_name(session: Session, name: str) -> Result[ActivitySubType, None]:
+    _type = session.exec(
+        select(ActivitySubType).where(ActivitySubType.name == name)
+    ).first()
+    if _type is None:
+        return Err(None)
+
+    return Ok(_type)

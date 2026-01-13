@@ -36,7 +36,7 @@ def _cast(session: Session, activity_id: UUID) -> VerveFeature:
         name=activity.name,
         activity_type=_type_name.name,
         activity_sub_type=_sub_type.name if _sub_type else None,
-        start_time=activity.created_at,
+        start_time=activity.start,
         duration=activity.duration.total_seconds(),
         moving_duration=activity.moving_duration.total_seconds()
         if activity.moving_duration

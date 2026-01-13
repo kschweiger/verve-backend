@@ -4,3 +4,7 @@ class InvalidCombinationError(Exception):
 
 class InvalidDataError(Exception):
     pass
+
+
+class VerveImportError(Exception):
+    pass
