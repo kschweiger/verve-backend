@@ -154,6 +154,7 @@ def get_points(
     user_id: uuid.UUID | str,
     batch_size: int = 100,
     utm_srid: int = 32632,  # Default to UTM Zone 32N (Germany), adjust as needed
+    no_geometry: bool = False,
 ) -> Generator[list[TrackPoint], None, None]:
     """
     Generate track points with UTM geometry coordinates.
@@ -180,15 +181,21 @@ def get_points(
     _global_id = 0
     for i, segment in enumerate(track.track.segments):
         for point in segment.points:
-            utm_x, utm_y = transformer.transform(point.longitude, point.latitude)
+            if no_geometry:
+                geography = None
+                geometry = None
+            else:
+                utm_x, utm_y = transformer.transform(point.longitude, point.latitude)
+                geography = f"POINT({point.longitude} {point.latitude})"
+                geometry = f"SRID={utm_srid};POINT({utm_x} {utm_y})"
             point_model_data = {
                 "id": _global_id,
                 "activity_id": activity_id,
                 "user_id": user_id,
                 "segment_id": i,
-                "geography": f"POINT({point.longitude} {point.latitude})",
+                "geography": geography,
                 # UTM coordinates with SRID
-                "geometry": f"SRID={utm_srid};POINT({utm_x} {utm_y})",
+                "geometry": geometry,
                 "elevation": point.elevation,
                 "time": point.time,
                 "extensions": {},
@@ -246,6 +253,7 @@ def get_points_auto_utm(
     activity_id: uuid.UUID | str,
     user_id: uuid.UUID | str,
     batch_size: int = 100,
+    no_geometry: bool = False,
 ) -> Generator[list[TrackPoint], None, None]:
     """
     Generate track points with automatically determined UTM coordinates.
@@ -254,7 +262,9 @@ def get_points_auto_utm(
     utm_srid = get_utm_srid_for_track(track)
 
     # Use the main function with the detected SRID
-    yield from get_points(track, activity_id, user_id, batch_size, utm_srid)
+    yield from get_points(
+        track, activity_id, user_id, batch_size, utm_srid, no_geometry
+    )
 
 
 def insert_track(
@@ -265,15 +275,25 @@ def insert_track(
     user_id: uuid.UUID | str,
     batch_size: int = 100,
     utm_srid: int | None = None,
+    no_geometry: bool = False,
 ) -> int:
     n_points = 0
     if utm_srid is None:
         batches = get_points_auto_utm(
-            track, activity_id, user_id, batch_size=batch_size
+            track,
+            activity_id,
+            user_id,
+            batch_size=batch_size,
+            no_geometry=no_geometry,
         )
     else:
         batches = get_points(
-            track, activity_id, user_id, batch_size=batch_size, utm_srid=utm_srid
+            track,
+            activity_id,
+            user_id,
+            batch_size=batch_size,
+            utm_srid=utm_srid,
+            no_geometry=no_geometry,
         )
     for batch in batches:
         session.exec(insert(TrackPoint), params=batch)  # type: ignore

@@ -124,7 +124,11 @@ def add_track(
 
     pre = perf_counter()
     n_points = crud.insert_track(
-        session=session, track=track, activity_id=activity_id, user_id=user_id
+        session=session,
+        track=track,
+        activity_id=activity_id,
+        user_id=user_id,
+        no_geometry=empty_spatial_flag,
     )
     logger.info("Inserting took: %.2f seconds", perf_counter() - pre)
 
