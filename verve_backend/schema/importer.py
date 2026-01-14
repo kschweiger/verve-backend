@@ -124,9 +124,36 @@ def convert_verve_file_to_activity(
     session.commit()
     session.refresh(activity)
 
-    track = GeoJsonTrack(source=data.model_dump(), max_speed_percentile=99)
+    track = GeoJsonTrack(source=data.model_dump(by_alias=True), max_speed_percentile=99)
     crud.insert_track(
         session=session, track=track, activity_id=activity.id, user_id=user_id
     )
+
+    if (
+        data.properties.stats.speed is None
+        or data.properties.stats.power is None
+        or data.properties.stats.heart_rate is None
+        or data.properties.elevation_gain is None
+        or data.properties.moving_duration is None
+    ):
+        overview = track.get_track_overview()
+        if data.properties.stats.speed is None and overview.velocity_kmh:
+            activity.avg_speed = overview.velocity_kmh.avg
+            activity.max_speed = overview.velocity_kmh.max
+        if data.properties.stats.power is None and overview.power:
+            activity.avg_power = overview.power.avg
+            activity.max_power = overview.power.max
+        if data.properties.stats.heart_rate is None and overview.heartrate:
+            activity.avg_heartrate = overview.heartrate.avg
+            activity.max_heartrate = overview.heartrate.max
+        if data.properties.elevation_gain is None:
+            activity.elevation_change_up = overview.uphill_elevation
+            activity.elevation_change_down = overview.downhill_elevation
+        if data.properties.moving_duration is None:
+            activity.moving_duration = timedelta(
+                days=0, seconds=overview.moving_time_seconds
+            )
+
+    session.commit()
 
     return activity

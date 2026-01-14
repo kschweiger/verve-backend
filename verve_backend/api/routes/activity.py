@@ -2,7 +2,6 @@ import datetime
 import json
 import logging
 import uuid
-from io import BytesIO
 from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query, UploadFile
@@ -346,23 +345,19 @@ def create_activity(
 def _import_verve_file(
     session: Session,
     user_id: uuid.UUID,
-    file: UploadFile,
+    file_name: str,
+    file_content: bytes,
+    file_content_type: str | None,
     overwrite_type_id: None | int,
     overwrite_sub_type_id: None | int,
 ) -> Activity:
-    file_name = file.filename
-    assert file_name is not None, "Could not retrieve file name"
-    # Read file content into memory
-    file_content = file.file.read()
-
     if not file_name.endswith(".json"):
         raise HTTPException(
             status_code=HTTP_422_UNPROCESSABLE_CONTENT,
             detail="File type not supported. Only .json files are supported.",
         )
 
-    file_bytes = BytesIO(file_content).read()
-    data = VerveFeature.model_validate_json(file_bytes)
+    data = VerveFeature.model_validate_json(file_content)
 
     return convert_verve_file_to_activity(
         session=session,
@@ -412,7 +407,9 @@ def create_auto_activity(
         activity = _import_verve_file(
             session=session,
             user_id=user_id,
-            file=file,
+            file_name=file_name,
+            file_content=file_content,
+            file_content_type=file_content_type,
             overwrite_type_id=type_id,
             overwrite_sub_type_id=sub_type_id,
         )
@@ -456,7 +453,8 @@ def create_auto_activity(
                 case Err(err):
                     raise HTTPException(
                         status_code=HTTP_500_INTERNAL_SERVER_ERROR,
-                        detail=f"Could not retrieve default equipment. Error code: {err}",
+                        detail="Could not retrieve default equipment. "
+                        f"Error code: {err}",
                     )
 
         activity_type = session.get(ActivityType, activity.type_id)
@@ -501,10 +499,18 @@ def import_verve_file(
 ) -> Any:
     _user_id, session = user_session
     user_id = uuid.UUID(_user_id)
+
+    file_name = file.filename
+    assert file_name is not None
+    file_content = file.file.read()
+    file_content_type = file.content_type
+
     return _import_verve_file(
         session=session,
         user_id=user_id,
-        file=file,
+        file_name=file_name,
+        file_content=file_content,
+        file_content_type=file_content_type,
         overwrite_type_id=None,
         overwrite_sub_type_id=None,
     )
