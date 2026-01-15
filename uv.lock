@@ -511,7 +511,7 @@ wheels = [
 [[package]]
 name = "geo-track-analyzer"
 version = "1.7.1"
-source = { git = "https://github.com/kschweiger/track_analyzer?rev=v2#3eb103bbc86ded680ce5beb390a2c8d8579ffa5a" }
+source = { git = "https://github.com/kschweiger/track_analyzer?rev=v2#053c7655b47500e5073b597d010ae39150ed0463" }
 dependencies = [
     { name = "fitparse" },
     { name = "gpxpy" },

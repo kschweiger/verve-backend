@@ -2,6 +2,7 @@ import datetime
 import json
 import logging
 import uuid
+from io import BytesIO
 from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query, UploadFile
@@ -32,6 +33,7 @@ from verve_backend.api.deps import (
     UserSession,
 )
 from verve_backend.api.routes.media import delete_image
+from verve_backend.core.config import settings
 from verve_backend.models import (
     ActivitiesPublic,
     Activity,
@@ -344,6 +346,7 @@ def create_activity(
 
 def _import_verve_file(
     session: Session,
+    obj_store_client: ObjectStoreClient,
     user_id: uuid.UUID,
     file_name: str,
     file_content: bytes,
@@ -357,15 +360,51 @@ def _import_verve_file(
             detail="File type not supported. Only .json files are supported.",
         )
 
-    data = VerveFeature.model_validate_json(file_content)
+    try:
+        data = VerveFeature.model_validate_json(file_content)
+    except ValueError as e:
+        err_uuid = uuid.uuid4()
+        logger.error("[%s] verve json parsing failed", err_uuid)
+        logger.error("[%s] %s", err_uuid, e)
+        raise HTTPException(
+            status_code=HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"Could not parse Verve JSON file. Error code {err_uuid}",
+        )
 
-    return convert_verve_file_to_activity(
+    activity = convert_verve_file_to_activity(
         session=session,
         user_id=user_id,
         data=data,
         overwrite_type_id=overwrite_type_id,
         overwrite_sub_type_id=overwrite_sub_type_id,
     )
+
+    obj_path = f"tracks/{uuid.uuid4()}"
+
+    obj_store_client.upload_fileobj(
+        BytesIO(file_content),
+        Bucket=settings.BOTO3_BUCKET,
+        Key=obj_path,
+        ExtraArgs={
+            "ContentType": file_content_type,  # Preserve the MIME type
+            "Metadata": {
+                "original_filename": file_name,
+                "uploaded_by": str(user_id),
+                "activity_id": str(activity.id),
+                "file_type": "json",
+            },
+        },
+    )
+
+    raw_data = RawTrackData(
+        activity_id=activity.id,
+        user_id=user_id,
+        store_path=obj_path,
+    )
+    session.add(raw_data)
+    session.commit()
+
+    return activity
 
 
 @router.post("/auto/", response_model=ActivityPublic)
@@ -406,6 +445,7 @@ def create_auto_activity(
         logger.info("Identified verve file")
         activity = _import_verve_file(
             session=session,
+            obj_store_client=obj_store_client,
             user_id=user_id,
             file_name=file_name,
             file_content=file_content,
@@ -505,8 +545,9 @@ def import_verve_file(
     file_content = file.file.read()
     file_content_type = file.content_type
 
-    return _import_verve_file(
+    activity = _import_verve_file(
         session=session,
+        obj_store_client=obj_store_client,
         user_id=user_id,
         file_name=file_name,
         file_content=file_content,
@@ -514,3 +555,7 @@ def import_verve_file(
         overwrite_type_id=None,
         overwrite_sub_type_id=None,
     )
+
+    process_activity_highlights.delay(activity.id, user_id)  # type: ignore
+
+    return activity

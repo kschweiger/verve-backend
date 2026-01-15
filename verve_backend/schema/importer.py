@@ -74,13 +74,18 @@ def convert_verve_file_to_activity(
                 f"ActivitySubType {data.properties.activity_sub_type} does not belong "
                 f"to ActivityType {data.properties.activity_type}"
             )
+    _type_id = overwrite_type_id if overwrite_type_id is not None else activity_type.id
+    if overwrite_sub_type_id is not None:
+        _sub_type_id = overwrite_sub_type_id
+    else:
+        _sub_type_id = activity_sub_type.id if activity_sub_type else None
 
     activity = Activity(
         user_id=user_id,
         created_at=datetime.now(),
         name=data.properties.name,
-        type_id=activity_type.id,
-        sub_type_id=activity_sub_type.id if activity_sub_type else None,
+        type_id=_type_id,
+        sub_type_id=_sub_type_id,
         start=data.properties.start_time,
         duration=timedelta(seconds=data.properties.duration),
         distance=data.properties.distance,

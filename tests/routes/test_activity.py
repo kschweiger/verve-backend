@@ -610,12 +610,6 @@ def test_auto_activity_json_with_geo_e2e_with_eager_celery(
     db: Session,
     celery_eager,
 ) -> None:
-    """
-    An end-to-end test for the auto activity creation flow.
-
-    By including the `celery_eager` fixture, we ensure that the highlight
-    task runs immediately and blocks until completion before the API call returns.
-    """
     with (
         resources.files("tests.resources")
         .joinpath("processed_Walk.json")
@@ -636,15 +630,11 @@ def test_auto_activity_json_with_geo_e2e_with_eager_celery(
     assert response.status_code == 200
     activity_id = response.json()["id"]
 
-    # ASSERT: Check the database for the results of the now-completed task.
-    # Note: We use db_session here, which is the transactional session, to ensure
-    # we see the results of the API call's transaction.
     highlights = db.exec(
         select(ActivityHighlight).where(ActivityHighlight.activity_id == activity_id)
     ).all()
 
     assert len(highlights) > 0
-    # Example of a more specific check
     distance_highlight = next((h for h in highlights if h.metric == "distance"), None)
     assert distance_highlight is not None
     assert distance_highlight.value > 0
@@ -656,12 +646,6 @@ def test_auto_activity_json_without_geo_e2e_with_eager_celery(
     db: Session,
     celery_eager,
 ) -> None:
-    """
-    An end-to-end test for the auto activity creation flow.
-
-    By including the `celery_eager` fixture, we ensure that the highlight
-    task runs immediately and blocks until completion before the API call returns.
-    """
     with (
         resources.files("tests.resources")
         .joinpath("processed_Weight_Training.json")
@@ -682,9 +666,6 @@ def test_auto_activity_json_without_geo_e2e_with_eager_celery(
     assert response.status_code == 200
     activity_id = response.json()["id"]
 
-    # ASSERT: Check the database for the results of the now-completed task.
-    # Note: We use db_session here, which is the transactional session, to ensure
-    # we see the results of the API call's transaction.
     highlights = db.exec(
         select(ActivityHighlight).where(ActivityHighlight.activity_id == activity_id)
     ).all()
@@ -692,8 +673,11 @@ def test_auto_activity_json_without_geo_e2e_with_eager_celery(
     assert len(highlights) > 0
     # Example of a more specific check
     distance_highlight = next((h for h in highlights if h.metric == "distance"), None)
-    assert distance_highlight is not None
-    assert distance_highlight.value > 0
+    assert distance_highlight is None
+
+    duration_highlight = next((h for h in highlights if h.metric == "duration"), None)
+    assert duration_highlight is not None
+    assert duration_highlight.value > 0
 
 
 def test_auto_activity_verve_file_with_geo_e2e_with_eager_celery(
@@ -703,12 +687,6 @@ def test_auto_activity_verve_file_with_geo_e2e_with_eager_celery(
     db: Session,
     celery_eager,
 ) -> None:
-    """
-    An end-to-end test for the auto activity creation flow.
-
-    By including the `celery_eager` fixture, we ensure that the highlight
-    task runs immediately and blocks until completion before the API call returns.
-    """
     from verve_backend.api.routes import activity
 
     spy = mocker.spy(activity, "_import_verve_file")
@@ -729,9 +707,6 @@ def test_auto_activity_verve_file_with_geo_e2e_with_eager_celery(
     activity_id = response.json()["id"]
 
     assert spy.call_count == 1
-    # ASSERT: Check the database for the results of the now-completed task.
-    # Note: We use db_session here, which is the transactional session, to ensure
-    # we see the results of the API call's transaction.
     highlights = db.exec(
         select(ActivityHighlight).where(ActivityHighlight.activity_id == activity_id)
     ).all()
@@ -741,3 +716,80 @@ def test_auto_activity_verve_file_with_geo_e2e_with_eager_celery(
     distance_highlight = next((h for h in highlights if h.metric == "distance"), None)
     assert distance_highlight is not None
     assert distance_highlight.value > 0
+
+
+def test_import_activity_verve_file_with_geo_e2e_with_eager_celery(
+    mocker: MockerFixture,
+    client: TestClient,
+    user2_token: str,
+    db: Session,
+    celery_eager,
+) -> None:
+    from verve_backend.api.routes import activity
+
+    spy = mocker.spy(activity, "_import_verve_file")
+    with (
+        resources.files("tests.resources")
+        .joinpath("processed_Walk.json")
+        .open("rb") as f
+    ):
+        json_content = f.read()
+
+    response = client.post(
+        "/activity/import/",
+        headers={"Authorization": f"Bearer {user2_token}"},
+        files={"file": ("Walk.json", json_content, "application/octet-stream")},
+    )
+    assert response.status_code == 200
+    activity_id = response.json()["id"]
+
+    assert spy.call_count == 1
+
+    highlights = db.exec(
+        select(ActivityHighlight).where(ActivityHighlight.activity_id == activity_id)
+    ).all()
+
+    assert len(highlights) > 0
+    # Example of a more specific check
+    distance_highlight = next((h for h in highlights if h.metric == "distance"), None)
+    assert distance_highlight is not None
+    assert distance_highlight.value > 0
+
+
+def test_import_invalid_json_file(
+    mocker: MockerFixture,
+    client: TestClient,
+    user2_token: str,
+) -> None:
+    mocker.patch("verve_backend.api.routes.activity.process_activity_highlights.delay")
+    with (
+        resources.files("tests.resources")
+        .joinpath("processed_Walk.json")
+        .open("rb") as f
+    ):
+        json_content = f.read()
+    _data = json.loads(json_content)
+    _data["properties"] = None
+    json_content = json.dumps(_data).encode("utf-8")
+    response = client.post(
+        "/activity/import/",
+        headers={"Authorization": f"Bearer {user2_token}"},
+        files={"file": ("Walk.json", json_content, "application/octet-stream")},
+    )
+    assert response.status_code == 422
+
+
+def test_import_invalid_other_file(
+    mocker: MockerFixture,
+    client: TestClient,
+    user2_token: str,
+) -> None:
+    mocker.patch("verve_backend.api.routes.activity.process_activity_highlights.delay")
+    with resources.files("tests.resources").joinpath("MyWhoosh_1.fit").open("rb") as f:
+        fit_content = f.read()
+    response = client.post(
+        "/activity/import/",
+        headers={"Authorization": f"Bearer {user2_token}"},
+        files={"file": ("MyWhoosh_1.fit", fit_content, "application/octet-stream")},
+    )
+    assert response.status_code == 422
