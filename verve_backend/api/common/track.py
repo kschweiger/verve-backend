@@ -84,7 +84,8 @@ def add_track(
     else:
         raise HTTPException(
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="File type not supported. Only .fit, .gpx, and .json files are supported.",
+            detail="File type not supported. Only .fit, .gpx, and .json files are "
+            "supported.",
         )
     # TODO: Deal with the empty_spatial_flag pass it ouside?
 
