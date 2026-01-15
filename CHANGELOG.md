@@ -1,4 +1,13 @@
 <!-- insertion marker -->
+<a name="1.3.0"></a>
+
+## [1.3.0](https://github.com/kschweiger/verve-backend/compare/1.2.0...1.3.0) (2026-01-15)
+
+### Features
+
+- 🗺️ Add GeoJSON import and Verve file format support (#31) ([f5e7f9e](https://github.com/kschweiger/verve-backend/commit/f5e7f9ecc741fb8c7454e8d0b904408cf486913b))
+- ✨ Add admin user role and user creation endpoint 🔐 (#29) ([7f41c61](https://github.com/kschweiger/verve-backend/commit/7f41c61297e70ac1c883239b9aa57e31d907a2df))
+
 <a name="1.2.0"></a>
 
 ## [1.2.0](https://github.com/kschweiger/verve-backend/compare/1.1.0...1.2.0) (2025-12-31)
