@@ -78,7 +78,7 @@ def user1_id(client: TestClient, user1_token: str) -> UUID:
     )
     assert response.status_code == 200
     data = response.json()
-    return data["id"]
+    return UUID(data["id"])
 
 
 @pytest.fixture(scope="session")
@@ -89,7 +89,7 @@ def user2_id(client: TestClient, user2_token: str) -> UUID:
     )
     assert response.status_code == 200
     data = response.json()
-    return data["id"]
+    return UUID(data["id"])
 
 
 @pytest.fixture

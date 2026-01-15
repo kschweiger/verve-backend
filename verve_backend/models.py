@@ -12,7 +12,7 @@ from pydantic import (
     EmailStr,
 )
 from sqlalchemy import JSON, Column
-from sqlmodel import Field, Index, Relationship, SQLModel, UniqueConstraint
+from sqlmodel import Field, Index, Relationship, SQLModel, UniqueConstraint, text
 
 from verve_backend.enums import GoalAggregation, GoalType, TemporalType
 
@@ -206,6 +206,8 @@ class ActivityBase(SQLModel):
     )
     elevation_change_up: float | None = None
     elevation_change_down: float | None = None
+    energy: float | None = Field(default=None, description="Total energy in kcal")
+
     avg_speed: float | None = Field(
         default=None,
         description="Average speed over the duration of the activity in km/h",
@@ -360,6 +362,7 @@ class ActivitiesPublic(SQLModel):
 
 
 class TrackPoint(SQLModel, table=True):
+    # TODO: Update indices and geometry defintions for track with dummy spatial data
     __tablename__ = "track_points"  # type: ignore
 
     id: int = Field(primary_key=True)
@@ -370,8 +373,14 @@ class TrackPoint(SQLModel, table=True):
         foreign_key="users.id", nullable=False, ondelete="CASCADE", primary_key=True
     )
     segment_id: int = Field(...)
-    geography: str = Field(sa_column=Column(Geography("POINT", 4326)))
-    geometry: str = Field(sa_column=Column(Geometry("POINT")))
+    geography: Any | None = Field(
+        default=None,
+        sa_column=Column(Geography("POINT", 4326, spatial_index=False), nullable=True),
+    )
+    geometry: Any | None = Field(
+        default=None,
+        sa_column=Column(Geometry("POINT", spatial_index=False), nullable=True),
+    )
     elevation: float | None = Field(default=None)
     time: datetime | None = Field(default=None)
 
@@ -386,6 +395,18 @@ class TrackPoint(SQLModel, table=True):
         # Multi-column index for common query patterns
         Index("idx_track_points_user_activity", "user_id", "activity_id"),
         Index("idx_track_points_activity_segment", "activity_id", "segment_id"),
+        Index(
+            "idx_track_points_geography",
+            "geography",
+            postgresql_using="gist",
+            postgresql_where=text("geography IS NOT NULL"),
+        ),
+        Index(
+            "idx_track_points_geometry",
+            "geometry",
+            postgresql_using="gist",
+            postgresql_where=text("geometry IS NOT NULL"),
+        ),
     )
 
 

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from uuid import UUID
 
-from geo_track_analyzer import Track
+from geo_track_analyzer import PyTrack, Track
 from sqlmodel import Session, select
 
 from verve_backend.api.common.track import update_activity_with_track
@@ -246,3 +246,49 @@ def test_process_activity_highlights_task(
     lifetime_hl = next(h for h in highlights if h.scope == "lifetime")
     assert lifetime_hl.rank == 1
     assert lifetime_hl.activity_id == activity.id
+
+
+def test_process_activity_highlights_no_movement(
+    db: Session,
+    # temp_user_id: UUID,
+    user2_id: UUID,
+) -> None:
+    times = []
+    heartrates = []
+    powers = []
+    for i in range(100):
+        times.append(datetime(2024, 1, 1) + timedelta(seconds=i * 10))
+        heartrates.append(100 + i % 5)
+        powers.append(150 + i % 10)
+
+    track = PyTrack(
+        points=[(1, 1)] * len(times),
+        times=times,
+        elevations=None,
+        extensions={
+            "heartrate": heartrates,
+            "power": powers,
+        },
+    )
+
+    activity = create_dummy_activity(
+        db,
+        user2_id,
+        datetime(2024, 1, 1),
+        500.0,
+        track=track,
+        name="Stationary activity",
+        type_id=6,  # Indoor cardio
+    )
+    db.commit()
+
+    process_activity_highlights(activity_id=activity.id, user_id=user2_id)
+    highlights = db.exec(
+        select(ActivityHighlight)
+        .where(ActivityHighlight.user_id == user2_id)
+        .where(ActivityHighlight.type_id == 6)
+    ).all()
+
+    assert len(highlights) > 0, (
+        "Should compute highlights even for no-movement activities"
+    )

@@ -21,7 +21,7 @@ ACTIVITY_TYPES = {
         "Indoor",
         "E-Mountain Bike",
     ],
-    "Foot Sports": ["Run", "Hike", "Trail Run", "Nordic Walking", "Treadmill"],
+    "Foot Sports": ["Walk", "Run", "Hike", "Trail Run", "Nordic Walking", "Treadmill"],
     "Winter Sports": ["Cross-country Skiing", "Snowshoeing", "Downhill Skiing"],
     "Swimming": ["Indoor", "Outdoor Pool", "Open Water"],
     "Strength Training": [

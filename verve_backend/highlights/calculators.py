@@ -55,14 +55,35 @@ def calculate_duration(
     value = _get_value_from_acitivty_table(
         session, activity_id, Activity.moving_duration
     )
-    if value is None:
+    if (
+        value is None
+        or (isinstance(value, timedelta) and value.total_seconds() == 0)
+        or value == 0
+    ):
         value = _get_value_from_acitivty_table(session, activity_id, Activity.duration)
     assert isinstance(value, timedelta)
-    return CalculatorResult(value=value.total_seconds()) if value else None
+    if value is None or value.total_seconds() == 0:
+        return None
+    return CalculatorResult(value=value.total_seconds())
+
+
+@registry.add(HighlightMetric.DISTANCE)
+def calculate_distance(
+    activity_id: UUID, user_id: UUID, session: Session
+) -> CalculatorResult | None:
+    value = _get_value_from_acitivty_table(session, activity_id, Activity.distance)
+    assert not isinstance(value, timedelta)
+    if value is None or value == 0:
+        if value == 0:
+            logger.info(
+                "Distance highlight resulted in value 0 [Activity %s]", activity_id
+            )
+        return None
+    return CalculatorResult(value=value)
 
 
 for metric, col in [
-    (HighlightMetric.DISTANCE, Activity.distance),
+    # (HighlightMetric.DISTANCE, Activity.distance),
     (HighlightMetric.ELEVATION_CHANGE_UP, Activity.elevation_change_up),
     (HighlightMetric.AVG_SPEED, Activity.avg_speed),
     (HighlightMetric.MAX_SPEED, Activity.max_speed),

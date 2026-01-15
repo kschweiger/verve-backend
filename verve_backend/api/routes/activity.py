@@ -1,15 +1,18 @@
 import datetime
+import json
 import logging
 import uuid
+from io import BytesIO
 from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import col, delete, func, select
+from sqlmodel import Session, col, delete, func, select
 from starlette.status import (
     HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST,
+    HTTP_422_UNPROCESSABLE_CONTENT,
     HTTP_500_INTERNAL_SERVER_ERROR,
 )
 
@@ -30,6 +33,7 @@ from verve_backend.api.deps import (
     UserSession,
 )
 from verve_backend.api.routes.media import delete_image
+from verve_backend.core.config import settings
 from verve_backend.models import (
     ActivitiesPublic,
     Activity,
@@ -48,6 +52,11 @@ from verve_backend.models import (
     UserSettings,
 )
 from verve_backend.result import Err, Ok, is_ok
+from verve_backend.schema.importer import (
+    convert_verve_file_to_activity,
+    sniff_verve_format,
+)
+from verve_backend.schema.verve_file import VerveFeature
 from verve_backend.tasks import process_activity_highlights
 
 
@@ -335,6 +344,69 @@ def create_activity(
     return activity
 
 
+def _import_verve_file(
+    session: Session,
+    obj_store_client: ObjectStoreClient,
+    user_id: uuid.UUID,
+    file_name: str,
+    file_content: bytes,
+    file_content_type: str | None,
+    overwrite_type_id: None | int,
+    overwrite_sub_type_id: None | int,
+) -> Activity:
+    if not file_name.endswith(".json"):
+        raise HTTPException(
+            status_code=HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="File type not supported. Only .json files are supported.",
+        )
+
+    try:
+        data = VerveFeature.model_validate_json(file_content)
+    except ValueError as e:
+        err_uuid = uuid.uuid4()
+        logger.error("[%s] verve json parsing failed", err_uuid)
+        logger.error("[%s] %s", err_uuid, e)
+        raise HTTPException(
+            status_code=HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"Could not parse Verve JSON file. Error code {err_uuid}",
+        )
+
+    activity = convert_verve_file_to_activity(
+        session=session,
+        user_id=user_id,
+        data=data,
+        overwrite_type_id=overwrite_type_id,
+        overwrite_sub_type_id=overwrite_sub_type_id,
+    )
+
+    obj_path = f"tracks/{uuid.uuid4()}"
+
+    obj_store_client.upload_fileobj(
+        BytesIO(file_content),
+        Bucket=settings.BOTO3_BUCKET,
+        Key=obj_path,
+        ExtraArgs={
+            "ContentType": file_content_type,  # Preserve the MIME type
+            "Metadata": {
+                "original_filename": file_name,
+                "uploaded_by": str(user_id),
+                "activity_id": str(activity.id),
+                "file_type": "json",
+            },
+        },
+    )
+
+    raw_data = RawTrackData(
+        activity_id=activity.id,
+        user_id=user_id,
+        store_path=obj_path,
+    )
+    session.add(raw_data)
+    session.commit()
+
+    return activity
+
+
 @router.post("/auto/", response_model=ActivityPublic)
 def create_auto_activity(
     *,
@@ -352,6 +424,11 @@ def create_auto_activity(
     settings = session.get(UserSettings, user_id)
     assert settings
 
+    file_name = file.filename
+    assert file_name is not None
+    file_content = file.file.read()
+    file_content_type = file.content_type
+
     check_and_raise_primary_key(session, ActivityType, type_id)
     check_and_raise_primary_key(session, ActivitySubType, sub_type_id)
     if type_id is None and sub_type_id is not None:
@@ -362,71 +439,123 @@ def create_auto_activity(
     if type_id is not None and sub_type_id is not None:
         validate_sub_type_id(session, type_id, sub_type_id)
 
-    _type_id = settings.default_type_id if type_id is None else type_id
-    # Use the default sub_type if the type is not passed. otherwise the sub_type is
-    # passed as well or None
-    _sub_type_id = settings.defautl_sub_type_id if type_id is None else sub_type_id
-    activity = Activity(
-        user_id=user_id,
-        start=datetime.datetime.now(),
-        created_at=datetime.datetime.now(),
-        duration=datetime.timedelta(seconds=1),
-        distance=1,
-        type_id=_type_id,
-        sub_type_id=_sub_type_id,
-        name="placeholder",
-    )
-
-    session.add(activity)
-    session.commit()
-    session.refresh(activity)
-
-    if add_default_equipment:
-        match crud.get_default_equipment_set(
+    if file_name.endswith(".json") and sniff_verve_format(
+        json.loads(file_content.decode("utf-8"))
+    ):
+        logger.info("Identified verve file")
+        activity = _import_verve_file(
             session=session,
+            obj_store_client=obj_store_client,
             user_id=user_id,
-            activity_type_id=_type_id,
-            activity_sub_type_id=_sub_type_id,
-        ):
-            case Ok(set_id):
-                if set_id:
-                    logger.debug("Found default equipment set %s", set_id)
-                    equipment_set = session.get(EquipmentSet, set_id)
-                    assert equipment_set is not None
-                    activity.equipment.extend(equipment_set.items)
-                    session.commit()
-                    session.refresh(activity)
-            case Err(err):
-                raise HTTPException(
-                    status_code=HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Could not retrieve default equipment. Error code: {err}",
-                )
+            file_name=file_name,
+            file_content=file_content,
+            file_content_type=file_content_type,
+            overwrite_type_id=type_id,
+            overwrite_sub_type_id=sub_type_id,
+        )
+    else:
+        logger.info("Identified standalone track data")
 
-    activity_type = session.get(ActivityType, activity.type_id)
-    assert activity_type is not None
-    # TODO: Add error handling that removes the activity again
-    track, _ = add_track(
-        activity_id=activity.id,
-        user_id=user_id,
+        _type_id = settings.default_type_id if type_id is None else type_id
+        # Use the default sub_type if the type is not passed. otherwise the sub_type is
+        # passed as well or None
+        _sub_type_id = settings.defautl_sub_type_id if type_id is None else sub_type_id
+        activity = Activity(
+            user_id=user_id,
+            start=datetime.datetime.now(),
+            created_at=datetime.datetime.now(),
+            duration=datetime.timedelta(seconds=1),
+            distance=1,
+            type_id=_type_id,
+            sub_type_id=_sub_type_id,
+            name="placeholder",
+        )
+
+        session.add(activity)
+        session.commit()
+        session.refresh(activity)
+
+        if add_default_equipment:
+            match crud.get_default_equipment_set(
+                session=session,
+                user_id=user_id,
+                activity_type_id=_type_id,
+                activity_sub_type_id=_sub_type_id,
+            ):
+                case Ok(set_id):
+                    if set_id:
+                        logger.debug("Found default equipment set %s", set_id)
+                        equipment_set = session.get(EquipmentSet, set_id)
+                        assert equipment_set is not None
+                        activity.equipment.extend(equipment_set.items)
+                        session.commit()
+                        session.refresh(activity)
+                case Err(err):
+                    raise HTTPException(
+                        status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="Could not retrieve default equipment. "
+                        f"Error code: {err}",
+                    )
+
+        activity_type = session.get(ActivityType, activity.type_id)
+        assert activity_type is not None
+        # TODO: Add error handling that removes the activity again
+        track, _ = add_track(
+            activity_id=activity.id,
+            user_id=user_id,
+            session=session,
+            obj_store_client=obj_store_client,
+            file_name=file_name,
+            file_content=file_content,
+            file_content_type=file_content_type,
+        )
+
+        update_activity_with_track(activity=activity, track=track)
+
+        first_point_time = track.track.segments[0].points[0].time
+        assert first_point_time is not None
+        activity.name = get_activity_name(
+            activity_type.name.lower().replace(" ", "_"),
+            first_point_time,
+            locale or settings.locale,
+        )
+        session.add(activity)
+        session.commit()
+        session.refresh(activity)
+
+        session.commit()
+
+    process_activity_highlights.delay(activity.id, user_id)  # type: ignore
+
+    return activity
+
+
+@router.post("/import/", response_model=ActivityPublic)
+def import_verve_file(
+    *,
+    user_session: UserSession,
+    obj_store_client: ObjectStoreClient,
+    file: UploadFile,
+) -> Any:
+    _user_id, session = user_session
+    user_id = uuid.UUID(_user_id)
+
+    file_name = file.filename
+    assert file_name is not None
+    file_content = file.file.read()
+    file_content_type = file.content_type
+
+    activity = _import_verve_file(
         session=session,
         obj_store_client=obj_store_client,
-        file=file,
+        user_id=user_id,
+        file_name=file_name,
+        file_content=file_content,
+        file_content_type=file_content_type,
+        overwrite_type_id=None,
+        overwrite_sub_type_id=None,
     )
 
-    update_activity_with_track(activity=activity, track=track)
-
-    first_point_time = track.track.segments[0].points[0].time
-    assert first_point_time is not None
-    activity.name = get_activity_name(
-        activity_type.name.lower().replace(" ", "_"),
-        first_point_time,
-        locale or settings.locale,
-    )
-    session.add(activity)
-    session.commit()
-    session.refresh(activity)
-
-    session.commit()
     process_activity_highlights.delay(activity.id, user_id)  # type: ignore
 
     return activity

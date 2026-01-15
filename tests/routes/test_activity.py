@@ -1,4 +1,5 @@
 import io
+import json
 from datetime import datetime, timedelta
 from importlib import resources
 from uuid import UUID
@@ -601,3 +602,194 @@ def test_delete_activity_with_track_and_images(
     # Verify image is deleted
     deleted_image = db.get(Image, image_id)
     assert deleted_image is None
+
+
+def test_auto_activity_json_with_geo_e2e_with_eager_celery(
+    client: TestClient,
+    user2_token: str,
+    db: Session,
+    celery_eager,
+) -> None:
+    with (
+        resources.files("tests.resources")
+        .joinpath("processed_Walk.json")
+        .open("rb") as f
+    ):
+        json_content = f.read()
+
+    _data = json.loads(json_content)
+    _data["properties"] = None
+    json_content = json.dumps(_data).encode("utf-8")
+
+    response = client.post(
+        "/activity/auto/",
+        headers={"Authorization": f"Bearer {user2_token}"},
+        files={"file": ("Walk.json", json_content, "application/octet-stream")},
+        params={"type_id": 2, "sub_type_id": 7},
+    )
+    assert response.status_code == 200
+    activity_id = response.json()["id"]
+
+    highlights = db.exec(
+        select(ActivityHighlight).where(ActivityHighlight.activity_id == activity_id)
+    ).all()
+
+    assert len(highlights) > 0
+    distance_highlight = next((h for h in highlights if h.metric == "distance"), None)
+    assert distance_highlight is not None
+    assert distance_highlight.value > 0
+
+
+def test_auto_activity_json_without_geo_e2e_with_eager_celery(
+    client: TestClient,
+    user2_token: str,
+    db: Session,
+    celery_eager,
+) -> None:
+    with (
+        resources.files("tests.resources")
+        .joinpath("processed_Weight_Training.json")
+        .open("rb") as f
+    ):
+        json_content = f.read()
+
+    _data = json.loads(json_content)
+    _data["properties"] = None
+    json_content = json.dumps(_data).encode("utf-8")
+
+    response = client.post(
+        "/activity/auto/",
+        headers={"Authorization": f"Bearer {user2_token}"},
+        files={"file": ("Walk.json", json_content, "application/octet-stream")},
+        params={"type_id": 5, "sub_type_id": 19},
+    )
+    assert response.status_code == 200
+    activity_id = response.json()["id"]
+
+    highlights = db.exec(
+        select(ActivityHighlight).where(ActivityHighlight.activity_id == activity_id)
+    ).all()
+
+    assert len(highlights) > 0
+    # Example of a more specific check
+    distance_highlight = next((h for h in highlights if h.metric == "distance"), None)
+    assert distance_highlight is None
+
+    duration_highlight = next((h for h in highlights if h.metric == "duration"), None)
+    assert duration_highlight is not None
+    assert duration_highlight.value > 0
+
+
+def test_auto_activity_verve_file_with_geo_e2e_with_eager_celery(
+    mocker: MockerFixture,
+    client: TestClient,
+    user2_token: str,
+    db: Session,
+    celery_eager,
+) -> None:
+    from verve_backend.api.routes import activity
+
+    spy = mocker.spy(activity, "_import_verve_file")
+    with (
+        resources.files("tests.resources")
+        .joinpath("processed_Walk.json")
+        .open("rb") as f
+    ):
+        json_content = f.read()
+
+    response = client.post(
+        "/activity/auto/",
+        headers={"Authorization": f"Bearer {user2_token}"},
+        files={"file": ("Walk.json", json_content, "application/octet-stream")},
+        params={"type_id": 2, "sub_type_id": 7},
+    )
+    assert response.status_code == 200
+    activity_id = response.json()["id"]
+
+    assert spy.call_count == 1
+    highlights = db.exec(
+        select(ActivityHighlight).where(ActivityHighlight.activity_id == activity_id)
+    ).all()
+
+    assert len(highlights) > 0
+    # Example of a more specific check
+    distance_highlight = next((h for h in highlights if h.metric == "distance"), None)
+    assert distance_highlight is not None
+    assert distance_highlight.value > 0
+
+
+def test_import_activity_verve_file_with_geo_e2e_with_eager_celery(
+    mocker: MockerFixture,
+    client: TestClient,
+    user2_token: str,
+    db: Session,
+    celery_eager,
+) -> None:
+    from verve_backend.api.routes import activity
+
+    spy = mocker.spy(activity, "_import_verve_file")
+    with (
+        resources.files("tests.resources")
+        .joinpath("processed_Walk.json")
+        .open("rb") as f
+    ):
+        json_content = f.read()
+
+    response = client.post(
+        "/activity/import/",
+        headers={"Authorization": f"Bearer {user2_token}"},
+        files={"file": ("Walk.json", json_content, "application/octet-stream")},
+    )
+    assert response.status_code == 200
+    activity_id = response.json()["id"]
+
+    assert spy.call_count == 1
+
+    highlights = db.exec(
+        select(ActivityHighlight).where(ActivityHighlight.activity_id == activity_id)
+    ).all()
+
+    assert len(highlights) > 0
+    # Example of a more specific check
+    distance_highlight = next((h for h in highlights if h.metric == "distance"), None)
+    assert distance_highlight is not None
+    assert distance_highlight.value > 0
+
+
+def test_import_invalid_json_file(
+    mocker: MockerFixture,
+    client: TestClient,
+    user2_token: str,
+) -> None:
+    mocker.patch("verve_backend.api.routes.activity.process_activity_highlights.delay")
+    with (
+        resources.files("tests.resources")
+        .joinpath("processed_Walk.json")
+        .open("rb") as f
+    ):
+        json_content = f.read()
+    _data = json.loads(json_content)
+    _data["properties"] = None
+    json_content = json.dumps(_data).encode("utf-8")
+    response = client.post(
+        "/activity/import/",
+        headers={"Authorization": f"Bearer {user2_token}"},
+        files={"file": ("Walk.json", json_content, "application/octet-stream")},
+    )
+    assert response.status_code == 422
+
+
+def test_import_invalid_other_file(
+    mocker: MockerFixture,
+    client: TestClient,
+    user2_token: str,
+) -> None:
+    mocker.patch("verve_backend.api.routes.activity.process_activity_highlights.delay")
+    with resources.files("tests.resources").joinpath("MyWhoosh_1.fit").open("rb") as f:
+        fit_content = f.read()
+    response = client.post(
+        "/activity/import/",
+        headers={"Authorization": f"Bearer {user2_token}"},
+        files={"file": ("MyWhoosh_1.fit", fit_content, "application/octet-stream")},
+    )
+    assert response.status_code == 422
