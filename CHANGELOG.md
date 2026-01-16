@@ -1,4 +1,13 @@
 <!-- insertion marker -->
+<a name="1.3.1"></a>
+
+## [1.3.1](https://github.com/kschweiger/verve-backend/compare/1.3.0...1.3.1) (2026-01-16)
+
+### Bug Fixes
+
+- Solve issues with None latitude and longitude ([362a66d](https://github.com/kschweiger/verve-backend/commit/362a66d37ecfadcb8491ac380a33f923596f2ede))
+- 🛡️ Handle Verve file activities without geographic data ([cdf9538](https://github.com/kschweiger/verve-backend/commit/cdf9538f9768c49fde1d03f5375506036e97a88e))
+
 <a name="1.3.0"></a>
 
 ## [1.3.0](https://github.com/kschweiger/verve-backend/compare/1.2.0...1.3.0) (2026-01-15)
