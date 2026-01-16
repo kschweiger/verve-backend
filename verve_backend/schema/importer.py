@@ -4,6 +4,7 @@ from typing import Any
 from uuid import UUID
 
 from geo_track_analyzer import GeoJsonTrack
+from geo_track_analyzer.exceptions import GeoJsonWithoutGeometryError
 from sqlmodel import Session, select
 
 from verve_backend import crud
@@ -48,6 +49,7 @@ def convert_verve_file_to_activity(
     overwrite_type_id: None | int = None,
     overwrite_sub_type_id: None | int = None,
 ) -> Activity:
+    logger.debug("Starting verve file conversion")
     match crud.get_type_by_name(session=session, name=data.properties.activity_type):
         case Ok(_type):
             activity_type = _type
@@ -129,9 +131,30 @@ def convert_verve_file_to_activity(
     session.commit()
     session.refresh(activity)
 
-    track = GeoJsonTrack(source=data.model_dump(by_alias=True), max_speed_percentile=99)
+    logger.debug("Converting Verve track to GeoJsonTrack")
+    _data = data.model_dump(by_alias=True)
+
+    empty_spatial_flag = False
+    try:
+        track = GeoJsonTrack(source=_data, max_speed_percentile=99)
+    except GeoJsonWithoutGeometryError:
+        track = GeoJsonTrack(
+            source=_data, allow_empty_spatial=True, max_speed_percentile=99
+        )
+        empty_spatial_flag = True
+    except Exception as e:
+        logger.error("Error parsing GeoJsonTrack: %s", e)
+        logger.debug("Removing Activity ID: %s", activity.id)
+        session.delete(activity)
+        session.commit()
+        raise VerveImportError("Error parsing track data") from e
+    logger.debug("Inserting track data into DB")
     crud.insert_track(
-        session=session, track=track, activity_id=activity.id, user_id=user_id
+        session=session,
+        track=track,
+        activity_id=activity.id,
+        user_id=user_id,
+        no_geometry=empty_spatial_flag,
     )
 
     if (
