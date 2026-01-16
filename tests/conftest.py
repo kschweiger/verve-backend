@@ -1,3 +1,4 @@
+import json
 import os
 import random
 from datetime import datetime, timedelta
@@ -7,7 +8,7 @@ from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
-from geo_track_analyzer import FITTrack, GPXFileTrack, PyTrack, Track
+from geo_track_analyzer import FITTrack, GeoJsonTrack, GPXFileTrack, PyTrack, Track
 from sqlmodel import Session, SQLModel
 
 from verve_backend.models import User
@@ -383,7 +384,7 @@ def generate_data(session: Session) -> None:
         user=created_users[1],  # type: ignore
     ).unwrap()
 
-    activity_5 = crud.create_activity(  # noqa: F841
+    activity_5 = crud.create_activity(
         session=session,
         create=models.ActivityCreate(
             start=datetime(year=2025, month=1, day=2, hour=13),
@@ -411,6 +412,29 @@ def generate_data(session: Session) -> None:
     )
 
     process_activity_highlights(activity_4.id, created_users[1].id)
+    with (
+        resources.files("tests.resources")
+        .joinpath("processed_Weight_Training.json")
+        .open("rb") as f
+    ):
+        json_content = f.read()
+    track = GeoJsonTrack(
+        json.loads(json_content),
+        allow_empty_spatial=True,
+    )
+    crud.insert_track(
+        session=session,
+        track=track,
+        activity_id=activity_5.id,
+        user_id=created_users[0].id,
+        batch_size=500,
+        no_geometry=True,
+    )
+    crud.update_activity_with_track_data(
+        session=session,
+        activity_id=activity_5.id,
+        track=track,
+    )
 
     crud.create_location(
         session=session,

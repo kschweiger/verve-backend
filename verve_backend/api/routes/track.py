@@ -37,12 +37,20 @@ def add_track(
 ) -> Any:
     _user_id, session = user_session
     user_id = uuid.UUID(_user_id)
+
+    file_name = file.filename
+    assert file_name is not None
+    file_content = file.file.read()
+    file_content_type = file.content_type
+
     track, n_points = upload_track(
         activity_id=activity_id,
         user_id=user_id,
         session=session,
         obj_store_client=obj_store_client,
-        file=file,
+        file_name=file_name,
+        file_content=file_content,
+        file_content_type=file_content_type,
     )
 
     try:
@@ -57,7 +65,7 @@ def add_track(
         logger.info("Removing track data")
         # TODO: Implment
 
-    process_activity_highlights.delay(activity_id, user_id)
+    process_activity_highlights.delay(activity_id, user_id)  # type: ignore
 
     return JSONResponse(
         status_code=HTTP_201_CREATED,

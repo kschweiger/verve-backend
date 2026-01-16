@@ -362,7 +362,6 @@ class ActivitiesPublic(SQLModel):
 
 
 class TrackPoint(SQLModel, table=True):
-    # TODO: Update indices and geometry defintions for track with dummy spatial data
     __tablename__ = "track_points"  # type: ignore
 
     id: int = Field(primary_key=True)
@@ -412,14 +411,14 @@ class TrackPoint(SQLModel, table=True):
 
 class TrackPointResponse(BaseModel):
     segment_id: int
-    latitude: float
-    longitude: float
+    latitude: float | None
+    longitude: float | None
     time: datetime
     elevation: float | None
 
     diff_time: float | None
     diff_distance: float | None
-    cum_distance: float
+    cum_distance: float | None
 
     speed: float | None = Field(description="Speed in m/s")
     heartrate: int | None = Field(description="Heartrate in bpm")

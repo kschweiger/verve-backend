@@ -2,7 +2,6 @@ import importlib.resources
 import logging
 import uuid
 from collections import defaultdict
-from datetime import timedelta
 from typing import Generator
 
 from geo_track_analyzer import Track
@@ -15,6 +14,7 @@ from sqlalchemy.exc import DatabaseError
 from sqlmodel import Session, insert, select, text
 
 from verve_backend.api.common.locale import get_activity_name
+from verve_backend.api.common.track import update_activity_with_track
 from verve_backend.api.deps import SupportedLocale
 from verve_backend.core.config import settings
 from verve_backend.core.meta_data import ActivityMetaData, validate_meta_data
@@ -314,24 +314,7 @@ def update_activity_with_track_data(
         "Function expects that activity is valid (exists and belongs to user)"
     )
 
-    overview = track.get_track_overview()
-    first_point_time = track.track.segments[0].points[0].time
-    if first_point_time:
-        activity.start = first_point_time
-    activity.distance = overview.total_distance_km
-    activity.duration = timedelta(days=0, seconds=overview.total_time_seconds)
-    activity.elevation_change_up = overview.uphill_elevation
-    activity.elevation_change_down = overview.downhill_elevation
-    activity.moving_duration = timedelta(days=0, seconds=overview.moving_time_seconds)
-    assert overview.velocity_kmh
-    activity.avg_speed = overview.velocity_kmh.avg
-    activity.max_speed = overview.velocity_kmh.max
-    if overview.power:
-        activity.avg_power = overview.power.avg
-        activity.max_power = overview.power.max
-    if overview.heartrate:
-        activity.avg_heartrate = overview.heartrate.avg
-        activity.max_heartrate = overview.heartrate.max
+    update_activity_with_track(activity, track)
     session.add(activity)
     session.commit()
     session.refresh(activity)
