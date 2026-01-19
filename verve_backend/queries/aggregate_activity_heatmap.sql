@@ -8,7 +8,7 @@ WITH grid_clusters AS (
         array_agg(ST_Y(geography::geometry)) as cluster_latitudes,
         array_agg(ST_X(geography::geometry)) as cluster_longitudes
     FROM track_points
-    WHERE :activity_ids IS NULL OR activity_id = ANY(:activity_ids)
+    WHERE (:activity_ids IS NULL OR activity_id = ANY(:activity_ids)) AND (geography IS NOT NULL)
     GROUP BY grid_x, grid_y
 )
 SELECT
