@@ -40,8 +40,10 @@ class Settings(BaseSettings):
     POSTGRES_PORT: int = 5432
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str = "changethis"
-    POSTGRES_DB: str = ""
-    POSTGRES_SCHEMA_NAME: str = "verve"
+    POSTGRES_DB: str = "verve_production"
+    POSTGRES_DB_TESTING: str = "verve_testing"
+
+    POSTGRES_SCHEMA: str = "api"
 
     POSTGRES_RLS_USER: str = "verve_user"
     POSTGRES_RLS_PASSWORD: str = "changethis"
@@ -70,7 +72,9 @@ class Settings(BaseSettings):
             password=self.POSTGRES_PASSWORD,
             host=self.POSTGRES_SERVER,
             port=self.POSTGRES_PORT,
-            path=self.POSTGRES_DB,
+            path=self.POSTGRES_DB_TESTING
+            if self.ENVIRONMENT == "testing"
+            else self.POSTGRES_DB,
         )
 
     @computed_field  # type: ignore[prop-decorator]
@@ -82,16 +86,10 @@ class Settings(BaseSettings):
             password=self.POSTGRES_RLS_PASSWORD,
             host=self.POSTGRES_SERVER,
             port=self.POSTGRES_PORT,
-            path=self.POSTGRES_DB,
+            path=self.POSTGRES_DB_TESTING
+            if self.ENVIRONMENT == "testing"
+            else self.POSTGRES_DB,
         )
-
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def POSTGRES_SCHEMA(self) -> str:  # noqa: N802
-        name = self.POSTGRES_SCHEMA_NAME
-        if self.ENVIRONMENT == "testing":
-            name = f"{name}_testing"
-        return name
 
     @computed_field  # type: ignore[prop-decorator]
     @property

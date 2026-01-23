@@ -95,7 +95,7 @@ def setup_activity_types(session: Session) -> None:
     print("Activity types setup complete!")
 
 
-def setup_rls_policies(session: Session, schema: str = "verve") -> None:
+def setup_rls_policies(session: Session, schema: str = "api") -> None:
     """Set up Row Level Security policies for tables."""
     print("Setting up Row Level Security policies...")
     for relation_prefix, table_name in RSL_TABLES:
@@ -125,7 +125,7 @@ def create_admin_user(session: Session, password: str) -> None:
 
     user = UserCreate(
         name="verve_admin",
-        email="admin@verve-outdoors.com",
+        email="admin@verve-active.com",
         password=password,
     )
     match create_user(
@@ -139,7 +139,7 @@ def create_admin_user(session: Session, password: str) -> None:
             print("Creating admin user failed")
 
 
-def setup_db(session: Session, admin_pw: str, schema: str = "verve") -> None:
+def setup_db(session: Session, admin_pw: str, schema: str = "api") -> None:
     """Run full database setup (activity types + RLS)."""
     setup_activity_types(session)
     # setup_rls_policies(session, schema)
@@ -156,7 +156,7 @@ def main() -> None:
     parser.add_argument(
         "--schema",
         type=str,
-        default="verve",
+        default="api",
         help="Database schema name (default: verve)",
     )
     parser.add_argument(

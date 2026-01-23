@@ -283,7 +283,7 @@ def generate_data(session: Session) -> None:
     from verve_backend.tasks import process_activity_highlights
 
     setup_activity_types(session)
-    setup_rls_policies(session, "verve_testing")
+    setup_rls_policies(session)
     # --------------------- USERS ------------------------------
     created_users: list[User] = []
     for name, pw, email, full_name, is_admin in [
