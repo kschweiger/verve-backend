@@ -41,7 +41,13 @@ ACTIVITY_TYPES = {
         "Pilates",
         "HIIT",
     ],
-    "Other": ["Climbing", "Skateboarding", "Other"],
+    "Climbing": [
+        "Bouldering",
+        "Sport Climbing",
+        "Indoor Climbing",
+        "Outdoor Climbing",
+    ],
+    "Other": ["Skateboarding", "Other"],
 }
 
 DISTANCE_FORBIDDEN_TYPES = ["Strength Training", "Fitness & Flexibility"]
