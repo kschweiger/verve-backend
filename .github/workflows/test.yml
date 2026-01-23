@@ -42,7 +42,7 @@ jobs:
         env:
           PGPASSWORD: testpassword
         run: |
-          psql -h localhost -U testuser -d testdb -c "CREATE SCHEMA verve_testing;"
+          psql -h localhost -U testuser -d testdb -c "CREATE SCHEMA api;"
 
       - name: Enable PostGIS Extension
         env:
@@ -56,9 +56,9 @@ jobs:
         run: |
           psql -h localhost -U testuser -d testdb -c "
             CREATE ROLE verve_user LOGIN PASSWORD 'rlstestpassword' NOINHERIT;
-            GRANT USAGE ON SCHEMA verve_testing TO verve_user;
-            ALTER DEFAULT PRIVILEGES IN SCHEMA verve_testing GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO verve_user;
-            ALTER DEFAULT PRIVILEGES IN SCHEMA verve_testing GRANT USAGE ON SEQUENCES TO verve_user;
+            GRANT USAGE ON SCHEMA api TO verve_user;
+            ALTER DEFAULT PRIVILEGES IN SCHEMA api GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO verve_user;
+            ALTER DEFAULT PRIVILEGES IN SCHEMA api GRANT USAGE ON SEQUENCES TO verve_user;
           "
       - name: Start MinIO service
         run: |
@@ -101,7 +101,7 @@ jobs:
           POSTGRES_PORT: 5432
           POSTGRES_USER: testuser
           POSTGRES_PASSWORD: testpassword
-          POSTGRES_DB: testdb
+          POSTGRES_DB_TESTING: testdb
           POSTGRES_SCHEMA_NAME: "verve"
           POSTGRES_RLS_USER: "verve_user"
           POSTGRES_RLS_PASSWORD: "rlstestpassword"
