@@ -41,7 +41,7 @@ def _cast(session: Session, activity_id: UUID) -> VerveFeature:
         moving_duration=activity.moving_duration.total_seconds()
         if activity.moving_duration
         else None,
-        distance=activity.distance,
+        distance=None if activity.distance is None else activity.distance * 1000,
         energy=activity.energy,
         elevation_gain=activity.elevation_change_up,
         elevation_loss=activity.elevation_change_down,

@@ -82,6 +82,7 @@ def convert_verve_file_to_activity(
     else:
         _sub_type_id = activity_sub_type.id if activity_sub_type else None
 
+    logger.error("%s / %s", _type_id, _sub_type_id)
     activity = Activity(
         user_id=user_id,
         created_at=datetime.now(),
@@ -90,7 +91,9 @@ def convert_verve_file_to_activity(
         sub_type_id=_sub_type_id,
         start=data.properties.start_time,
         duration=timedelta(seconds=data.properties.duration),
-        distance=data.properties.distance,
+        distance=None
+        if data.properties.distance is None
+        else data.properties.distance / 1000,
         moving_duration=timedelta(seconds=data.properties.moving_duration)
         if data.properties.moving_duration
         else None,
