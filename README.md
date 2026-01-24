@@ -3,24 +3,24 @@
 
 ## Dependencies
 
-- A postgrSQL instance with enables postgis extension
-- Some kind of boto3 compatible object store (e.g. minio)
+- A postgreSQL instance with enables postgis extension
+- Some kind of boto3 compatible object store (e.g. rustfs)
 
 ## Database setup
 
-Create a user for the *RLS policies* on you database instance
+Create a user for the *RLS policies* on your database instance
 
 ```sql
 CREATE ROLE verve_user LOGIN PASSWORD 'changeme' NOINHERIT;
 ```
 
-Initialze the database using *alembic*
+Initialize the database using *alembic*
 
 ```bash
 alembic upgrade head
 ```
 
-This also create the relvant schema and *initializes the RLS policy for the tables*.
+This also create the relevant schema and *initializes the RLS policy for the tables*.
 
 You can verify the *RLS policies* with the script `./scripts/verify_rls.py`
 
@@ -51,4 +51,11 @@ SET verve_user.curr_user = '{user.id}'`
 ```
 
 
+## Running the docker container:
 
+ addition to setting the config variables (`verve_backen.core.config`), the container read the following variables
+
+- `UVICORN_WORKERS`: Number of workers for the uvicorn running the backend (default: 1)
+- `UVICORN_TIMEOUT`: Timeout of the uvicorn works (default: 30)
+- `ADMIN_PASSWORD`: Password for the initial admin user (no default. Will be skipped if unset)
+- `ADMIN_EMAIL`: Email for the initial admin user (no default: Is required if `ADMIN_PASSWORD` is set)

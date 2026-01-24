@@ -516,12 +516,23 @@ class Location(LocationBase, table=True):
     __tablename__: str = "locations"  # type: ignore
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    loc: Any = Field(sa_column=Column(Geography("POINT", 4326)))
+
+    loc: Any = Field(
+        sa_column=Column(Geography("POINT", 4326, spatial_index=False), nullable=False)
+    )
 
     user_id: uuid.UUID = Field(
         foreign_key="users.id", nullable=False, ondelete="CASCADE"
     )
     created_at: datetime = Field(default_factory=datetime.now)
+
+    __table_args__ = (
+        Index(
+            "idx_locations_loc",  # Index Name
+            "loc",  # Column Name (Make sure this matches the field name!)
+            postgresql_using="gist",  # Algorithm
+        ),
+    )
 
 
 def is_hex_color_code(value: str) -> str:

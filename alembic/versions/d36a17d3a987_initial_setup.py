@@ -1,8 +1,8 @@
-"""Initial structure
+"""initial setup
 
-Revision ID: 3bd7d8987ff0
+Revision ID: d36a17d3a987
 Revises:
-Create Date: 2025-12-25 10:00:47.451851
+Create Date: 2026-01-24 16:46:58.123781
 
 """
 
@@ -16,13 +16,14 @@ from alembic import op
 from verve_backend.core.config import settings
 
 # revision identifiers, used by Alembic.
-revision: str = "3bd7d8987ff0"
+revision: str = "d36a17d3a987"
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    """Upgrade schema."""
     schema = settings.POSTGRES_SCHEMA
     """Upgrade schema."""
     op.execute(f"CREATE SCHEMA IF NOT EXISTS {schema}")
@@ -73,6 +74,7 @@ def upgrade() -> None:
         ),
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("is_active", sa.Boolean(), nullable=False),
+        sa.Column("is_admin", sa.Boolean(), nullable=False),
         sa.Column(
             "hashed_password", sqlmodel.sql.sqltypes.AutoString(), nullable=False
         ),
@@ -164,15 +166,20 @@ def upgrade() -> None:
                 geometry_type="POINT",
                 srid=4326,
                 dimension=2,
+                spatial_index=False,
                 from_text="ST_GeogFromText",
                 name="geography",
+                nullable=False,
             ),
-            nullable=True,
+            nullable=False,
         ),
         sa.Column("user_id", sa.Uuid(), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(
+        "idx_locations_loc", "locations", ["loc"], unique=False, postgresql_using="gist"
     )
     op.create_table(
         "sub_activity_type",
@@ -207,6 +214,7 @@ def upgrade() -> None:
         sa.Column("moving_duration", sa.Interval(), nullable=True),
         sa.Column("elevation_change_up", sa.Float(), nullable=True),
         sa.Column("elevation_change_down", sa.Float(), nullable=True),
+        sa.Column("energy", sa.Float(), nullable=True),
         sa.Column("avg_speed", sa.Float(), nullable=True),
         sa.Column("avg_heartrate", sa.Float(), nullable=True),
         sa.Column("avg_power", sa.Float(), nullable=True),
@@ -389,6 +397,7 @@ def upgrade() -> None:
                 geometry_type="POINT",
                 srid=4326,
                 dimension=2,
+                spatial_index=False,
                 from_text="ST_GeogFromText",
                 name="geography",
             ),
@@ -399,6 +408,7 @@ def upgrade() -> None:
             geoalchemy2.types.Geometry(
                 geometry_type="POINT",
                 dimension=2,
+                spatial_index=False,
                 from_text="ST_GeomFromEWKT",
                 name="geometry",
             ),
@@ -427,12 +437,27 @@ def upgrade() -> None:
         unique=False,
     )
     op.create_index(
+        "idx_track_points_geography",
+        "track_points",
+        ["geography"],
+        unique=False,
+        postgresql_using="gist",
+        postgresql_where=sa.text("geography IS NOT NULL"),
+    )
+    op.create_index(
+        "idx_track_points_geometry",
+        "track_points",
+        ["geometry"],
+        unique=False,
+        postgresql_using="gist",
+        postgresql_where=sa.text("geometry IS NOT NULL"),
+    )
+    op.create_index(
         "idx_track_points_user_activity",
         "track_points",
         ["user_id", "activity_id"],
         unique=False,
     )
-
     for prefix, table in [
         ("activity", "activities"),
         ("activity_highlights", "activity_highlights"),
@@ -453,23 +478,100 @@ def upgrade() -> None:
             FOR ALL USING (user_id = current_setting('verve_user.curr_user')::uuid)
         """)
 
+    activity_types = {
+        "Cycling": [
+            "Road",
+            "Mountain Bike",
+            "Gravel",
+            "Cyclocross",
+            "Indoor",
+            "E-Mountain Bike",
+        ],
+        "Foot Sports": [
+            "Walk",
+            "Run",
+            "Hike",
+            "Trail Run",
+            "Nordic Walking",
+            "Treadmill",
+        ],
+        "Winter Sports": ["Cross-country Skiing", "Snowshoeing", "Downhill Skiing"],
+        "Swimming": ["Indoor", "Outdoor Pool", "Open Water"],
+        "Strength Training": [
+            "Weight Training",
+            "Bodyweight",
+            "Powerlifting",
+            "CrossFit",
+            "Circuit Training",
+        ],
+        "Indoor Cardio": [
+            "Elliptical",  # Cross Trainer
+            "Stair Stepper",
+            "Indoor Rowing",
+        ],
+        "Fitness & Flexibility": [
+            "Yoga",
+            "Pilates",
+            "HIIT",
+        ],
+        "Climbing": [
+            "Bouldering",
+            "Sport Climbing",
+            "Indoor Climbing",
+            "Outdoor Climbing",
+        ],
+        "Other": ["Skateboarding", "Other"],
+    }
+
+    distance_forbidden_types = ["Strength Training", "Fitness & Flexibility"]
+
+    distance_optional_types = ["Winter Sports", "Indoor Cardio", "Other"]
+
+    bind = op.get_bind()
+
+    for _type, sub_types in activity_types.items():
+        if _type in distance_forbidden_types:
+            req = "NOT_APPLICABLE"
+        elif _type in distance_optional_types:
+            req = "OPTIONAL"
+        else:
+            req = "REQUIRED"
+        bind.execute(
+            sa.text("""
+            INSERT INTO activity_type (name, distance_requirement)
+            VALUES (:name, :req)
+        """),
+            {"name": _type, "req": req},
+        )
+        for sub_name in sub_types:
+            bind.execute(
+                sa.text("""
+                INSERT INTO sub_activity_type (name, type_id)
+                VALUES (
+                    :sub_name,
+                    (SELECT id FROM activity_type WHERE name = :type_name)
+                )
+            """),
+                {"sub_name": sub_name, "type_name": _type},
+            )
+    # ### end Alembic commands ###
+
 
 def downgrade() -> None:
     """Downgrade schema."""
     # ### commands auto generated by Alembic - please adjust! ###
-    op.create_table(
-        "alembic_version",
-        sa.Column(
-            "version_num", sa.VARCHAR(length=32), autoincrement=False, nullable=False
-        ),
-        sa.PrimaryKeyConstraint("version_num", name=op.f("alembic_version_pkc")),
-    )
     op.drop_index("idx_track_points_user_activity", table_name="track_points")
     op.drop_index(
-        "idx_track_points_geometry", table_name="track_points", postgresql_using="gist"
+        "idx_track_points_geometry",
+        table_name="track_points",
+        postgresql_using="gist",
+        postgresql_where=sa.text("geometry IS NOT NULL"),
     )
     op.drop_index(
-        "idx_track_points_geography", table_name="track_points", postgresql_using="gist"
+        "idx_track_points_geography",
+        table_name="track_points",
+        postgresql_using="gist",
+        postgresql_where=sa.text("geography IS NOT NULL"),
     )
     op.drop_index("idx_track_points_activity_segment", table_name="track_points")
     op.drop_table("track_points")
@@ -500,5 +602,4 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_users_email"), table_name="users")
     op.drop_table("users")
     op.drop_table("activity_type")
-    op.execute("DROP EXTENSION IF EXISTS postgis")
-    op.execute("DROP SCHEMA IF EXISTS verve")
+    # ### end Alembic commands ###

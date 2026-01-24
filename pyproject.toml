@@ -29,6 +29,7 @@ dependencies = [
 
 [project.scripts]
 setup-db = "verve_backend.cli.setup_db:main"
+create-admin = "verve_backend.cli.create_admin_user:main"
 
 [tool.ruff]
 line-length = 88
