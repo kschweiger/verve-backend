@@ -82,7 +82,6 @@ def convert_verve_file_to_activity(
     else:
         _sub_type_id = activity_sub_type.id if activity_sub_type else None
 
-    logger.error("%s / %s", _type_id, _sub_type_id)
     activity = Activity(
         user_id=user_id,
         created_at=datetime.now(),
