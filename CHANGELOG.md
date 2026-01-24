@@ -1,4 +1,12 @@
 <!-- insertion marker -->
+<a name="1.5.0"></a>
+
+## [1.5.0](https://github.com/kschweiger/verve-backend/compare/1.4.0...1.5.0) (2026-01-24)
+
+### Code Refactoring
+
+- **docker:** Add database migration and admin creation to run.sh also resetting alembic ([1baa24d](https://github.com/kschweiger/verve-backend/commit/1baa24d1c71479d9af679e4a8fbe799d3d0acaa6))
+
 <a name="1.4.0"></a>
 
 ## [1.4.0](https://github.com/kschweiger/verve-backend/compare/1.3.1...1.4.0) (2026-01-24)
