@@ -1,4 +1,21 @@
 <!-- insertion marker -->
+<a name="1.4.0"></a>
+
+## [1.4.0](https://github.com/kschweiger/verve-backend/compare/1.3.1...1.4.0) (2026-01-24)
+
+### Features
+
+- **activities:** Add climing activity_type ([f0246a4](https://github.com/kschweiger/verve-backend/commit/f0246a445cd8ecfc691442221b04c5a0ec051f84))
+
+### Bug Fixes
+
+- **schema:** Add conversion from external distance unit (m) to internal on (km) ([bcd735f](https://github.com/kschweiger/verve-backend/commit/bcd735ff944ebf3b603e00e9c74cb9a1737f7d3f))
+- **heatmap:** Discard points with NULL geography ([aa473f4](https://github.com/kschweiger/verve-backend/commit/aa473f41550abfc347f4301f75ebd8ee26972f02))
+
+### Code Refactoring
+
+- **db:** Move from schema to database isolation ([8aa6fd0](https://github.com/kschweiger/verve-backend/commit/8aa6fd005c0261a4e8ebe513e94daecf073d160e))
+
 <a name="1.3.1"></a>
 
 ## [1.3.1](https://github.com/kschweiger/verve-backend/compare/1.3.0...1.3.1) (2026-01-16)
