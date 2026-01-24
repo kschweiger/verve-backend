@@ -1,0 +1,107 @@
+name: Release 🚀
+
+on:
+  push:
+    tags:
+      - "*.*.*"
+
+permissions:
+  contents: write # Needed to create the GitHub Release
+  packages: write # Needed to push to GHCR
+
+jobs:
+  # 1. Generate the GitHub Release
+  create-release:
+    name: GitHub Release 📝
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for changelog generation
+
+      - name: Configure uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Verify Version Sync
+        # Sanity check: Ensure the Git Tag matches your VERSION file
+        run: |
+          FILE_VERSION=$(cat VERSION)
+          TAG_VERSION=${GITHUB_REF_NAME#v}
+
+          if [ "$FILE_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::Version Mismatch! Git tag $TAG_VERSION does not match VERSION file $FILE_VERSION"
+            exit 1
+          fi
+
+      - name: Install git-changelog
+        run: uv tool install git-changelog
+
+      - name: Generate Release Notes
+        run: uvx git-changelog --release-notes > release-notes.md
+
+      - name: Publish Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: release-notes.md
+          prerelease: ${{ contains(github.ref, '-') }}
+
+  # 2. Build and Push Docker Image
+  build-push-docker:
+    name: Docker Build 🐳
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2. Install QEMU (Quick Emulator)
+      # This is required because you want to build for multiple platforms.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      # 3. Set up Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 4. Login to Container Registry
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 5. Calculate Tags (Metadata Action)
+      # This step analyzes your Git Ref (the tag "1.3.1").
+      # It outputs a list of tags for the next step to use.
+      # If tag is 1.3.1, it generates:
+      # - ghcr.io/owner/repo:1.3.1
+      # - ghcr.io/owner/repo:1.3
+      # - ghcr.io/owner/repo:1
+      # - ghcr.io/owner/repo:latest
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest
+
+      # 6. Build and Push
+      # This performs the actual build using the setup from steps 2 & 3.
+      # context: . -> Use current directory
+      # push: true -> Upload to GHCR immediately after building
+      # tags: ... -> Use the list generated in step 5
+      # cache -> Uses GitHub Actions cache to speed up future builds
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
