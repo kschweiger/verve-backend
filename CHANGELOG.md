@@ -1,4 +1,12 @@
 <!-- insertion marker -->
+<a name="1.5.1"></a>
+
+## [1.5.1](https://github.com/kschweiger/verve-backend/compare/1.5.0...1.5.1) (2026-01-26)
+
+### Bug Fixes
+
+- 🔧 Replace hardcoded Redis URLs with config settings ([15c792c](https://github.com/kschweiger/verve-backend/commit/15c792cf2b610badccc0bd9cdb4cc2917ebffd05))
+
 <a name="1.5.0"></a>
 
 ## [1.5.0](https://github.com/kschweiger/verve-backend/compare/1.4.0...1.5.0) (2026-01-24)
