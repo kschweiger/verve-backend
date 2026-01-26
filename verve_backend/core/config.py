@@ -55,6 +55,10 @@ class Settings(BaseSettings):
     BOTO3_REGION: str = "us-east-1"
     BOTO3_BUCKET_NAME: str = "verve"
 
+    REDIS_SERVER: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
+
     MAX_FILE_SIZE_MB: int = 10
 
     DEFAULTSETTINGS: DefautlSettings = DefautlSettings(
@@ -109,6 +113,16 @@ class Settings(BaseSettings):
                 warnings.warn(message, stacklevel=1)
             else:
                 raise ValueError(message)
+
+    @computed_field
+    @property
+    def CELERY_BROKER_URL(self) -> str:  # noqa: N802
+        return f"redis://{self.REDIS_SERVER}:{self.REDIS_PORT}/{self.REDIS_DB}"
+
+    @computed_field
+    @property
+    def CELERY_RESULT_BACKEND(self) -> str:  # noqa: N802
+        return f"redis://{self.REDIS_SERVER}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
     @model_validator(mode="after")
     def _enforce_non_default_secrets(self) -> Self:
