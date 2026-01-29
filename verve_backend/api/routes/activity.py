@@ -104,11 +104,16 @@ def update_activity(
         # Check that both fit together
         if "sub_type_id" in update_data and update_data["sub_type_id"] is not None:
             validate_sub_type_id(
-                session, update_data["type_id"], update_data["sub_type_id"]
+                session,
+                ActivitySubType,
+                update_data["type_id"],
+                update_data["sub_type_id"],
             )
         if "sub_type_id" not in update_data and activity.sub_type_id is not None:
             # Check that the current sub_type fits to the new type
-            validate_sub_type_id(session, update_data["type_id"], activity.sub_type_id)
+            validate_sub_type_id(
+                session, ActivitySubType, update_data["type_id"], activity.sub_type_id
+            )
 
         # Check that the new type_id works with the activity distance
         check_distance_requirement(
@@ -122,7 +127,9 @@ def update_activity(
         and "sub_type_id" in update_data
         and update_data["sub_type_id"] is not None
     ):
-        validate_sub_type_id(session, activity.type_id, update_data["sub_type_id"])
+        validate_sub_type_id(
+            session, ActivitySubType, activity.type_id, update_data["sub_type_id"]
+        )
     if "meta_data" in update_data and update_data["meta_data"] is None:
         raise HTTPException(
             status_code=HTTP_400_BAD_REQUEST, detail="meta_data cannot be set to null"
@@ -254,7 +261,7 @@ def get_activities(
             detail="Sub Activity must be set together with Activity",
         )
     if type_id is not None and sub_type_id is not None:
-        validate_sub_type_id(session, type_id, sub_type_id)
+        validate_sub_type_id(session, ActivitySubType, type_id, sub_type_id)
 
     if year is None and month is not None:
         raise HTTPException(
@@ -437,7 +444,7 @@ def create_auto_activity(
             detail="Sub Activity must be set together with Activity",
         )
     if type_id is not None and sub_type_id is not None:
-        validate_sub_type_id(session, type_id, sub_type_id)
+        validate_sub_type_id(session, ActivitySubType, type_id, sub_type_id)
 
     if file_name.endswith(".json") and sniff_verve_format(
         json.loads(file_content.decode("utf-8"))

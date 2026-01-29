@@ -11,6 +11,8 @@ from verve_backend import crud
 from verve_backend.exceptions import VerveImportError
 from verve_backend.models import (
     Activity,
+    ActivitySubType,
+    ActivityType,
     Equipment,
 )
 from verve_backend.result import Err, Ok
@@ -50,7 +52,9 @@ def convert_verve_file_to_activity(
     overwrite_sub_type_id: None | int = None,
 ) -> Activity:
     logger.debug("Starting verve file conversion")
-    match crud.get_type_by_name(session=session, name=data.properties.activity_type):
+    match crud.get_by_name(
+        session=session, name=data.properties.activity_type, model=ActivityType
+    ):
         case Ok(_type):
             activity_type = _type
             assert activity_type.id is not None
@@ -60,8 +64,10 @@ def convert_verve_file_to_activity(
             )
     activity_sub_type = None
     if data.properties.activity_sub_type:
-        match crud.get_sub_type_by_name(
-            session=session, name=data.properties.activity_sub_type
+        match crud.get_by_name(
+            session=session,
+            name=data.properties.activity_sub_type,
+            model=ActivitySubType,
         ):
             case Ok(_type):
                 activity_sub_type = _type

@@ -372,6 +372,8 @@ def test_validate_contraints(
         loc=from_shape(Point(1, 1), srid=4326),
         user_id=temp_user_id,
         id=UUID(location_id),
+        type_id=1,
+        sub_type_id=1,
     )
     db.add_all([equipment, location])
     db.commit()

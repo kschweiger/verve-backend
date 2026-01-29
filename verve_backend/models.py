@@ -494,6 +494,25 @@ class GoalsPublic(SQLModel):
     count: int
 
 
+class LocationType(SQLModel, table=True):
+    __tablename__: str = "location_type"  # type: ignore
+
+    name: str = Field(unique=True)
+    id: int = Field(primary_key=True)
+
+
+class LocationSubType(SQLModel, table=True):
+    __tablename__: str = "location_sub_type"  # type: ignore
+
+    id: int = Field(primary_key=True)
+    name: str
+    type_id: int = Field(foreign_key="location_type.id")
+
+    __table_args__ = (
+        UniqueConstraint("name", "type_id", name="uix_sublocation_name_type_id"),
+    )
+
+
 class LocationBase(SQLModel):
     name: str
     description: str | None = None
@@ -503,6 +522,9 @@ class LocationCreate(LocationBase):
     latitude: float = Field(ge=-90, le=90)
     longitude: float = Field(ge=-180, le=180)
 
+    type_id: PositiveNumber[int] | None = None
+    sub_type_id: PositiveNumber[int] | None = None
+
 
 class LocationPublic(LocationBase):
     id: uuid.UUID
@@ -510,6 +532,9 @@ class LocationPublic(LocationBase):
 
     latitude: float
     longitude: float
+
+    type_id: PositiveNumber[int]
+    sub_type_id: PositiveNumber[int]
 
 
 class Location(LocationBase, table=True):
@@ -526,6 +551,10 @@ class Location(LocationBase, table=True):
     )
     created_at: datetime = Field(default_factory=datetime.now)
 
+    type_id: PositiveNumber[int] = Field(foreign_key="location_type.id", nullable=False)
+    sub_type_id: PositiveNumber[int] = Field(
+        foreign_key="location_sub_type.id", nullable=False
+    )
     __table_args__ = (
         Index(
             "idx_locations_loc",  # Index Name

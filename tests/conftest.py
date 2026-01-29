@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 from geo_track_analyzer import FITTrack, GeoJsonTrack, GPXFileTrack, PyTrack, Track
 from sqlmodel import Session, SQLModel
 
-from verve_backend.models import User
+from verve_backend.models import LocationSubType, LocationType, User
 
 
 # This runs right after cmd arg parsing but after imports
@@ -277,12 +277,14 @@ def generate_data(session: Session) -> None:
     )
     from verve_backend.cli.setup_db import (
         setup_activity_types,
+        setup_location_types,
         setup_rls_policies,
     )
     from verve_backend.core.meta_data import LapData, SwimmingMetaData, SwimStyle
     from verve_backend.tasks import process_activity_highlights
 
     setup_activity_types(session)
+    setup_location_types(session)
     setup_rls_policies(session)
     # --------------------- USERS ------------------------------
     created_users: list[User] = []
@@ -443,6 +445,10 @@ def generate_data(session: Session) -> None:
             name="Mont Vontoux",
             latitude=44.17349080796914,
             longitude=5.277152032653785,
+            type_id=crud.get_by_name(session, LocationType, "Nature & Adventure")
+            .unwrap()
+            .id,
+            sub_type_id=crud.get_by_name(session, LocationSubType, "Peak").unwrap().id,
         ),
     )
 

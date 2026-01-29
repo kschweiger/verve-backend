@@ -2,6 +2,7 @@ import uuid
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlmodel import Session, select
 
 from verve_backend.models import (
     ActivitiesPublic,
@@ -9,6 +10,7 @@ from verve_backend.models import (
     ListResponse,
     LocationCreate,
     LocationPublic,
+    LocationSubType,
 )
 
 
@@ -228,3 +230,131 @@ def test_get_all_activities(
 
     assert len(data.data) == 1
     assert len(data.data[next(iter(data.data))]) == 1
+
+
+def test_modify_location_type(
+    db: Session,
+    client: TestClient,
+    temp_user_token: str,
+) -> None:
+    sub_type = db.exec(
+        select(LocationSubType).where(LocationSubType.name == "Climbing Gym")
+    ).first()
+
+    assert sub_type is not None
+
+    response = client.put(
+        "/location",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        json=LocationCreate(
+            name="Test Location",
+            description="A location for testing",
+            latitude=1,
+            longitude=1,
+            type_id=1,
+            sub_type_id=1,
+        ).model_dump(),
+    )
+
+    assert response.status_code == 200
+
+    location = LocationPublic.model_validate(response.json())
+    assert location.type_id == 1
+    assert location.sub_type_id == 1
+
+    response = client.patch(
+        f"/location/{location.id}/replace_type",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        params={
+            "type_id": sub_type.type_id,
+            "sub_type_id": sub_type.id,
+        },
+    )
+
+    assert response.status_code == 200
+
+    LocationPublic.model_validate(response.json())
+
+    response = client.get(
+        f"/location/{location.id}",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+
+    location = LocationPublic.model_validate(response.json())
+
+    assert location.type_id == sub_type.type_id
+    assert location.sub_type_id == sub_type.id
+
+
+def test_modify_location_type_invalid_combination(
+    db: Session,
+    client: TestClient,
+    temp_user_token: str,
+) -> None:
+    sub_type = db.exec(
+        select(LocationSubType).where(LocationSubType.name == "Climbing Gym")
+    ).first()
+
+    assert sub_type is not None
+    assert sub_type.type_id > 1
+
+    response = client.put(
+        "/location",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        json=LocationCreate(
+            name="Test Location",
+            description="A location for testing",
+            latitude=1,
+            longitude=1,
+            type_id=1,
+            sub_type_id=1,
+        ).model_dump(),
+    )
+
+    assert response.status_code == 200
+
+    location = LocationPublic.model_validate(response.json())
+
+    response = client.patch(
+        f"/location/{location.id}/replace_type",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        params={
+            "type_id": 1,
+            "sub_type_id": sub_type.id,
+        },
+    )
+
+    assert response.status_code == 400
+
+
+def test_modify_location_type_invalid_sub_type(
+    client: TestClient,
+    temp_user_token: str,
+) -> None:
+    response = client.put(
+        "/location",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        json=LocationCreate(
+            name="Test Location",
+            description="A location for testing",
+            latitude=1,
+            longitude=1,
+            type_id=1,
+            sub_type_id=1,
+        ).model_dump(),
+    )
+
+    assert response.status_code == 200
+
+    location = LocationPublic.model_validate(response.json())
+
+    response = client.patch(
+        f"/location/{location.id}/replace_type",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        params={
+            "type_id": 1,
+            "sub_type_id": 22222,
+        },
+    )
+
+    assert response.status_code == 404

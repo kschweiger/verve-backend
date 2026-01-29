@@ -2,7 +2,7 @@ import importlib.resources
 import logging
 import uuid
 from collections import defaultdict
-from typing import Generator
+from typing import Generator, Type, TypeVar
 
 from geo_track_analyzer import Track
 from geo_track_analyzer.exceptions import GPXPointExtensionError
@@ -11,7 +11,7 @@ from geoalchemy2.shape import from_shape, to_shape
 from pyproj import Transformer
 from shapely.geometry import Point
 from sqlalchemy.exc import DatabaseError
-from sqlmodel import Session, insert, select, text
+from sqlmodel import Session, col, insert, select, text
 
 from verve_backend.api.common.locale import get_activity_name
 from verve_backend.api.common.track import update_activity_with_track
@@ -41,6 +41,8 @@ from verve_backend.models import (
     GoalCreate,
     Location,
     LocationCreate,
+    LocationSubType,
+    LocationType,
     TrackPoint,
     User,
     UserCreate,
@@ -48,6 +50,8 @@ from verve_backend.models import (
     UserSettings,
 )
 from verve_backend.result import Err, ErrorType, Ok, Result, TypedResult
+
+T = TypeVar("T", ActivityType, ActivitySubType, LocationType, LocationSubType)
 
 logger = logging.getLogger(__name__)
 
@@ -455,6 +459,11 @@ def get_default_equipment_set(
 def create_location(
     *, session: Session, user_id: uuid.UUID, data: LocationCreate
 ) -> Result[Location, uuid.UUID]:
+    if data.type_id is None or data.sub_type_id is None:
+        err_id = uuid.uuid4()
+        logger.error("[%s] Location type and sub_type must be provided", err_id)
+        return Err(err_id)
+
     point = Point(data.longitude, data.latitude)
     wkb_element = from_shape(point, srid=4326)
     db_obj = Location.model_validate(
@@ -548,19 +557,14 @@ def get_activity_locations(
     return {_id for _id, _, _ in data}
 
 
-def get_type_by_name(session: Session, name: str) -> Result[ActivityType, None]:
-    _type = session.exec(select(ActivityType).where(ActivityType.name == name)).first()
-    if _type is None:
+def get_by_name(session: Session, model: Type[T], name: str) -> Result[T, None]:
+    """
+    Generic lookup for any SQLModel class that has a 'name' column.
+    """
+    statement = select(model).where(col(model.name) == name)
+    result = session.exec(statement).first()
+
+    if result is None:
         return Err(None)
 
-    return Ok(_type)
-
-
-def get_sub_type_by_name(session: Session, name: str) -> Result[ActivitySubType, None]:
-    _type = session.exec(
-        select(ActivitySubType).where(ActivitySubType.name == name)
-    ).first()
-    if _type is None:
-        return Err(None)
-
-    return Ok(_type)
+    return Ok(result)

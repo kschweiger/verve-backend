@@ -173,7 +173,7 @@ async def replace_heatmap_settings(
         check_and_raise_primary_key(session, ActivityType, _type_id)
         if _sub_type_id is not None:
             check_and_raise_primary_key(session, ActivitySubType, _sub_type_id)
-            validate_sub_type_id(session, _type_id, _sub_type_id)
+            validate_sub_type_id(session, ActivitySubType, _type_id, _sub_type_id)
 
     user_settings = session.get(UserSettings, UUID(_user_id))
     assert user_settings is not None

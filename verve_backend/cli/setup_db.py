@@ -8,6 +8,8 @@ from verve_backend.models import (
     ActivitySubType,
     ActivityType,
     DistanceRequirement,
+    LocationSubType,
+    LocationType,
     UserCreate,
 )
 from verve_backend.result import Err, Ok
@@ -54,6 +56,31 @@ DISTANCE_FORBIDDEN_TYPES = ["Strength Training", "Fitness & Flexibility"]
 
 DISTANCE_OPTIONAL_TYPES = ["Winter Sports", "Indoor Cardio", "Other"]
 
+LOCATION_TYPES = {
+    "Nature & Adventure": [
+        "Peak",
+        "Mountain Pass",
+        "Lake",
+        "Alpine Hut",
+        "Climbing Crag",
+        "Trailhead",
+        "Viewpoint",
+    ],
+    "Facilities": [
+        "Gym",
+        "Swimming Pool",
+        "Climbing Gym",
+        "Sports Center",
+        "Ski Resort",
+        "Bike Park",
+        "Stadium",
+    ],
+    "Travel & Logistics": ["Train Station", "Bus Stop", "Parking", "Hotel / Lodging"],
+    "Personal": ["Home", "Work"],
+    "Point of Interest": ["Landmark", "Other"],
+}
+
+
 RSL_TABLES = [
     ("activity", "activities"),
     ("activity_highlights", "activity_highlights"),
@@ -93,6 +120,21 @@ def setup_activity_types(session: Session) -> None:
             session.commit()
             print(f"    Created activity subtype: {sub_type}")
     print("Activity types setup complete!")
+
+
+def setup_location_types(session: Session) -> None:
+    for _type, _sub_types in LOCATION_TYPES.items():
+        atype = LocationType(name=_type)
+        session.add(atype)
+        session.commit()
+        session.refresh(atype)
+        print(f"  Created location type: {_type}")
+
+        for sub_type in _sub_types:
+            stype = LocationSubType(name=sub_type, type_id=atype.id)
+            session.add(stype)
+            session.commit()
+            print(f"    Created location subtype: {sub_type}")
 
 
 def setup_rls_policies(session: Session, schema: str = "api") -> None:

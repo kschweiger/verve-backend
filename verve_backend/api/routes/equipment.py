@@ -16,6 +16,7 @@ from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import UserSession
 from verve_backend.models import (
     Activity,
+    ActivitySubType,
     ActivityType,
     DefaultEquipmentSet,
     DictResponse,
@@ -362,7 +363,9 @@ def set_default_set(
     if not activity_type:
         raise HTTPException(status_code=404, detail="Activity type not found")
     if activity_sub_type_id:
-        validate_sub_type_id(session, activity_type_id, activity_sub_type_id)
+        validate_sub_type_id(
+            session, ActivitySubType, activity_type_id, activity_sub_type_id
+        )
 
     match crud.put_default_equipment_set(
         session=session,

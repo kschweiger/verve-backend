@@ -12,6 +12,7 @@ from verve_backend.models import (
     ActivitySubType,
     ActivityType,
     DistanceRequirement,
+    LocationSubType,
 )
 
 T = TypeVar("T", bound=SQLModel)
@@ -27,12 +28,17 @@ def check_and_raise_primary_key(
         )
 
 
-def validate_sub_type_id(session: Session, type_id: int, sub_type_id: int) -> None:
-    sub_type = session.get(ActivitySubType, sub_type_id)
+def validate_sub_type_id(
+    session: Session,
+    model: Type[ActivitySubType] | Type[LocationSubType],
+    type_id: int,
+    sub_type_id: int,
+) -> None:
+    sub_type = session.get(model, sub_type_id)
     if sub_type is None:
         raise HTTPException(
             status_code=HTTP_404_NOT_FOUND,
-            detail=f"ActivitySubType with id {id} not found",
+            detail=f"{model.__name__} id {id} not found",
         )
     if type_id != sub_type.type_id:
         raise HTTPException(
