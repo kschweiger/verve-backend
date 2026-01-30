@@ -108,6 +108,17 @@ class ActivityEquipment(SQLModel, table=True):
     )
 
 
+class LocationActivityLink(SQLModel, table=True):
+    __tablename__: str = "location_activity_links"  # type: ignore
+
+    location_id: uuid.UUID = Field(
+        foreign_key="locations.id", primary_key=True, ondelete="CASCADE"
+    )
+    activity_id: uuid.UUID = Field(
+        foreign_key="activities.id", primary_key=True, ondelete="CASCADE"
+    )
+
+
 # Shared properties
 class UserBase(SQLModel):
     name: str = Field(unique=True, min_length=6)
@@ -263,6 +274,14 @@ class Activity(ActivityBase, table=True):
     equipment: list["Equipment"] = Relationship(
         back_populates="activities",
         link_model=ActivityEquipment,
+        sa_relationship_kwargs={
+            "lazy": "select",
+        },
+    )
+
+    locations: list["Location"] = Relationship(
+        back_populates="activities",
+        link_model=LocationActivityLink,
         sa_relationship_kwargs={
             "lazy": "select",
         },
@@ -555,6 +574,15 @@ class Location(LocationBase, table=True):
     sub_type_id: PositiveNumber[int] = Field(
         foreign_key="location_sub_type.id", nullable=False
     )
+
+    activities: list[Activity] = Relationship(
+        back_populates="locations",
+        link_model=LocationActivityLink,
+        sa_relationship_kwargs={
+            "lazy": "select",
+        },
+    )
+
     __table_args__ = (
         Index(
             "idx_locations_loc",  # Index Name

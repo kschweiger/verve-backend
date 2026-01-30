@@ -544,6 +544,7 @@ def get_activity_locations(
     activity_id: uuid.UUID,
     match_distance: int = 50,
 ) -> set[uuid.UUID]:
+    logger.debug("Automated location-activity-matching")
     stmt = (
         importlib.resources.files("verve_backend.queries")
         .joinpath("locations_by_activity_id.sql")
@@ -554,7 +555,16 @@ def get_activity_locations(
         params={"match_distance_meters": match_distance, "activity_id": activity_id},
     ).all()
 
-    return {_id for _id, _, _ in data}
+    location_ids = {_id for _id, _, _ in data}
+
+    logger.debug("Database location-activity-association")
+
+    activity = session.get(Activity, activity_id)
+    assert activity is not None
+    if activity.locations:
+        location_ids.update({loc.id for loc in activity.locations})
+
+    return location_ids
 
 
 def get_by_name(session: Session, model: Type[T], name: str) -> Result[T, None]:

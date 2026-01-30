@@ -12,6 +12,7 @@ from sqlmodel import Session, col, delete, func, select
 from starlette.status import (
     HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST,
+    HTTP_404_NOT_FOUND,
     HTTP_422_UNPROCESSABLE_CONTENT,
     HTTP_500_INTERNAL_SERVER_ERROR,
 )
@@ -241,6 +242,59 @@ async def get_locations_for_activity(
         response_data.append(to_public_location(location))
 
     return ListResponse(data=response_data)
+
+
+@router.patch("/{id}/add_location", tags=[Tag.LOCATION])
+async def add_locations_to_activity(
+    user_session: UserSession,
+    id: uuid.UUID,
+    location_id: uuid.UUID,
+) -> Any:
+    _, session = user_session
+
+    activity = session.get(Activity, id)
+    if not activity:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Activity not found")
+
+    location = session.get(Location, location_id)
+    if not location:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Location not found")
+
+    activity.locations.append(location)
+    session.commit()
+
+    return {"detail": "Location added to activity"}
+
+
+@router.delete(
+    "/{id}/locations/{location_id}",
+    tags=[Tag.LOCATION],
+    status_code=HTTP_204_NO_CONTENT,
+)
+async def delete_location_from_activity(
+    user_session: UserSession,
+    id: uuid.UUID,
+    location_id: uuid.UUID,
+) -> None:
+    _, session = user_session
+
+    activity = session.get(Activity, id)
+    if not activity:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Activity not found")
+
+    location = session.get(Location, location_id)
+    if not location:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Location not found")
+
+    if location not in activity.locations:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail="Location not associated with activity",
+        )
+    activity.locations.remove(location)
+    session.commit()
+
+    return
 
 
 @router.get("/", response_model=ActivitiesPublic)
