@@ -130,6 +130,8 @@ def create_user_data(user: UserBase) -> None:
                 name="Some location",
                 latitude=1,
                 longitude=1,
+                type_id=1,
+                sub_type_id=1,
             ),
         )
 

@@ -14,6 +14,7 @@ from verve_backend import crud
 from verve_backend.api.common.location import (
     to_public_location,
 )
+from verve_backend.api.common.utils import validate_sub_type_id
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import UserSession
 from verve_backend.models import (
@@ -25,6 +26,7 @@ from verve_backend.models import (
     Location,
     LocationCreate,
     LocationPublic,
+    LocationSubType,
 )
 from verve_backend.result import Err, Ok
 
@@ -40,6 +42,13 @@ async def create_location(
 ) -> Any:
     _user_id, session = user_session
     user_id = uuid.UUID(_user_id)
+
+    if location.type_id is None:
+        sub_type_by_name = crud.get_by_name(
+            session=session, model=LocationSubType, name="Landmark"
+        ).unwrap()
+        location.type_id = sub_type_by_name.type_id
+        location.sub_type_id = sub_type_by_name.id
 
     result = crud.create_location(session=session, user_id=user_id, data=location)
     match result:
@@ -203,3 +212,31 @@ def get_activities_with_location(
         activities.append(ActivityPublic.model_validate(_activity))
 
     return ActivitiesPublic(data=activities, count=len(activities))
+
+
+@router.patch("/{id}/replace_type", response_model=LocationPublic)
+def updated_location_type(
+    user_session: UserSession,
+    id: uuid.UUID,
+    type_id: int,
+    sub_type_id: int,
+) -> Any:
+    _, session = user_session
+
+    location = session.get(Location, id)
+    if not location:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND, detail=f"Location {id} not found"
+        )
+
+    validate_sub_type_id(
+        session=session, model=LocationSubType, type_id=type_id, sub_type_id=sub_type_id
+    )
+
+    location.type_id = type_id
+    location.sub_type_id = sub_type_id
+    session.add(location)
+    session.commit()
+    session.refresh(location)
+
+    return to_public_location(location)

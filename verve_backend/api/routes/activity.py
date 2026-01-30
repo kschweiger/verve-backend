@@ -12,6 +12,7 @@ from sqlmodel import Session, col, delete, func, select
 from starlette.status import (
     HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST,
+    HTTP_404_NOT_FOUND,
     HTTP_422_UNPROCESSABLE_CONTENT,
     HTTP_500_INTERNAL_SERVER_ERROR,
 )
@@ -104,11 +105,16 @@ def update_activity(
         # Check that both fit together
         if "sub_type_id" in update_data and update_data["sub_type_id"] is not None:
             validate_sub_type_id(
-                session, update_data["type_id"], update_data["sub_type_id"]
+                session,
+                ActivitySubType,
+                update_data["type_id"],
+                update_data["sub_type_id"],
             )
         if "sub_type_id" not in update_data and activity.sub_type_id is not None:
             # Check that the current sub_type fits to the new type
-            validate_sub_type_id(session, update_data["type_id"], activity.sub_type_id)
+            validate_sub_type_id(
+                session, ActivitySubType, update_data["type_id"], activity.sub_type_id
+            )
 
         # Check that the new type_id works with the activity distance
         check_distance_requirement(
@@ -122,7 +128,9 @@ def update_activity(
         and "sub_type_id" in update_data
         and update_data["sub_type_id"] is not None
     ):
-        validate_sub_type_id(session, activity.type_id, update_data["sub_type_id"])
+        validate_sub_type_id(
+            session, ActivitySubType, activity.type_id, update_data["sub_type_id"]
+        )
     if "meta_data" in update_data and update_data["meta_data"] is None:
         raise HTTPException(
             status_code=HTTP_400_BAD_REQUEST, detail="meta_data cannot be set to null"
@@ -236,6 +244,59 @@ async def get_locations_for_activity(
     return ListResponse(data=response_data)
 
 
+@router.patch("/{id}/add_location", tags=[Tag.LOCATION])
+async def add_locations_to_activity(
+    user_session: UserSession,
+    id: uuid.UUID,
+    location_id: uuid.UUID,
+) -> Any:
+    _, session = user_session
+
+    activity = session.get(Activity, id)
+    if not activity:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Activity not found")
+
+    location = session.get(Location, location_id)
+    if not location:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Location not found")
+
+    activity.locations.append(location)
+    session.commit()
+
+    return {"detail": "Location added to activity"}
+
+
+@router.delete(
+    "/{id}/locations/{location_id}",
+    tags=[Tag.LOCATION],
+    status_code=HTTP_204_NO_CONTENT,
+)
+async def delete_location_from_activity(
+    user_session: UserSession,
+    id: uuid.UUID,
+    location_id: uuid.UUID,
+) -> None:
+    _, session = user_session
+
+    activity = session.get(Activity, id)
+    if not activity:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Activity not found")
+
+    location = session.get(Location, location_id)
+    if not location:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Location not found")
+
+    if location not in activity.locations:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail="Location not associated with activity",
+        )
+    activity.locations.remove(location)
+    session.commit()
+
+    return
+
+
 @router.get("/", response_model=ActivitiesPublic)
 def get_activities(
     user_session: UserSession,
@@ -254,7 +315,7 @@ def get_activities(
             detail="Sub Activity must be set together with Activity",
         )
     if type_id is not None and sub_type_id is not None:
-        validate_sub_type_id(session, type_id, sub_type_id)
+        validate_sub_type_id(session, ActivitySubType, type_id, sub_type_id)
 
     if year is None and month is not None:
         raise HTTPException(
@@ -437,7 +498,7 @@ def create_auto_activity(
             detail="Sub Activity must be set together with Activity",
         )
     if type_id is not None and sub_type_id is not None:
-        validate_sub_type_id(session, type_id, sub_type_id)
+        validate_sub_type_id(session, ActivitySubType, type_id, sub_type_id)
 
     if file_name.endswith(".json") and sniff_verve_format(
         json.loads(file_content.decode("utf-8"))

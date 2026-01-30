@@ -21,6 +21,7 @@ from verve_backend.models import (
     ActivityType,
     EquipmentSet,
     Image,
+    LocationCreate,
     RawTrackData,
     TrackPoint,
     UserPublic,
@@ -836,3 +837,66 @@ def test_import_invalid_other_file(
         files={"file": ("MyWhoosh_1.fit", fit_content, "application/octet-stream")},
     )
     assert response.status_code == 422
+
+
+def test_add_and_rm_location_to_activity(
+    client: TestClient,
+    db: Session,
+    temp_user_token: str,
+    temp_user_id: UUID,
+) -> None:
+    """Test deleting an activity without track or images."""
+    # Create activity
+    activity = Activity(
+        start=datetime(2024, 1, 1, 10),
+        duration=timedelta(minutes=30),
+        distance=1.0,
+        type_id=1,
+        sub_type_id=1,
+        name="Test Activity",
+        user_id=temp_user_id,
+    )
+    db.add(activity)
+    db.commit()
+    db.refresh(activity)
+    location = crud.create_location(
+        session=db,
+        user_id=temp_user_id,
+        data=LocationCreate(
+            name="Test Location",
+            description="A location for testing",
+            latitude=1,
+            longitude=1,
+            type_id=1,
+            sub_type_id=1,
+        ),
+    ).unwrap()
+
+    assert len(activity.locations) == 0
+
+    activity_id = activity.id
+    # Delete activity
+    response = client.patch(
+        f"/activity/{activity_id}/add_location",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        params={"location_id": str(location.id)},
+    )
+
+    assert response.status_code == 200
+
+    db.expire_all()  # Clear all cached objects
+    _activity = db.get(Activity, activity_id)
+    assert _activity is not None
+    assert len(_activity.locations) == 1
+    assert _activity.locations[0].id == location.id
+
+    response = client.delete(
+        f"/activity/{activity_id}/locations/{location.id}",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+    assert response.status_code == 204
+
+    db.expire_all()  # Clear all cached objects
+    _activity = db.get(Activity, activity_id)
+    assert _activity is not None
+    assert len(_activity.locations) == 0
