@@ -69,6 +69,7 @@ def get_resolved_types(
     tags=[Tag.ACTIVITY],
     response_model=ResolvedTypes,
     deprecated=True,
+    operation_id="get_all_activity_types_deprecated",
 )
 @router.get(
     "/activity_types",
