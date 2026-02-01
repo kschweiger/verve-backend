@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from uuid import UUID
 
@@ -29,9 +28,6 @@ from verve_backend.models import (
     ListResponse,
 )
 from verve_backend.result import Err, Ok
-
-# logger = logging.getLogger(__name__)
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/equipment", tags=[Tag.EQUIPMENT])
 

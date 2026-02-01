@@ -25,6 +25,7 @@ dependencies = [
   "shapely>=2.1.2",
   "sqlalchemy>=2.0.41",
   "sqlmodel>=0.0.24",
+  "structlog>=25.5.0",
 ]
 
 [project.scripts]

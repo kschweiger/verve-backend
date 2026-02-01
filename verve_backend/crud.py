@@ -1,9 +1,9 @@
 import importlib.resources
-import logging
 import uuid
 from collections import defaultdict
 from typing import Generator, Type, TypeVar
 
+import structlog
 from geo_track_analyzer import Track
 from geo_track_analyzer.exceptions import GPXPointExtensionError
 from geo_track_analyzer.processing import get_extension_value
@@ -53,7 +53,7 @@ from verve_backend.result import Err, ErrorType, Ok, Result, TypedResult
 
 T = TypeVar("T", ActivityType, ActivitySubType, LocationType, LocationSubType)
 
-logger = logging.getLogger(__name__)
+logger = structlog.getLogger(__name__)
 
 
 def create_user(

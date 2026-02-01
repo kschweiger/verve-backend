@@ -1,14 +1,14 @@
-import logging
 from datetime import timedelta
 from enum import StrEnum
 from typing import Any, Self
 from uuid import UUID, uuid4
 
+import structlog
 from pydantic import BaseModel, ValidationError, model_validator
 
 from verve_backend.models import ActivitySubType, ActivityType
 
-logger = logging.getLogger(__name__)
+logger = structlog.getLogger(__name__)
 
 
 class ActivityMetaData(BaseModel):

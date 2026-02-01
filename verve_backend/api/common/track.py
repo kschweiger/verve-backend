@@ -1,9 +1,9 @@
 import datetime
-import logging
 import uuid
 from io import BytesIO
 from time import perf_counter
 
+import structlog
 from fastapi import HTTPException
 from geo_track_analyzer import ByteTrack, FITTrack, Track
 from geo_track_analyzer.exceptions import (
@@ -24,7 +24,7 @@ from verve_backend.api.deps import ObjectStoreClient
 from verve_backend.core.config import settings
 from verve_backend.models import Activity, RawTrackData
 
-logger = logging.getLogger(__name__)
+logger = structlog.getLogger(__name__)
 
 
 def add_track(

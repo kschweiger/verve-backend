@@ -1,8 +1,8 @@
 import importlib.resources
-import logging
 import uuid
 from typing import Any
 
+import structlog
 from fastapi import APIRouter, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from sqlmodel import select, text
@@ -22,8 +22,7 @@ from verve_backend.models import (
 )
 from verve_backend.tasks import process_activity_highlights
 
-# logger = logging.getLogger(__name__)
-logger = logging.getLogger(__name__)
+logger = structlog.getLogger(__name__)
 
 router = APIRouter(prefix="/track", tags=[Tag.TRACK])
 

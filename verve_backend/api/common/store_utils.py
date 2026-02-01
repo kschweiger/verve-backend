@@ -1,13 +1,13 @@
-import logging
 import uuid
 
+import structlog
 from botocore.client import ClientError
 
 from verve_backend.api.deps import ObjectStoreClient
 from verve_backend.core.config import settings
 from verve_backend.result import Err, Ok, Result
 
-logger = logging.getLogger(__name__)
+logger = structlog.getLogger(__name__)
 
 
 def remove_object_from_store(

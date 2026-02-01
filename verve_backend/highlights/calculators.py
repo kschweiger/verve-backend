@@ -1,10 +1,10 @@
 import importlib.resources
-import logging
 from datetime import timedelta
 from functools import partial
 from typing import Callable
 from uuid import UUID
 
+import structlog
 from numpy import argmax
 from sqlalchemy.exc import NoResultFound
 from sqlmodel import Session, select, text
@@ -12,7 +12,7 @@ from sqlmodel import Session, select, text
 from verve_backend.highlights.registry import CalculatorResult, registry
 from verve_backend.models import Activity, HighlightMetric
 
-logger = logging.getLogger(__name__)
+logger = structlog.getLogger(__name__)
 
 
 # TODO: See if I need to change something here because of none-set distance

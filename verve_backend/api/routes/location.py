@@ -1,7 +1,7 @@
-import logging
 import uuid
 from typing import Annotated, Any, Literal
 
+import structlog
 from fastapi import APIRouter, HTTPException, Query
 from sqlmodel import col, func, select
 from starlette.status import (
@@ -30,7 +30,7 @@ from verve_backend.models import (
 )
 from verve_backend.result import Err, Ok
 
-logger = logging.getLogger(__name__)
+logger = structlog.getLogger(__name__)
 
 router = APIRouter(prefix="/location", tags=[Tag.LOCATION])
 

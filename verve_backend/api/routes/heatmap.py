@@ -1,5 +1,4 @@
 import importlib.resources
-import logging
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -20,8 +19,6 @@ class HeatMapResponse(BaseModel):
     points: list[tuple[float, float, float]]
     center: tuple[float, float] | None
 
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/heatmap",

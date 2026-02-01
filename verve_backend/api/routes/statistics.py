@@ -1,9 +1,9 @@
 import importlib.resources
-import logging
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from typing import Annotated, Any, Generic, TypeVar, cast
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlmodel import func, select, text
@@ -21,7 +21,7 @@ from verve_backend.transformations import CalendarWeek, build_calendar_response
 T = TypeVar("T", int, float)
 
 
-logger = logging.getLogger(__name__)
+logger = structlog.getLogger(__name__)
 
 router = APIRouter(prefix="/statistics", tags=["statistics"])
 

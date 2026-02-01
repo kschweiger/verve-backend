@@ -41,7 +41,7 @@ if settings.ENVIRONMENT == "local":
 
 
 @api_router.get("/health", tags=["Health"])
-def health_check(
+async def health_check(
     session: SessionDep,
 ) -> Any:
     from verve_backend.api.deps import get_s3_client
@@ -63,7 +63,7 @@ def health_check(
 
     # Check object store connection (boto3 compatible)
     try:
-        client = get_s3_client()
+        client = await get_s3_client()
         all_buckets = {b["Name"] for b in client.list_buckets()["Buckets"]}  # type: ignore
         if settings.BOTO3_BUCKET not in all_buckets:
             raise Exception(f"Bucket {settings.BOTO3_BUCKET} not found")

@@ -1,13 +1,13 @@
-import logging
 from dataclasses import dataclass
 from typing import Callable, TypeAlias
 from uuid import UUID
 
+import structlog
 from sqlmodel import Session
 
 from verve_backend.models import HighlightMetric
 
-logger = logging.getLogger(__name__)
+logger = structlog.getLogger(__name__)
 
 
 @dataclass

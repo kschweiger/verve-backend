@@ -1,4 +1,3 @@
-import logging
 from typing import Any, Type
 
 from fastapi import APIRouter
@@ -15,8 +14,6 @@ from verve_backend.models import (
 )
 
 router = APIRouter(prefix="/resolve")
-
-logger = logging.getLogger(__name__)
 
 
 class ResolvedSubType(BaseModel):
