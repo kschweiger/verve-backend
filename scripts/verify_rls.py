@@ -121,7 +121,9 @@ def create_user_data(user: UserBase) -> None:
             activity_id=activity_1.id,
             track=track,
         )
-        process_activity_highlights(activity_1.id, uuid.UUID(user_id))
+        process_activity_highlights(
+            activity_id=activity_1.id, user_id=uuid.UUID(user_id)
+        )
 
         crud.create_location(
             session=session,

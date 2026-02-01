@@ -335,7 +335,7 @@ def generate_data(session: Session) -> None:
         activity_id=activity_1.id,
         track=track,
     )
-    process_activity_highlights(activity_1.id, created_users[0].id)
+    process_activity_highlights(activity_id=activity_1.id, user_id=created_users[0].id)
 
     activity_2 = crud.create_activity(  # noqa: F841
         session=session,
@@ -413,7 +413,7 @@ def generate_data(session: Session) -> None:
         track=track,
     )
 
-    process_activity_highlights(activity_4.id, created_users[1].id)
+    process_activity_highlights(activity_id=activity_4.id, user_id=created_users[1].id)
     with (
         resources.files("tests.resources")
         .joinpath("processed_Weight_Training.json")

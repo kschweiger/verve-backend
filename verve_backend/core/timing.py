@@ -1,10 +1,10 @@
 import functools
-import logging
 import time
 from typing import Any, Callable
 
-logger = logging.getLogger(__name__)
-# logger = logging.getLogger(__name__)
+import structlog
+
+logger = structlog.getLogger(__name__)
 
 
 def log_timing(func: Callable) -> Callable:

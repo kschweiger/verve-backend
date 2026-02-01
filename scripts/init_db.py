@@ -214,6 +214,8 @@ with Session(engine) as session:
                 track=track,
             )
 
-            process_activity_highlights(_activity.id, created_users[0].id)
+            process_activity_highlights(
+                activity_id=_activity.id, user_id=created_users[0].id
+            )
             print("Added track %s" % i_track_added)
             i_track_added += 1

@@ -1,4 +1,3 @@
-import logging
 import uuid
 from datetime import datetime
 from typing import Annotated, Any, Literal
@@ -24,9 +23,6 @@ from verve_backend.enums import GoalType, TemporalType
 from verve_backend.goal import update_goal_state
 from verve_backend.models import Goal, GoalCreate, GoalPublic, GoalsPublic, ListResponse
 from verve_backend.result import Err, ErrorType, Ok
-
-# logger = logging.getLogger(__name__)
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/goal", tags=[Tag.GOAL])
 

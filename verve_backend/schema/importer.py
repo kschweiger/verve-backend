@@ -1,8 +1,8 @@
-import logging
 from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
 
+import structlog
 from geo_track_analyzer import GeoJsonTrack
 from geo_track_analyzer.exceptions import GeoJsonWithoutGeometryError
 from sqlmodel import Session, select
@@ -20,7 +20,7 @@ from verve_backend.schema.verve_file import (
     VerveFeature,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.getLogger(__name__)
 
 
 def sniff_verve_format(data: dict[str, Any]) -> bool:

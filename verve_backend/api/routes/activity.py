@@ -1,10 +1,10 @@
 import datetime
 import json
-import logging
 import uuid
 from io import BytesIO
 from typing import Annotated, Any
 
+import structlog
 from fastapi import APIRouter, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
@@ -70,7 +70,7 @@ class ActivityUpdate(BaseModel):
 
 router = APIRouter(prefix="/activity", tags=[Tag.ACTIVITY])
 
-logger = logging.getLogger(__name__)
+logger = structlog.getLogger(__name__)
 
 
 @router.get("/{id}", response_model=ActivityPublic)
@@ -586,7 +586,7 @@ def create_auto_activity(
 
         session.commit()
 
-    process_activity_highlights.delay(activity.id, user_id)  # type: ignore
+    process_activity_highlights.delay(activity_id=activity.id, user_id=user_id)  # type: ignore
 
     return activity
 
@@ -617,6 +617,6 @@ def import_verve_file(
         overwrite_sub_type_id=None,
     )
 
-    process_activity_highlights.delay(activity.id, user_id)  # type: ignore
+    process_activity_highlights.delay(activity_id=activity.id, user_id=user_id)  # type: ignore
 
     return activity

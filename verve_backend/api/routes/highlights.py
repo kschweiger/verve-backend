@@ -1,4 +1,3 @@
-import logging
 import uuid
 from collections import defaultdict
 from typing import Any
@@ -18,9 +17,6 @@ from verve_backend.models import (
     HighlightTimeScope,
     ListResponse,
 )
-
-# logger = logging.getLogger(__name__)
-logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/highlights",

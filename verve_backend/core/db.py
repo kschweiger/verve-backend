@@ -1,13 +1,8 @@
 # from app import crud
-import logging
-
 from sqlalchemy import Engine
 from sqlmodel import create_engine
 
 from verve_backend.core.config import settings
-
-# logger = logging.getLogger(__name__)
-logger = logging.getLogger(__name__)
 
 
 def get_engine(echo: bool = False, rls: bool = False) -> Engine:

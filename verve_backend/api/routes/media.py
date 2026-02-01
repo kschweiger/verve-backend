@@ -1,8 +1,8 @@
-import logging
 import uuid
 from io import BytesIO
 from typing import Any
 
+import structlog
 from fastapi import APIRouter, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -37,7 +37,7 @@ class ImageURLResponse(BaseModel):
 
 router = APIRouter(prefix="/media", tags=[Tag.MEDIA])
 
-logger = logging.getLogger(__name__)
+logger = structlog.getLogger(__name__)
 
 
 @router.put("/image/activity/{activity_id}", tags=[Tag.IMAGE, Tag.UPLOAD])

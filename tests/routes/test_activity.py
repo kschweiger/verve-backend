@@ -117,11 +117,11 @@ def test_auto_activity(
     assert len(raw_data["data"]) > 0
 
     mock_delay.assert_called_once()
-    call_args, _ = mock_delay.call_args
+    call_args, call_kwargs = mock_delay.call_args
 
-    # call_args is a tuple of the positional arguments: (activity_id, user_id)
-    assert len(call_args) == 2
-    assert call_args[0] == activity.id
+    assert len(call_args) == 0
+    assert len(call_kwargs) == 2
+    assert call_kwargs["activity_id"] == activity.id
 
     response = client.get(
         "/users/me", headers={"Authorization": f"Bearer {user1_token}"}
@@ -129,7 +129,7 @@ def test_auto_activity(
     assert response.status_code == 200
     user = UserPublic.model_validate(response.json())
 
-    assert call_args[1] == user.id
+    assert call_kwargs["user_id"] == user.id
 
 
 def test_auto_activity_e2e_with_eager_celery(

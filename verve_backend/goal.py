@@ -1,8 +1,8 @@
-import logging
 from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
+import structlog
 from pydantic import BaseModel
 from sqlmodel import Session, col, func, select
 
@@ -21,7 +21,7 @@ from verve_backend.models import (
 )
 from verve_backend.result import ErrorType
 
-logger = logging.getLogger(__name__)
+logger = structlog.getLogger(__name__)
 
 
 class GoalContraints(BaseModel):
