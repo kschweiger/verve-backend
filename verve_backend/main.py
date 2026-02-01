@@ -10,7 +10,7 @@ from fastapi.routing import APIRoute
 
 from verve_backend.api.main import api_router
 from verve_backend.core.config import settings
-from verve_backend.core.logging_utils import setup_logging
+from verve_backend.core.logging_utils import request_id_context, setup_logging
 
 access_logger = structlog.getLogger("verve_backend.access")
 logger = structlog.getLogger("verve_backend.main")
@@ -39,9 +39,10 @@ app = FastAPI(
 @app.middleware("http")
 async def logging_middleware(request: Request, call_next):  # noqa: ANN201
     request_id = str(uuid.uuid4())
+    token = request_id_context.set(request_id)
     structlog.contextvars.clear_contextvars()
     structlog.contextvars.bind_contextvars(
-        bound_request_id=request_id,
+        request_id=request_id,
     )
 
     start_time = time.perf_counter()
@@ -69,6 +70,9 @@ async def logging_middleware(request: Request, call_next):  # noqa: ANN201
         process_time = time.perf_counter() - start_time
         access_logger.error(f"Request failed: {e}")
         raise e
+    finally:
+        # Reset context
+        request_id_context.reset(token)
 
 
 app.add_middleware(

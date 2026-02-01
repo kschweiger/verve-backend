@@ -1,8 +1,17 @@
+import contextvars
 import logging
 
 import structlog
 
 from verve_backend.core.config import settings
+
+request_id_context: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "request_id", default=None
+)
+
+
+def get_request_id() -> str:
+    return request_id_context.get() or "-"
 
 
 def add_logger_name_safe(logger, method_name, event_dict: dict) -> dict:

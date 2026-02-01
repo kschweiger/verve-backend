@@ -586,7 +586,7 @@ def create_auto_activity(
 
         session.commit()
 
-    process_activity_highlights.delay(activity.id, user_id)  # type: ignore
+    process_activity_highlights.delay(activity_id=activity.id, user_id=user_id)  # type: ignore
 
     return activity
 
@@ -617,6 +617,6 @@ def import_verve_file(
         overwrite_sub_type_id=None,
     )
 
-    process_activity_highlights.delay(activity.id, user_id)  # type: ignore
+    process_activity_highlights.delay(activity_id=activity.id, user_id=user_id)  # type: ignore
 
     return activity
