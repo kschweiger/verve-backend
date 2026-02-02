@@ -66,6 +66,9 @@ class ActivityUpdate(BaseModel):
     sub_type_id: int | None = None
     meta_data: dict | None = None
     name: str | None = None
+    duration: datetime.timedelta | None = None
+    moving_duration: datetime.timedelta | None = None
+    distance: float | None = None
 
 
 router = APIRouter(prefix="/activity", tags=[Tag.ACTIVITY])
@@ -134,6 +137,10 @@ def update_activity(
     if "meta_data" in update_data and update_data["meta_data"] is None:
         raise HTTPException(
             status_code=HTTP_400_BAD_REQUEST, detail="meta_data cannot be set to null"
+        )
+    if "duration" in update_data and update_data["duration"] is None:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST, detail="duration cannot be set to null"
         )
     for field, value in update_data.items():
         setattr(activity, field, value)
