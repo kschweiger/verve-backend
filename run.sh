@@ -31,6 +31,16 @@ else
   echo "--- ⏩ ADMIN_PASSWORD not set. Skipping admin check. ---"
 fi
 
+# -----------------------------------------------------
+# 3. Security Verification (MANDATORY)
+# -----------------------------------------------------
+echo "--- 🔒 Verifying Row Level Security (RLS) ---"
+# This script exits with code 1 if RLS is missing, stopping the container
+python -m verve_backend.cli.ensure_rls
+
+# -----------------------------------------------------
+# 4. Start Application
+# -----------------------------------------------------
 echo "--- 🦄 Starting Uvicorn ---"
 echo "Workers: $WORKERS | Timeout: $TIMEOUT"
 

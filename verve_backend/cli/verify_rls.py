@@ -1,7 +1,8 @@
+import asyncio
 import logging
 import sys
 import uuid
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from datetime import datetime, timedelta
 
 from geo_track_analyzer import PyTrack
@@ -79,8 +80,15 @@ def create_users() -> tuple[models.UserPublic, models.UserPublic]:
         return UserPublic.model_validate(user_a), UserPublic.model_validate(user_b)
 
 
-def create_user_data(user: UserBase) -> None:
-    with contextmanager(get_user_session)(user=user) as (user_id, session):  # type: ignore
+async def create_user_data(user: UserBase) -> None:
+    # Manually consume the async generator
+    async_gen = get_user_session(user=user)  # type: ignore
+    try:
+        user_id_str, session = await anext(async_gen)
+
+        # -----------------------------------------------------
+        # Synchronous DB operations inside the async session context
+        # -----------------------------------------------------
         activity_1 = crud.create_activity(
             session=session,
             create=models.ActivityCreate(
@@ -113,7 +121,7 @@ def create_user_data(user: UserBase) -> None:
             session=session,
             track=track,
             activity_id=activity_1.id,
-            user_id=user_id,
+            user_id=user_id_str,
             batch_size=500,
         )
         crud.update_activity_with_track_data(
@@ -121,19 +129,18 @@ def create_user_data(user: UserBase) -> None:
             activity_id=activity_1.id,
             track=track,
         )
+        # Assuming process_activity_highlights is a Celery task that can run
+        # synchronously or we invoke the underlying function directly if
+        # it's imported
         process_activity_highlights(
-            activity_id=activity_1.id, user_id=uuid.UUID(user_id)
+            activity_id=activity_1.id, user_id=uuid.UUID(user_id_str)
         )
 
         crud.create_location(
             session=session,
-            user_id=uuid.UUID(user_id),
+            user_id=uuid.UUID(user_id_str),
             data=models.LocationCreate(
-                name="Some location",
-                latitude=1,
-                longitude=1,
-                type_id=1,
-                sub_type_id=1,
+                name="Some location", latitude=1, longitude=1, type_id=1, sub_type_id=1
             ),
         )
 
@@ -143,25 +150,25 @@ def create_user_data(user: UserBase) -> None:
                 name="Basic Bike",
                 equipment_type=models.EquipmentType.BIKE,
             ),
-            user_id=user_id,
+            user_id=user_id_str,
         ).unwrap()
 
         equipment_set = crud.create_equipment_set(
             session=session,
             name="Basic Set",
             data=[equipment_1],
-            user_id=uuid.UUID(user_id),
+            user_id=uuid.UUID(user_id_str),
         ).unwrap()
 
         crud.put_default_equipment_set(
             session=session,
-            user_id=uuid.UUID(user_id),
+            user_id=uuid.UUID(user_id_str),
             set_id=equipment_set.id,
             activity_type_id=1,
             activity_sub_type_id=1,
         )
         goal_0 = crud.create_goal(  # noqa: F841
-            user_id=user_id,
+            user_id=user_id_str,
             session=session,
             goal=models.GoalCreate(
                 name="Fix Month Goal 0",
@@ -180,7 +187,7 @@ def create_user_data(user: UserBase) -> None:
                     metric="heart_rate",
                     start=None,
                     end=100,
-                    user_id=uuid.UUID(user_id),
+                    user_id=uuid.UUID(user_id_str),
                     color="#FF0000",
                 ),
                 models.ZoneInterval(
@@ -188,7 +195,7 @@ def create_user_data(user: UserBase) -> None:
                     metric="heart_rate",
                     start=100,
                     end=150,
-                    user_id=uuid.UUID(user_id),
+                    user_id=uuid.UUID(user_id_str),
                     color="#00FF00",
                 ),
                 models.ZoneInterval(
@@ -196,7 +203,7 @@ def create_user_data(user: UserBase) -> None:
                     metric="heart_rate",
                     start=150,
                     end=None,
-                    user_id=uuid.UUID(user_id),
+                    user_id=uuid.UUID(user_id_str),
                     color="#0000FF",
                 ),
             ]
@@ -210,7 +217,7 @@ def create_user_data(user: UserBase) -> None:
                     (id, user_id, activity_id)
                 VALUES (
                     '{uuid.uuid4()}',
-                    '{user_id}',
+                    '{user_id_str}',
                     '{activity_1.id}'
                 )
                 """
@@ -223,18 +230,27 @@ def create_user_data(user: UserBase) -> None:
                     (store_path, user_id, activity_id)
                 VALUES (
                     'blubb',
-                    '{user_id}',
+                    '{user_id_str}',
                     '{activity_1.id}'
                 )
                 """
             )  # type: ignore
         )
         session.commit()
+    finally:
+        # Close the async generator
+        with suppress(StopAsyncIteration):
+            await anext(async_gen)
 
 
-def check_tables(user: UserPublic, tables: list[str], exp_data: bool) -> bool:
+async def check_tables(user: UserPublic, tables: list[str], exp_data: bool) -> bool:
     overall_success = True
-    with contextmanager(get_user_session)(user=user) as (_, session):  # type: ignore
+
+    # Manually consume async generator for checking
+    async_gen = get_user_session(user=user)  # type: ignore
+    try:
+        _, session = await anext(async_gen)
+
         for name in tables:
             stmt = text(f"SELECT * FROM {name}")
             data = session.exec(stmt).all()  # type: ignore
@@ -249,6 +265,9 @@ def check_tables(user: UserPublic, tables: list[str], exp_data: bool) -> bool:
                 console.print(
                     f"[red][FAIL][/red] Table '{name}' for user '{user.name}'"
                 )
+    finally:
+        with suppress(StopAsyncIteration):
+            await anext(async_gen)
 
     if overall_success:
         console.print(f"[green]All RLS checks passed for user '{user.name}'[/green]")
@@ -265,15 +284,21 @@ def cleanup(users: list[models.UserPublic]) -> None:
         session.commit()
 
 
-def main() -> None:
+async def async_main() -> None:
     user_a, user_b = create_users()
-    create_user_data(user_a)
+
+    # Await the creation of data
+    await create_user_data(user_a)
+
     tables = find_all_relevant_tables()
     console.print(f"Found {len(tables)} relevant tables with user_id column.")
+
     console.print("Running test with user A (should see data)...")
-    user_a_check = check_tables(user_a, tables, exp_data=True)
+    user_a_check = await check_tables(user_a, tables, exp_data=True)
+
     console.print("Running test with user B (should see no data)...")
-    user_b_check = check_tables(user_b, tables, exp_data=False)
+    user_b_check = await check_tables(user_b, tables, exp_data=False)
+
     cleanup(users=[user_a, user_b])
 
     if user_a_check and user_b_check:
@@ -282,6 +307,10 @@ def main() -> None:
     else:
         console.print("[bold red]RLS verification failed![/bold red]")
         sys.exit(1)
+
+
+def main() -> None:
+    asyncio.run(async_main())
 
 
 if __name__ == "__main__":
