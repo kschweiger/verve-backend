@@ -1,4 +1,22 @@
 <!-- insertion marker -->
+<a name="1.6.0"></a>
+
+## [1.6.0](https://github.com/kschweiger/verve-backend/compare/1.5.1...1.6.0) (2026-02-03)
+
+### Features
+
+- Add RLS varification to container run script (#37) ([1b6b211](https://github.com/kschweiger/verve-backend/commit/1b6b211aab55a4786e3e0253282a9f83d31a3e6e))
+- 🏃 Add duration, moving_duration, and distance to activity updates (#39) ([8a85906](https://github.com/kschweiger/verve-backend/commit/8a85906889575549cbbc7c98fdcb0a3c722aec91))
+- 🏷️ add location type system and location-activity associations (#38) ([972c97d](https://github.com/kschweiger/verve-backend/commit/972c97d41ba75d5b6e3d7fa67111dd67c7c0eee3))
+
+### Bug Fixes
+
+- **resolver:** Duplicate Operation ID UserWarning from fastapi ([4ce17db](https://github.com/kschweiger/verve-backend/commit/4ce17db5772aaa8ddd6bf0df02ec6aeddac43a8e))
+
+### Code Refactoring
+
+- 🔄 migrate logging to structlog with async improvements (#36) ([70eb041](https://github.com/kschweiger/verve-backend/commit/70eb04168f8510dd520497f4c912644bc394c4f2))
+
 <a name="1.5.1"></a>
 
 ## [1.5.1](https://github.com/kschweiger/verve-backend/compare/1.5.0...1.5.1) (2026-01-26)
