@@ -1,4 +1,12 @@
 <!-- insertion marker -->
+<a name="1.6.1"></a>
+
+## [1.6.1](https://github.com/kschweiger/verve-backend/compare/1.6.0...1.6.1) (2026-02-08)
+
+### Bug Fixes
+
+- Add user_id to access logger ([a56ce98](https://github.com/kschweiger/verve-backend/commit/a56ce98465ab3aad60e6bf02c101a1ab343ad408))
+
 <a name="1.6.0"></a>
 
 ## [1.6.0](https://github.com/kschweiger/verve-backend/compare/1.5.1...1.6.0) (2026-02-03)
