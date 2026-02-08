@@ -52,6 +52,9 @@ async def logging_middleware(request: Request, call_next):  # noqa: ANN201
 
         process_time = time.perf_counter() - start_time
 
+        if hasattr(request.state, "user_id"):
+            structlog.contextvars.bind_contextvars(user_id=request.state.user_id)
+
         host = request.client.host if request.client else None
 
         access_logger.info(

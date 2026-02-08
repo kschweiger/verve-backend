@@ -6,7 +6,7 @@ import boto3
 import jwt
 import structlog
 from botocore.config import Config
-from fastapi import Depends, HTTPException, Query, status
+from fastapi import Depends, HTTPException, Query, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from mypy_boto3_s3.client import S3Client
@@ -35,7 +35,11 @@ SessionDep = Annotated[Session, Depends(get_db)]
 TokenDep = Annotated[str, Depends(reusable_oauth2)]
 
 
-async def get_current_user(session: SessionDep, token: TokenDep) -> User:
+async def get_current_user(
+    request: Request,
+    session: SessionDep,
+    token: TokenDep,
+) -> User:
     try:
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
@@ -52,7 +56,12 @@ async def get_current_user(session: SessionDep, token: TokenDep) -> User:
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
 
-    bind_contextvars(user_id=str(user.id))
+    # Add the user is to the logger und the requests so we can log it in the
+    # access logger
+    user_id_str = str(user.id)
+    bind_contextvars(user_id=user_id_str)
+    request.state.user_id = user_id_str
+
     return user
 
 
