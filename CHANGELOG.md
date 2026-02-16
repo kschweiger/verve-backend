@@ -1,4 +1,16 @@
 <!-- insertion marker -->
+<a name="1.6.2"></a>
+
+## [1.6.2](https://github.com/kschweiger/verve-backend/compare/1.6.1...1.6.2) (2026-02-16)
+
+### Bug Fixes
+
+- 🔗 Include manual links in all location-activity queries ([abbf669](https://github.com/kschweiger/verve-backend/commit/abbf669767dca7e418d05214aee1ddfee8b1d2bb))
+
+### Code Refactoring
+
+- ⚙️ Externalize location match radius to settings ([dcde7ea](https://github.com/kschweiger/verve-backend/commit/dcde7eacf0db9843454784b4f8937b1aab92305d))
+
 <a name="1.6.1"></a>
 
 ## [1.6.1](https://github.com/kschweiger/verve-backend/compare/1.6.0...1.6.1) (2026-02-08)
