@@ -40,6 +40,7 @@ from verve_backend.models import (
     Goal,
     GoalCreate,
     Location,
+    LocationActivityLink,
     LocationCreate,
     LocationSubType,
     LocationType,
@@ -490,7 +491,7 @@ def create_location(
 def get_activities_for_location(
     session: Session,
     location: Location,
-    match_distance: int = 50,
+    match_distance: int,
 ) -> list[uuid.UUID]:
     point = to_shape(location.loc)
     latitude = point.y  # type: ignore
@@ -511,28 +512,48 @@ def get_activities_for_location(
         },
     ).all()
 
-    return [_id for _id, _ in data]
+    final_ids = [_id for _id, _ in data]
+
+    manual_location_ids = session.exec(
+        select(LocationActivityLink.activity_id).where(
+            LocationActivityLink.location_id == location.id
+        )
+    ).all()
+
+    final_ids = final_ids + [lid for lid in manual_location_ids]
+    return final_ids
 
 
 @log_timing
 def get_location_activity_map(
     session: Session,
-    match_distance: int = 50,
+    match_distance: int,
 ) -> dict[uuid.UUID, set[uuid.UUID]]:
     stmt = (
         importlib.resources.files("verve_backend.queries")
         .joinpath("join_locations_to_tracks.sql")
         .read_text()
     )
-    data = session.exec(
+    data_match = session.exec(
         text(stmt),  # type: ignore
         params={
             "match_distance_meters": match_distance,
         },
     ).all()
 
+    stmt = (
+        importlib.resources.files("verve_backend.queries")
+        .joinpath("get_manual_activity_location_map.sql")
+        .read_text()
+    )
+    data_manual = session.exec(
+        text(stmt),  # type: ignore
+    ).all()
+
     _map = defaultdict(set)
-    for location_id, activity_id, _, _ in data:
+    for location_id, activity_id, _, _ in data_match:
+        _map[location_id].add(activity_id)
+    for activity_id, location_id in data_manual:
         _map[location_id].add(activity_id)
 
     return _map
@@ -542,7 +563,7 @@ def get_location_activity_map(
 def get_activity_locations(
     session: Session,
     activity_id: uuid.UUID,
-    match_distance: int = 50,
+    match_distance: int,
 ) -> set[uuid.UUID]:
     logger.debug("Automated location-activity-matching")
     stmt = (
