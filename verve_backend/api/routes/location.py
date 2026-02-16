@@ -17,6 +17,7 @@ from verve_backend.api.common.location import (
 from verve_backend.api.common.utils import validate_sub_type_id
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import UserSession
+from verve_backend.core.config import settings
 from verve_backend.models import (
     ActivitiesPublic,
     Activity,
@@ -112,7 +113,9 @@ async def get_all_activities(
 ) -> Any:
     _, session = user_session
 
-    location_activity_map = crud.get_location_activity_map(session, 100)
+    location_activity_map = crud.get_location_activity_map(
+        session, settings.LOCATION_MATCH_RADIUS_METERS
+    )
 
     return DictResponse(data=location_activity_map)
 
@@ -206,7 +209,9 @@ def get_activities_with_location(
         )
 
     activities = []
-    for _id in crud.get_activities_for_location(session, location):
+    for _id in crud.get_activities_for_location(
+        session, location, settings.LOCATION_MATCH_RADIUS_METERS
+    ):
         _activity = session.get(Activity, _id)
         assert _activity is not None
         activities.append(ActivityPublic.model_validate(_activity))

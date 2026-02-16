@@ -241,7 +241,9 @@ async def get_locations_for_activity(
 
     response_data = []
 
-    location_ids = crud.get_activity_locations(session, activity.id)
+    location_ids = crud.get_activity_locations(
+        session, activity.id, settings.LOCATION_MATCH_RADIUS_METERS
+    )
     for _id in location_ids:
         location = session.get(Location, _id)
         assert location is not None

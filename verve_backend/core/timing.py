@@ -1,17 +1,20 @@
 import functools
 import time
-from typing import Any, Callable
+from typing import Callable, ParamSpec, TypeVar
 
 import structlog
 
 logger = structlog.getLogger(__name__)
 
+P = ParamSpec("P")
+T = TypeVar("T")
 
-def log_timing(func: Callable) -> Callable:
+
+def log_timing(func: Callable[P, T]) -> Callable[P, T]:
     """Decorator that logs execution time of a function to debug logger."""
 
     @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
         start_time = time.perf_counter()
         try:
             result = func(*args, **kwargs)

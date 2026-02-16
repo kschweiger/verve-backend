@@ -254,7 +254,7 @@ class ActivityBase(SQLModel):
 
 
 class ActivityCreate(ActivityBase):
-    name: str | None
+    name: str | None  # type: ignore
 
 
 class ActivityPublic(ActivityBase):

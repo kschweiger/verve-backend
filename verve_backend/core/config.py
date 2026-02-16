@@ -61,6 +61,8 @@ class Settings(BaseSettings):
 
     MAX_FILE_SIZE_MB: int = 10
 
+    LOCATION_MATCH_RADIUS_METERS: int = 100
+
     DEFAULTSETTINGS: DefautlSettings = DefautlSettings(
         activity_type=1, activity_sub_type=None
     )

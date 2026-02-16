@@ -6,6 +6,7 @@ import structlog
 from pydantic import BaseModel
 from sqlmodel import Session, col, func, select
 
+from verve_backend.core.config import settings
 from verve_backend.core.date_utils import get_week_date_range
 from verve_backend.core.timing import log_timing
 from verve_backend.enums import GoalAggregation, GoalType, TemporalType
@@ -268,6 +269,7 @@ def update_goal_state(*, session: Session, user_id: UUID, goal: Goal) -> Goal:
             possible_activity_ids=crud.get_activities_for_location(
                 session=session,
                 location=location,
+                match_distance=settings.LOCATION_MATCH_RADIUS_METERS,
             ),
             filter_distance=False,
         )
