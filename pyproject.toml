@@ -12,7 +12,7 @@ dependencies = [
   "boto3-stubs[s3]>=1.40.21",
   "celery>=5.5.3",
   "fastapi[standard]>=0.115.12",
-  "geo-track-analyzer @ git+https://github.com/kschweiger/track_analyzer@v2",
+  "geo-track-analyzer>=2,<3",
   "geoalchemy2>=0.17.1",
   "gevent>=25.9.1",
   "passlib>=1.7.4",
