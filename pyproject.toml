@@ -8,17 +8,17 @@ requires-python = ">=3.13,<3.14"
 dependencies = [
   "alembic==1.18.4",
   "bcrypt==4.3.0",
-  "boto3==1.42.51",
-  "boto3-stubs[s3]==1.42.51",
+  "boto3==1.42.53",
+  "boto3-stubs[s3]==1.42.53",
   "celery==5.6.2",
   "fastapi[standard]==0.129.0",
   "geo-track-analyzer==2.0.1",
   "geoalchemy2==0.18.1",
   "gevent==25.9.1",
   "passlib==1.7.4",
-  "psycopg==3.3.2",
+  "psycopg==3.3.3",
   "pydantic==2.12.5",
-  "pydantic-settings==2.13.0",
+  "pydantic-settings==2.13.1",
   "pyjwt==2.11.0",
   "pyproj==3.7.2",
   "redis==7.2.0",
@@ -73,17 +73,17 @@ ignore = [
 
 [dependency-groups]
 dev = [
-  "debugpy>=1.8.17",
-  "matplotlib>=3.10.3",
-  "pandas>=2.2.3",
-  "plotly>=5.24.1",
-  "rich>=14.2.0",
+  "debugpy>=1.8.20",
+  "matplotlib>=3.10.8",
+  "pandas>=2.3.3",
+  "plotly>=6.5.2",
+  "rich>=14.3.3",
   "seaborn>=0.13.2",
   { include-group = "test" },
 ]
 test = [
-  "pillow>=12.0.0",
-  "pytest>=8.4.2",
+  "pillow>=12.1.1",
+  "pytest>=9.0.2",
   "pytest-cov>=7.0.0",
   "pytest-mock>=3.15.1",
   "pytest-sugar>=1.1.1",
@@ -92,7 +92,7 @@ test = [
 package = true
 
 [build-system]
-requires = ["uv_build>=0.10.2,<0.11.0"]
+requires = ["uv_build>=0.10.4,<0.11.0"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
