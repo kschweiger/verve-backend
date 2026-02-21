@@ -433,7 +433,7 @@ wheels = [
 
 [[package]]
 name = "fastapi"
-version = "0.129.0"
+version = "0.129.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "annotated-doc" },
@@ -442,9 +442,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/48/47/75f6bea02e797abff1bca968d5997793898032d9923c1935ae2efdece642/fastapi-0.129.0.tar.gz", hash = "sha256:61315cebd2e65df5f97ec298c888f9de30430dd0612d59d6480beafbc10655af", size = 375450, upload-time = "2026-02-12T13:54:52.541Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fd/cc/1b0d90ed759ff8c9dbc4800de7475d4e9256a81b97b45bd05a1affcb350a/fastapi-0.129.2.tar.gz", hash = "sha256:e2b3637a2b47856e704dbd9a3a09393f6df48e8b9cb6c7a3e26ba44d2053f9ab", size = 368211, upload-time = "2026-02-21T17:25:49.198Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9e/dd/d0ee25348ac58245ee9f90b6f3cbb666bf01f69be7e0911f9851bddbda16/fastapi-0.129.0-py3-none-any.whl", hash = "sha256:b4946880e48f462692b31c083be0432275cbfb6e2274566b1be91479cc1a84ec", size = 102950, upload-time = "2026-02-12T13:54:54.528Z" },
+    { url = "https://files.pythonhosted.org/packages/18/d0/a89a640308016c7fff8d2a47b86cc03ee7cca780b5079d0b69f466f9e1a9/fastapi-0.129.2-py3-none-any.whl", hash = "sha256:e21d9f6e8db376655187905ad0145edd6f6a4e5f2bff241c4efb8a0bffd6a540", size = 103227, upload-time = "2026-02-21T17:25:47.745Z" },
 ]
 
 [package.optional-dependencies]
@@ -1541,15 +1541,15 @@ wheels = [
 
 [[package]]
 name = "sqlmodel"
-version = "0.0.35"
+version = "0.0.37"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "sqlalchemy" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a6/fd/6f468f52977b85f8b1af3f0d7d4396ed77804a59bf589f2f47c524383388/sqlmodel-0.0.35.tar.gz", hash = "sha256:e0079a6ec569323587ffb7326bbbc9d9a1a92e9be271b18e83f54d4a4200d6ac", size = 86087, upload-time = "2026-02-20T16:42:21.254Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fb/26/1d2faa0fd5a765267f49751de533adac6b9ff9366c7c6e7692df4f32230f/sqlmodel-0.0.37.tar.gz", hash = "sha256:d2c19327175794faf50b1ee31cc966764f55b1dedefc046450bc5741a3d68352", size = 85527, upload-time = "2026-02-21T16:39:47.038Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8f/f3/90f7b2eb86e590b74cf33e37a5313c074092684666355201afe9a1ae7ef5/sqlmodel-0.0.35-py3-none-any.whl", hash = "sha256:367c11719bc4967430d5aadc43ee1a6f7638b9c82ee7c8835401400e05ec9431", size = 27221, upload-time = "2026-02-20T16:42:20.301Z" },
+    { url = "https://files.pythonhosted.org/packages/b1/e1/7c8d18e737433f3b5bbe27b56a9072a9fcb36342b48f1bef34b6da1d61f2/sqlmodel-0.0.37-py3-none-any.whl", hash = "sha256:2137a4045ef3fd66a917a7717ada959a1ceb3630d95e1f6aaab39dd2c0aef278", size = 27224, upload-time = "2026-02-21T16:39:47.781Z" },
 ]
 
 [[package]]
@@ -1760,7 +1760,7 @@ requires-dist = [
     { name = "boto3", specifier = "==1.42.54" },
     { name = "boto3-stubs", extras = ["s3"], specifier = "==1.42.54" },
     { name = "celery", specifier = "==5.6.2" },
-    { name = "fastapi", extras = ["standard"], specifier = "==0.129.0" },
+    { name = "fastapi", extras = ["standard"], specifier = "==0.129.2" },
     { name = "geo-track-analyzer", specifier = "==2.0.1" },
     { name = "geoalchemy2", specifier = "==0.18.1" },
     { name = "gevent", specifier = "==25.9.1" },
@@ -1773,7 +1773,7 @@ requires-dist = [
     { name = "redis", specifier = "==7.2.0" },
     { name = "shapely", specifier = "==2.1.2" },
     { name = "sqlalchemy", specifier = "==2.0.46" },
-    { name = "sqlmodel", specifier = "==0.0.35" },
+    { name = "sqlmodel", specifier = "==0.0.37" },
     { name = "structlog", specifier = "==25.5.0" },
 ]
 
