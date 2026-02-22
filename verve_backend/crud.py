@@ -528,7 +528,19 @@ def get_activities_for_location(
 def get_location_activity_map(
     session: Session,
     match_distance: int,
+    location_type_id: int | None = None,
+    location_sub_type_id: int | None = None,
+    activity_type_id: int | None = None,
+    activity_sub_type_id: int | None = None,
 ) -> dict[uuid.UUID, set[uuid.UUID]]:
+    if location_sub_type_id is not None and location_type_id is None:
+        raise RuntimeError(
+            "Disallowed combinetion of type_id and sub_type_id for location"
+        )
+    if activity_sub_type_id is not None and activity_type_id is None:
+        raise RuntimeError(
+            "Disallowed combinetion of type_id and sub_type_id for activity"
+        )
     stmt = (
         importlib.resources.files("verve_backend.queries")
         .joinpath("join_locations_to_tracks.sql")
@@ -538,6 +550,10 @@ def get_location_activity_map(
         text(stmt),  # type: ignore
         params={
             "match_distance_meters": match_distance,
+            "location_type_id": location_type_id,
+            "location_sub_type_id": location_sub_type_id,
+            "activity_type_id": activity_type_id,
+            "activity_sub_type_id": activity_sub_type_id,
         },
     ).all()
 
@@ -548,6 +564,12 @@ def get_location_activity_map(
     )
     data_manual = session.exec(
         text(stmt),  # type: ignore
+        params={
+            "location_type_id": location_type_id,
+            "location_sub_type_id": location_sub_type_id,
+            "activity_type_id": activity_type_id,
+            "activity_sub_type_id": activity_sub_type_id,
+        },
     ).all()
 
     _map = defaultdict(set)

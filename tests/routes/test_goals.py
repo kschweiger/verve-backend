@@ -161,8 +161,7 @@ def test_add_location_goal(client: TestClient, user2_token: str) -> None:
 
     assert response.status_code == 200
     all_locations = ListResponse[LocationPublic].model_validate(response.json())
-    # NOTE: We expect the Mont Vontoux location to be present from the dummy data
-    assert len(all_locations.data) == 1
+    assert len(all_locations.data) == 2
 
     goal_data = {
         "name": "Location Goal",

@@ -278,10 +278,9 @@ def test_update_location_goal(
     db: Session,
     user2_id: UUID,
 ) -> None:
-    # NOTE: We expect the Mont Vontoux location to be present from the dummy data
     _locations = db.exec(select(Location).where(Location.user_id == user2_id)).all()
 
-    assert len(_locations) == 1
+    assert len(_locations) == 2
     goal = Goal(
         user_id=user2_id,
         name="Mont Vontoux updated Test Goal",

@@ -5,6 +5,7 @@ import structlog
 from fastapi import APIRouter, HTTPException, Query
 from sqlmodel import col, func, select
 from starlette.status import (
+    HTTP_400_BAD_REQUEST,
     HTTP_404_NOT_FOUND,
     HTTP_422_UNPROCESSABLE_CONTENT,
     HTTP_500_INTERNAL_SERVER_ERROR,
@@ -22,6 +23,7 @@ from verve_backend.models import (
     ActivitiesPublic,
     Activity,
     ActivityPublic,
+    ActivitySubType,
     DictResponse,
     ListResponse,
     Location,
@@ -71,8 +73,18 @@ async def get_all_locations(
     latitude_upper_bound: Annotated[float | None, Query(ge=-90, le=90)] = None,
     longitude_lower_bound: Annotated[float | None, Query(ge=-180, le=180)] = None,
     longitude_upper_bound: Annotated[float | None, Query(ge=-180, le=180)] = None,
+    type_id: int | None = None,
+    sub_type_id: int | None = None,
 ) -> Any:
     _, session = user_session
+
+    if type_id is None and sub_type_id is not None:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail="Sub Activity must be set together with Activity",
+        )
+    if type_id is not None and sub_type_id is not None:
+        validate_sub_type_id(session, LocationSubType, type_id, sub_type_id)
 
     stmt = select(Location).limit(limit).order_by(col(Location.created_at).desc())
     if offset:
@@ -100,6 +112,11 @@ async def get_all_locations(
             )
         )
 
+    if type_id is not None:
+        stmt = stmt.where(Location.type_id == type_id)
+        if sub_type_id is not None:
+            stmt = stmt.where(Location.sub_type_id == sub_type_id)
+
     logger.debug("Executing location query: %s", stmt)
     location = session.exec(stmt).all()
     return ListResponse[LocationPublic](
@@ -110,11 +127,40 @@ async def get_all_locations(
 @router.get("/activities", response_model=DictResponse[uuid.UUID, set[uuid.UUID]])
 async def get_all_activities(
     user_session: UserSession,
+    location_type_id: int | None = None,
+    location_sub_type_id: int | None = None,
+    activity_type_id: int | None = None,
+    activity_sub_type_id: int | None = None,
 ) -> Any:
     _, session = user_session
 
+    if location_type_id is None and location_sub_type_id is not None:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail="Sub Activity must be set together with Activity",
+        )
+    if location_type_id is not None and location_sub_type_id is not None:
+        validate_sub_type_id(
+            session, LocationSubType, location_type_id, location_sub_type_id
+        )
+
+    if activity_type_id is None and activity_sub_type_id is not None:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail="Sub Activity must be set together with Activity",
+        )
+    if activity_type_id is not None and activity_sub_type_id is not None:
+        validate_sub_type_id(
+            session, ActivitySubType, activity_type_id, activity_sub_type_id
+        )
+
     location_activity_map = crud.get_location_activity_map(
-        session, settings.LOCATION_MATCH_RADIUS_METERS
+        session,
+        settings.LOCATION_MATCH_RADIUS_METERS,
+        location_type_id=location_type_id,
+        location_sub_type_id=location_sub_type_id,
+        activity_type_id=activity_type_id,
+        activity_sub_type_id=activity_sub_type_id,
     )
 
     return DictResponse(data=location_activity_map)

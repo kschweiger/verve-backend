@@ -11,7 +11,13 @@ from fastapi.testclient import TestClient
 from geo_track_analyzer import FITTrack, GeoJsonTrack, GPXFileTrack, PyTrack, Track
 from sqlmodel import Session, SQLModel
 
-from verve_backend.models import LocationSubType, LocationType, User
+from verve_backend.models import (
+    ActivitySubType,
+    ActivityType,
+    LocationSubType,
+    LocationType,
+    User,
+)
 
 
 # This runs right after cmd arg parsing but after imports
@@ -399,6 +405,27 @@ def generate_data(session: Session) -> None:
         user=created_users[0],  # type: ignore
     ).unwrap()
 
+    strength_training_id = (
+        crud.get_by_name(session, ActivityType, "Strength Training").unwrap().id
+    )
+    weight_training_id = (
+        crud.get_by_name(session, ActivitySubType, "Weight Training").unwrap().id
+    )
+    assert strength_training_id is not None
+    assert weight_training_id is not None
+    activity_5 = crud.create_activity(
+        session=session,
+        create=models.ActivityCreate(
+            start=datetime(year=2025, month=3, day=2, hour=13),
+            duration=timedelta(days=0, seconds=60 * 60 * 1),
+            distance=None,
+            type_id=strength_training_id,
+            sub_type_id=weight_training_id,
+            name=None,
+        ),
+        user=created_users[1],  # type: ignore
+    ).unwrap()
+
     track = GPXFileTrack(resource_files / "mont_ventoux.gpx")  # type: ignore
     crud.insert_track(
         session=session,
@@ -451,6 +478,21 @@ def generate_data(session: Session) -> None:
             sub_type_id=crud.get_by_name(session, LocationSubType, "Peak").unwrap().id,
         ),
     )
+    gym_location = crud.create_location(
+        session=session,
+        user_id=created_users[1].id,
+        data=models.LocationCreate(
+            name="Some Gym",
+            latitude=1,
+            longitude=2,
+            type_id=crud.get_by_name(session, LocationType, "Facilities").unwrap().id,
+            sub_type_id=crud.get_by_name(session, LocationSubType, "Gym").unwrap().id,
+        ),
+    ).unwrap()
+
+    activity_5.locations.append(gym_location)
+    session.add(activity_5)
+    session.commit()
 
     # ------------------------------- EQUIPMENT & SETS ---------------------------
     equipment_1 = crud.create_equipment(

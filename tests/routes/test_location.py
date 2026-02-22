@@ -1,16 +1,23 @@
 import uuid
+from datetime import datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
+from verve_backend.crud import get_by_name
 from verve_backend.models import (
     ActivitiesPublic,
+    ActivityCreate,
+    ActivityPublic,
+    ActivitySubType,
+    ActivityType,
     DictResponse,
     ListResponse,
     LocationCreate,
     LocationPublic,
     LocationSubType,
+    LocationType,
 )
 
 
@@ -62,11 +69,57 @@ def test_create_validation(
     assert response.status_code == 422
 
 
+@pytest.mark.parametrize(
+    ("params", "exp_len"),
+    [
+        # ------------- Select with complete window
+        (
+            {
+                "latitude_lower_bound": 0.5,
+                "latitude_upper_bound": 1.5,
+                "longitude_lower_bound": 0.5,
+                "longitude_upper_bound": 1.5,
+            },
+            2,
+        ),
+        # ------------- Select with left bound
+        (
+            {
+                "longitude_lower_bound": -2,
+            },
+            3,
+        ),
+        # ------------- Select with type_id only
+        (
+            {"type_id": 1},
+            2,
+        ),
+        # ------------- Select with type_id and sub_type_id
+        (
+            {"type_id": 1, "sub_type_id": 2},
+            1,
+        ),
+        # ------------- Select with type_id and sub_type_id
+        (
+            {"type_id": 2, "sub_type_id": 8},
+            2,
+        ),
+        # ------------- Select manual mapped with type_id and sub_type_id
+        (
+            {"type_id": 5, "sub_type_id": 22},
+            1,
+        ),
+    ],
+)
 def test_get_locations(
     client: TestClient,
     temp_user_token: str,
+    params: dict,
+    exp_len: int,
 ) -> None:
-    for i, (lat, long) in enumerate([(1, 1), (1.2, 1.2), (3, 3), (-3, -3)]):
+    for i, (lat, long, _type_id, _sub_type_id) in enumerate(
+        [(1, 1, 1, 1), (1.2, 1.2, 1, 2), (3, 3, 2, 8), (-3, -3, 2, 8), (-6, -6, 5, 22)]
+    ):
         response = client.put(
             "/location/",
             headers={"Authorization": f"Bearer {temp_user_token}"},
@@ -74,11 +127,35 @@ def test_get_locations(
                 name=f"Test Location {i}",
                 latitude=lat,
                 longitude=long,
+                type_id=_type_id,
+                sub_type_id=_sub_type_id,
             ).model_dump(),
         )
 
         assert response.status_code == 200
+        loc = LocationPublic.model_validate(response.json())
+    response = client.post(
+        "/activity",
+        json=ActivityCreate(
+            start=datetime(2024, 1, 1, 10),
+            duration=timedelta(minutes=30),
+            distance=1.0,
+            moving_duration=timedelta(minutes=25),
+            type_id=1,
+            sub_type_id=None,
+            name="Some Name",
+        ).model_dump(exclude_unset=True, mode="json"),
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+    assert response.status_code == 200
+    act = ActivityPublic.model_validate(response.json())
+    client.patch(
+        f"/activity/{act.id}/add_location",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        params={"location_id": str(loc.id)},
+    )
 
+    assert response.status_code == 200
     response = client.get(
         "/location/",
         headers={"Authorization": f"Bearer {temp_user_token}"},
@@ -86,35 +163,18 @@ def test_get_locations(
 
     assert response.status_code == 200
     data = ListResponse[LocationPublic].model_validate(response.json())
-    assert len(data.data) == 4
+    assert len(data.data) == 5
 
     # ------------- Select with complete window
     response = client.get(
         "/location",
         headers={"Authorization": f"Bearer {temp_user_token}"},
-        params={
-            "latitude_lower_bound": 0.5,
-            "latitude_upper_bound": 1.5,
-            "longitude_lower_bound": 0.5,
-            "longitude_upper_bound": 1.5,
-        },
+        params=params,
     )
 
     assert response.status_code == 200
     data = ListResponse[LocationPublic].model_validate(response.json())
-    assert len(data.data) == 2
-    # ------------- Select with left bound
-    response = client.get(
-        "/location",
-        headers={"Authorization": f"Bearer {temp_user_token}"},
-        params={
-            "longitude_lower_bound": -2,
-        },
-    )
-
-    assert response.status_code == 200
-    data = ListResponse[LocationPublic].model_validate(response.json())
-    assert len(data.data) == 3
+    assert len(data.data) == exp_len
 
 
 def test_delete_location(
@@ -202,7 +262,7 @@ def test_activities_with_location(
     assert response.status_code == 200
     all_locatons = ListResponse[LocationPublic].model_validate(response.json())
     # NOTE: We expect the Mont Vontoux location to be present from the dummy data
-    assert len(all_locatons.data) == 1
+    assert len(all_locatons.data) == 2
 
     respones = client.get(
         f"/location/{all_locatons.data[0].id}/activities",
@@ -222,6 +282,54 @@ def test_get_all_activities(
 ) -> None:
     response = client.get(
         "/location/activities", headers={"Authorization": f"Bearer {user2_token}"}
+    )
+
+    assert response.status_code == 200
+
+    data = DictResponse[uuid.UUID, set[uuid.UUID]].model_validate(response.json())
+
+    assert len(data.data) == 2
+    assert len(data.data[next(iter(data.data))]) == 1
+
+
+def test_get_all_activities_location_ids(
+    db: Session,
+    client: TestClient,
+    user2_token: str,
+) -> None:
+    response = client.get(
+        "/location/activities",
+        headers={"Authorization": f"Bearer {user2_token}"},
+        params={
+            "location_type_id": get_by_name(db, LocationType, "Facilities").unwrap().id,
+            "location_sub_type_id": get_by_name(db, LocationSubType, "Gym").unwrap().id,
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = DictResponse[uuid.UUID, set[uuid.UUID]].model_validate(response.json())
+
+    assert len(data.data) == 1
+    assert len(data.data[next(iter(data.data))]) == 1
+
+
+def test_get_all_activities_activity_ids(
+    db: Session,
+    client: TestClient,
+    user2_token: str,
+) -> None:
+    response = client.get(
+        "/location/activities",
+        headers={"Authorization": f"Bearer {user2_token}"},
+        params={
+            "activity_type_id": get_by_name(db, ActivityType, "Strength Training")
+            .unwrap()
+            .id,
+            "activity_sub_type_id": get_by_name(db, ActivitySubType, "Weight Training")
+            .unwrap()
+            .id,
+        },
     )
 
     assert response.status_code == 200
