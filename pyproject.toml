@@ -8,12 +8,12 @@ requires-python = ">=3.13,<3.14"
 dependencies = [
   "alembic==1.18.4",
   "bcrypt==4.3.0",
-  "boto3==1.42.54",
-  "boto3-stubs[s3]==1.42.54",
+  "boto3==1.42.59",
+  "boto3-stubs[s3]==1.42.59",
   "celery==5.6.2",
-  "fastapi[standard]==0.129.2",
+  "fastapi[standard]==0.135.1",
   "geo-track-analyzer==2.0.1",
-  "geoalchemy2==0.18.1",
+  "geoalchemy2==0.18.4",
   "gevent==25.9.1",
   "passlib==1.7.4",
   "psycopg==3.3.3",
@@ -21,9 +21,9 @@ dependencies = [
   "pydantic-settings==2.13.1",
   "pyjwt==2.11.0",
   "pyproj==3.7.2",
-  "redis==7.2.0",
+  "redis==7.2.1",
   "shapely==2.1.2",
-  "sqlalchemy==2.0.46",
+  "sqlalchemy==2.0.48",
   "sqlmodel==0.0.37",
   "structlog==25.5.0",
 ]
@@ -92,7 +92,7 @@ test = [
 package = true
 
 [build-system]
-requires = ["uv_build>=0.10.4,<0.11.0"]
+requires = ["uv_build>=0.10.7,<0.11.0"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
