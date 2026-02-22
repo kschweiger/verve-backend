@@ -1,4 +1,12 @@
 <!-- insertion marker -->
+<a name="1.7.0"></a>
+
+## [1.7.0](https://github.com/kschweiger/verve-backend/compare/1.6.2...1.7.0) (2026-02-22)
+
+### Features
+
+- 🏋️ add location/activity filtering for activity-location mapping (#65) ([83d8466](https://github.com/kschweiger/verve-backend/commit/83d846610cec0a6900440b89c7857a81ad6641bc))
+
 <a name="1.6.2"></a>
 
 ## [1.6.2](https://github.com/kschweiger/verve-backend/compare/1.6.1...1.6.2) (2026-02-16)
