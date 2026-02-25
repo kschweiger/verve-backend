@@ -9,7 +9,7 @@ dependencies = [
   "alembic==1.18.4",
   "bcrypt==4.3.0",
   "boto3==1.42.56",
-  "boto3-stubs[s3]==1.42.55",
+  "boto3-stubs[s3]==1.42.56",
   "celery==5.6.2",
   "fastapi[standard]==0.133.0",
   "geo-track-analyzer==2.0.1",
@@ -92,7 +92,7 @@ test = [
 package = true
 
 [build-system]
-requires = ["uv_build>=0.10.5,<0.11.0"]
+requires = ["uv_build>=0.10.6,<0.11.0"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
