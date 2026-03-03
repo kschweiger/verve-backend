@@ -43,6 +43,17 @@ class Settings(BaseSettings):
     POSTGRES_DB: str = "verve_production"
     POSTGRES_DB_TESTING: str = "verve_testing"
 
+    # persistent connections kept alive
+    ENGINE_POOL_SIZE: int = 5
+    # burst connections allowed above pool_size
+    ENGINE_MAX_OVERFLOW: int = 10
+    # raise after 30s waiting for a free connection
+    ENGINE_POOL_TIMEOUT: int = 30
+    # recycle connections after 30 min
+    ENGINE_POOL_RECYCLE: int = 1800
+    # check connection is alive before handing out
+    ENGINE_POOL_PRE_PING: bool = True
+
     POSTGRES_SCHEMA: str = "api"
 
     POSTGRES_RLS_USER: str = "verve_user"

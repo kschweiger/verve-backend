@@ -45,7 +45,7 @@ async def get_current_user(
             token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
         )
         token_data = TokenPayload(**payload)
-    except (InvalidTokenError, ValidationError):
+    except InvalidTokenError, ValidationError:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Could not validate credentials",
@@ -69,9 +69,7 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 def _create_rls_session(user_id: UUID) -> Session:
-    # Assuming get_engine is synchronous
-    engine = get_engine(rls=True, echo=False)
-    session = Session(engine)
+    session = Session(get_engine(rls=True, echo=False))
     session.exec(text(f"SET verve_user.curr_user = '{user_id}'"))  # type: ignore
     session.commit()
     return session
