@@ -105,29 +105,29 @@ wheels = [
 
 [[package]]
 name = "boto3"
-version = "1.42.59"
+version = "1.42.68"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "botocore" },
     { name = "jmespath" },
     { name = "s3transfer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b0/4e/499cb52aaee9468c346bcc1158965e24e72b4e2a20052725b680e0ac949b/boto3-1.42.59.tar.gz", hash = "sha256:6c4a14a4eb37b58a9048901bdeefbe1c529638b73e8f55413319a25f010ca211", size = 112725, upload-time = "2026-02-27T20:25:33.228Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/06/ae/60c642aa5413e560b671da825329f510b29a77274ed0f580bde77562294d/boto3-1.42.68.tar.gz", hash = "sha256:3f349f967ab38c23425626d130962bcb363e75f042734fe856ea8c5a00eef03c", size = 112761, upload-time = "2026-03-13T19:32:17.137Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/17/c0/22d868b9408dc5a33935a72896ec8d638b2766c459668d1b37c3e5ac2066/boto3-1.42.59-py3-none-any.whl", hash = "sha256:7a66e3e8e2087ea4403e135e9de592e6d63fc9a91080d8dac415bb74df873a72", size = 140557, upload-time = "2026-02-27T20:25:31.774Z" },
+    { url = "https://files.pythonhosted.org/packages/fb/f6/dc6e993479dbb597d68223fbf61cb026511737696b15bd7d2a33e9b2c24f/boto3-1.42.68-py3-none-any.whl", hash = "sha256:dbff353eb7dc93cbddd7926ed24793e0174c04adbe88860dfa639568442e4962", size = 140556, upload-time = "2026-03-13T19:32:14.951Z" },
 ]
 
 [[package]]
 name = "boto3-stubs"
-version = "1.42.59"
+version = "1.42.68"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "botocore-stubs" },
     { name = "types-s3transfer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/80/71/8544fa7874697fad677d1956397426915754114f5d2dfee436f662f0809f/boto3_stubs-1.42.59.tar.gz", hash = "sha256:4a6fc520560ee6a2cb9e05bdfcd45d4e07d9fb91cf483dfbd3a5ab87efe6b860", size = 101012, upload-time = "2026-02-27T20:47:29.017Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4c/8c/dd4b0c95ff008bed5a35ab411452ece121b355539d2a0b6dcd62a0c47be5/boto3_stubs-1.42.68.tar.gz", hash = "sha256:96ad1020735619483fb9b4da7a5e694b460bf2e18f84a34d5d175d0ffe8c4653", size = 101372, upload-time = "2026-03-13T19:49:54.867Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bd/f2/79308660f3732fe01a8ba204a9e0f8ab6587a12fd7b175d461454ea1e544/boto3_stubs-1.42.59-py3-none-any.whl", hash = "sha256:bef0080a1bbb3f6bfe0cdc0c3d0771bdb91729f5a415ad09397df1ec2aca7256", size = 69824, upload-time = "2026-02-27T20:47:19.061Z" },
+    { url = "https://files.pythonhosted.org/packages/68/15/3ca5848917214a168134512a5b45f856a56e913659888947a052e02031b5/boto3_stubs-1.42.68-py3-none-any.whl", hash = "sha256:ed7f98334ef7b2377fa8532190e63dc2c6d1dc895e3d7cb3d6d1c83771b81bf6", size = 70011, upload-time = "2026-03-13T19:49:42.801Z" },
 ]
 
 [package.optional-dependencies]
@@ -137,16 +137,16 @@ s3 = [
 
 [[package]]
 name = "botocore"
-version = "1.42.59"
+version = "1.42.68"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jmespath" },
     { name = "python-dateutil" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/45/ae/50fb33bdf1911c216d50f98d989dd032a506f054cf829ebd737c6fa7e3e6/botocore-1.42.59.tar.gz", hash = "sha256:5314f19e1da8fc0ebc41bdb8bbe17c9a7397d87f4d887076ac8bdef972a34138", size = 14950271, upload-time = "2026-02-27T20:25:20.614Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3f/22/87502d5fbbfa8189406a617b30b1e2a3dc0ab2669f7268e91b385c1c1c7a/botocore-1.42.68.tar.gz", hash = "sha256:3951c69e12ac871dda245f48dac5c7dd88ea1bfdd74a8879ec356cf2874b806a", size = 14994514, upload-time = "2026-03-13T19:32:03.577Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/59/df/9d52819e0d804ead073d53ab1823bc0f0cb172a250fba31107b0b43fbb04/botocore-1.42.59-py3-none-any.whl", hash = "sha256:d2f2ff7ecc31e86ef46b5daee112cfbca052c13801285fb23af909f7bff5b657", size = 14619293, upload-time = "2026-02-27T20:25:17.455Z" },
+    { url = "https://files.pythonhosted.org/packages/3c/2a/1428f6594799780fe6ee845d8e6aeffafe026cd16a70c878684e2dcbbfc8/botocore-1.42.68-py3-none-any.whl", hash = "sha256:9df7da26374601f890e2f115bfa573d65bf15b25fe136bb3aac809f6145f52ab", size = 14668816, upload-time = "2026-03-13T19:31:58.572Z" },
 ]
 
 [[package]]
@@ -1188,11 +1188,11 @@ wheels = [
 
 [[package]]
 name = "pyjwt"
-version = "2.11.0"
+version = "2.12.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/5c/5a/b46fa56bf322901eee5b0454a34343cdbdae202cd421775a8ee4e42fd519/pyjwt-2.11.0.tar.gz", hash = "sha256:35f95c1f0fbe5d5ba6e43f00271c275f7a1a4db1dab27bf708073b75318ea623", size = 98019, upload-time = "2026-01-30T19:59:55.694Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c2/27/a3b6e5bf6ff856d2509292e95c8f57f0df7017cf5394921fc4e4ef40308a/pyjwt-2.12.1.tar.gz", hash = "sha256:c74a7a2adf861c04d002db713dd85f84beb242228e671280bf709d765b03672b", size = 102564, upload-time = "2026-03-13T19:27:37.25Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6f/01/c26ce75ba460d5cd503da9e13b21a33804d38c2165dec7b716d06b13010c/pyjwt-2.11.0-py3-none-any.whl", hash = "sha256:94a6bde30eb5c8e04fee991062b534071fd1439ef58d2adc9ccb823e7bcd0469", size = 28224, upload-time = "2026-01-30T19:59:54.539Z" },
+    { url = "https://files.pythonhosted.org/packages/e5/7a/8dd906bd22e79e47397a61742927f6747fe93242ef86645ee9092e610244/pyjwt-2.12.1-py3-none-any.whl", hash = "sha256:28ca37c070cad8ba8cd9790cd940535d40274d22f80ab87f3ac6a713e6e8454c", size = 29726, upload-time = "2026-03-13T19:27:35.677Z" },
 ]
 
 [[package]]
@@ -1355,11 +1355,11 @@ wheels = [
 
 [[package]]
 name = "redis"
-version = "7.2.1"
+version = "7.3.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/e9/31/1476f206482dd9bc53fdbbe9f6fbd5e05d153f18e54667ce839df331f2e6/redis-7.2.1.tar.gz", hash = "sha256:6163c1a47ee2d9d01221d8456bc1c75ab953cbda18cfbc15e7140e9ba16ca3a5", size = 4906735, upload-time = "2026-02-25T20:05:18.171Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/da/82/4d1a5279f6c1251d3d2a603a798a1137c657de9b12cfc1fba4858232c4d2/redis-7.3.0.tar.gz", hash = "sha256:4d1b768aafcf41b01022410b3cc4f15a07d9b3d6fe0c66fc967da2c88e551034", size = 4928081, upload-time = "2026-03-06T18:18:16.287Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ca/98/1dd1a5c060916cf21d15e67b7d6a7078e26e2605d5c37cbc9f4f5454c478/redis-7.2.1-py3-none-any.whl", hash = "sha256:49e231fbc8df2001436ae5252b3f0f3dc930430239bfeb6da4c7ee92b16e5d33", size = 396057, upload-time = "2026-02-25T20:05:16.533Z" },
+    { url = "https://files.pythonhosted.org/packages/f0/28/84e57fce7819e81ec5aa1bd31c42b89607241f4fb1a3ea5b0d2dbeaea26c/redis-7.3.0-py3-none-any.whl", hash = "sha256:9d4fcb002a12a5e3c3fbe005d59c48a2cc231f87fbb2f6b70c2d89bb64fec364", size = 404379, upload-time = "2026-03-06T18:18:14.583Z" },
 ]
 
 [[package]]
@@ -1815,8 +1815,8 @@ test = [
 requires-dist = [
     { name = "alembic", specifier = "==1.18.4" },
     { name = "bcrypt", specifier = "==4.3.0" },
-    { name = "boto3", specifier = "==1.42.59" },
-    { name = "boto3-stubs", extras = ["s3"], specifier = "==1.42.59" },
+    { name = "boto3", specifier = "==1.42.68" },
+    { name = "boto3-stubs", extras = ["s3"], specifier = "==1.42.68" },
     { name = "celery", specifier = "==5.6.2" },
     { name = "fastapi", extras = ["standard"], specifier = "==0.135.1" },
     { name = "geo-track-analyzer", specifier = "==2.0.1" },
@@ -1826,9 +1826,9 @@ requires-dist = [
     { name = "psycopg", specifier = "==3.3.3" },
     { name = "pydantic", specifier = "==2.12.5" },
     { name = "pydantic-settings", specifier = "==2.13.1" },
-    { name = "pyjwt", specifier = "==2.11.0" },
+    { name = "pyjwt", specifier = "==2.12.1" },
     { name = "pyproj", specifier = "==3.7.2" },
-    { name = "redis", specifier = "==7.2.1" },
+    { name = "redis", specifier = "==7.3.0" },
     { name = "shapely", specifier = "==2.1.2" },
     { name = "sqlalchemy", specifier = "==2.0.48" },
     { name = "sqlmodel", specifier = "==0.0.37" },
@@ -1841,7 +1841,7 @@ dev = [
     { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "pandas", specifier = ">=2.3.3" },
     { name = "pillow", specifier = ">=12.1.1" },
-    { name = "plotly", specifier = ">=6.5.2" },
+    { name = "plotly", specifier = ">=6.6.0" },
     { name = "pytest", specifier = ">=9.0.2" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
     { name = "pytest-mock", specifier = ">=3.15.1" },
