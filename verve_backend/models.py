@@ -704,3 +704,49 @@ class ActivityHighlight(ActivityHighlightBase, table=True):
             name="uix_highlight_rank",
         ),
     )
+
+
+class ActivityTagCategoryBase(SQLModel):
+    name: str
+
+
+class ActivityTagCategoryCreate(ActivityTagCategoryBase):
+    pass
+
+
+class ActivityTagCategoryPublic(ActivityTagCategoryBase):
+    id: int
+
+
+class ActivityTagCategory(ActivityTagCategoryBase, table=True):
+    __tablename__: str = "activity_tag_categories"  # type: ignore
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", nullable=False, index=True, ondelete="CASCADE"
+    )
+
+
+class ActivityTagBase(SQLModel):
+    name: str
+
+    category_id: None | int = Field(
+        default=None, foreign_key="activity_tag_categories.id"
+    )
+
+
+class ActivityTagCreate(ActivityTagBase):
+    pass
+
+
+class ActivityTagPublic(ActivityTagBase):
+    id: int
+
+
+class ActivityTag(ActivityTagBase, table=True):
+    __tablename__: str = "activity_tags"  # type: ignore
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", nullable=False, index=True, ondelete="CASCADE"
+    )

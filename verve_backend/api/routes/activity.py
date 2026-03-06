@@ -275,6 +275,18 @@ async def add_locations_to_activity(
     return {"detail": "Location added to activity"}
 
 
+@router.patch("/{id}/add_tag", tags=[Tag.TAGGING])
+async def add_tag_to_activity(
+    user_session: UserSession,
+    id: uuid.UUID,
+    tag_id: int,
+) -> Any:
+    _, session = user_session
+
+    # TODO: Implement
+    return {"detail": "Location added to activity"}
+
+
 @router.delete(
     "/{id}/locations/{location_id}",
     tags=[Tag.LOCATION],
