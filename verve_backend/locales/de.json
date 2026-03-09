@@ -36,5 +36,12 @@
       "evening": "Fitnesstraining am Abend",
       "night": "Fitnesstraining in der Nacht"
     }
+  },
+  "tag_categories": {
+    "Workout": "Training"
+  },
+  "tags": {
+    "Interval": "Intervall",
+    "Endurance": "Grundlagenausdauer"
   }
 }

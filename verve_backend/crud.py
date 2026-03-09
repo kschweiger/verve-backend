@@ -13,13 +13,14 @@ from shapely.geometry import Point
 from sqlalchemy.exc import DatabaseError
 from sqlmodel import Session, col, insert, select, text
 
-from verve_backend.api.common.locale import get_activity_name
+from verve_backend.api.common.locale import get_activity_name, get_tag_name
 from verve_backend.api.common.track import update_activity_with_track
 from verve_backend.api.deps import SupportedLocale
 from verve_backend.core.config import settings
 from verve_backend.core.meta_data import ActivityMetaData, validate_meta_data
 from verve_backend.core.security import get_password_hash, verify_password
 from verve_backend.core.timing import log_timing
+from verve_backend.defaults import DEFAULT_TAG_CATEGORIES, DEFAULT_TAGS
 from verve_backend.enums import GoalType
 from verve_backend.exceptions import InvalidDataError
 from verve_backend.goal import (
@@ -31,6 +32,8 @@ from verve_backend.models import (
     Activity,
     ActivityCreate,
     ActivitySubType,
+    ActivityTag,
+    ActivityTagCategory,
     ActivityType,
     ActivityTypeCreate,
     DefaultEquipmentSet,
@@ -83,6 +86,15 @@ def create_user(
     )
     session.add(settings_obj)
     session.commit()
+    session.refresh(settings_obj)
+    create_default_tags(
+        session=session,
+        user_id=db_obj.id,
+        categories=DEFAULT_TAG_CATEGORIES,
+        tags=DEFAULT_TAGS,
+        locale=settings_obj.locale,
+    )
+
     return Ok(db_obj)
 
 
@@ -621,3 +633,32 @@ def get_by_name(session: Session, model: Type[T], name: str) -> Result[T, None]:
         return Err(None)
 
     return Ok(result)
+
+
+def create_default_tags(
+    session: Session,
+    user_id: uuid.UUID | str,
+    categories: list[str],
+    tags: list[tuple[str, str | None]],
+    locale: SupportedLocale = SupportedLocale.DE,
+) -> None:
+    passed_tag_categories = set([cat for _, cat in tags if cat is not None])
+    assert passed_tag_categories.issubset(set(categories))
+    name_db_map = {}
+    for category_name in categories:
+        _name = get_tag_name(category_name, locale, "tag_categories")
+        _cat = ActivityTagCategory(name=_name, user_id=user_id)  # type: ignore
+        session.add(_cat)
+        session.commit()
+        session.refresh(_cat)
+        name_db_map[_name] = _cat.id
+
+    for tag_name, category_name in tags:
+        _name = get_tag_name(tag_name, locale, "tags")
+        _tag = ActivityTag(
+            name=_name,
+            user_id=user_id,  # type: ignore
+            category_id=name_db_map[category_name],
+        )
+        session.add(_tag)
+        session.commit()

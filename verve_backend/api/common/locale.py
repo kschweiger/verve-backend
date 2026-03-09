@@ -3,6 +3,7 @@ from datetime import datetime
 from enum import StrEnum
 from functools import lru_cache
 from importlib.resources import files
+from typing import Literal
 
 import verve_backend.locales
 from verve_backend.api.deps import SupportedLocale
@@ -67,3 +68,18 @@ def get_activity_name(
 
     # Fallback to default
     return activity_names["default"][time_of_day.value]
+
+
+def get_tag_name(
+    name: str,
+    locale: str = "en",
+    data_type: Literal["tags", "tag_categories"] = "tags",
+) -> str:
+    if locale == "en":
+        return name
+    translations = load_translations(locale)
+
+    tag_translations = translations[data_type]
+    if name in tag_translations:
+        return tag_translations[name]
+    return name
