@@ -1,9 +1,14 @@
 from typing import Any
+from uuid import UUID
 
 import structlog
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
+from sqlalchemy.exc import DatabaseError
+from sqlmodel import select
 from starlette.status import (
     HTTP_204_NO_CONTENT,
+    HTTP_400_BAD_REQUEST,
+    HTTP_404_NOT_FOUND,
 )
 
 from verve_backend.api.definitions import Tag
@@ -11,6 +16,8 @@ from verve_backend.api.deps import (
     UserSession,
 )
 from verve_backend.models import (
+    ActivityTag,
+    ActivityTagCategory,
     ActivityTagCategoryCreate,
     ActivityTagCategoryPublic,
     ActivityTagCreate,
@@ -25,28 +32,66 @@ logger = structlog.getLogger(__name__)
 
 @router.put(
     "/category/add",
-    status_code=HTTP_204_NO_CONTENT,
+    response_model=ActivityTagCategoryPublic,
 )
 def add_tag_category(
     *,
     user_session: UserSession,
     obj: ActivityTagCategoryCreate,
-) -> None:
-    # TODO: Implement
-    pass
+) -> Any:
+    _user_id, session = user_session
+    user_id = UUID(_user_id)
+
+    cat = ActivityTagCategory.model_validate(obj, update={"user_id": user_id})
+    try:
+        session.add(cat)
+        session.commit()
+    except DatabaseError as e:
+        logger.error("Failed to add tag category", error=str(e))
+        session.rollback()
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail="Tag category with this name already exists",
+        )
+
+    return cat
 
 
 @router.put(
     "/add",
-    status_code=HTTP_204_NO_CONTENT,
+    response_model=ActivityTagPublic,
 )
 def add_tag(
     *,
     user_session: UserSession,
     obj: ActivityTagCreate,
-) -> None:
-    # TODO: Implement
-    pass
+) -> Any:
+    _user_id, session = user_session
+    user_id = UUID(_user_id)
+
+    passed_cat_id = obj.category_id
+
+    if passed_cat_id is not None:
+        _cat = session.get(ActivityTagCategory, passed_cat_id)
+        if _cat is None:
+            logger.error("Got invalid category id for tag creation")
+            raise HTTPException(
+                status_code=HTTP_400_BAD_REQUEST,
+                detail="Invalid category id",
+            )
+    tag = ActivityTag.model_validate(obj, update={"user_id": user_id})
+    try:
+        session.add(tag)
+        session.commit()
+    except DatabaseError as e:
+        logger.error("Failed to add tag ", error=str(e))
+        session.rollback()
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail="Tag category with this name already exists",
+        )
+
+    return tag
 
 
 @router.get("/find", response_model=ListResponse[ActivityTagPublic])
@@ -69,8 +114,14 @@ def get_tag(
     user_session: UserSession,
     id: int,
 ) -> Any:
-    # TODO: Implement
-    pass
+    _, session = user_session
+    tag = session.get(ActivityTag, id)
+    if not tag:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND, detail=f"Tag {id} not found"
+        )
+
+    return tag
 
 
 @router.delete(
@@ -82,8 +133,13 @@ def remove_tag(
     user_session: UserSession,
     id: int,
 ) -> None:
-    # TODO: Implement
-    pass
+    _, session = user_session
+    tag = session.get(ActivityTag, id)
+    if not tag:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Tag not found")
+
+    session.delete(tag)
+    session.commit()
 
 
 @router.patch(
@@ -96,20 +152,58 @@ def add_tag_to_category(
     category_id: int,
     tag_id: int,
 ) -> None:
-    # TODO: Implement
-    pass
+    _, session = user_session
+    category = session.get(ActivityTagCategory, category_id)
+    if not category:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Category not found")
+
+    tag = session.get(ActivityTag, tag_id)
+    if not tag:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Tag not found")
+
+    tag.category_id = category_id
+    session.add(tag)
+    session.commit()
 
 
 @router.get("/category/{id}", response_model=ListResponse[ActivityTagCategoryPublic])
 def get_all_tags(*, user_session: UserSession, id: int) -> Any:
-    # TODO: Implement
-    pass
+    _, session = user_session
+    category = session.get(ActivityTagCategory, id)
+    if not category:
+        return ListResponse(data=[])
+
+    tags = session.exec(select(ActivityTag).where(ActivityTag.category_id == id)).all()
+    return ListResponse(data=list(tags))
 
 
 @router.delete(
     "/category/{id}",
     status_code=HTTP_204_NO_CONTENT,
 )
-def remove_category(*, user_session: UserSession, id: int) -> None:
-    # TODO: Implement
-    pass
+def remove_category(
+    *, user_session: UserSession, id: int, cascade: bool = False
+) -> None:
+    """
+    Deleta a category. If cascade is True, all tags connected to the category will also
+    be deleted. If cascalade is False, the category_id of all tags connected to the
+    category will be set to None.
+    """
+    _, session = user_session
+    category = session.get(ActivityTagCategory, id)
+    if not category:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Category not found")
+
+    tags = session.exec(select(ActivityTag).where(ActivityTag.category_id == id)).all()
+    if cascade:
+        for tag in tags:
+            session.delete(tag)
+            session.commit()
+    else:
+        for tag in tags:
+            tag.category_id = None
+            session.add(tag)
+            session.commit()
+
+    session.delete(category)
+    session.commit()

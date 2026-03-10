@@ -726,6 +726,10 @@ class ActivityTagCategory(ActivityTagCategoryBase, table=True):
         foreign_key="users.id", nullable=False, index=True, ondelete="CASCADE"
     )
 
+    __table_args__ = (
+        UniqueConstraint("name", "user_id", name="uix_tag_cat_name_user_id"),
+    )
+
 
 class ActivityTagBase(SQLModel):
     name: str
@@ -749,4 +753,9 @@ class ActivityTag(ActivityTagBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_id: uuid.UUID = Field(
         foreign_key="users.id", nullable=False, index=True, ondelete="CASCADE"
+    )
+    __table_args__ = (
+        UniqueConstraint(
+            "name", "user_id", "category_id", name="uix_tag_name_user_id_cat"
+        ),
     )
