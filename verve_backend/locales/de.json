@@ -37,10 +37,10 @@
       "night": "Fitnesstraining in der Nacht"
     }
   },
-  "tag_categories": {
+  "tag_category": {
     "Workout": "Training"
   },
-  "tags": {
+  "tag": {
     "Interval": "Intervall",
     "Endurance": "Grundlagenausdauer"
   }

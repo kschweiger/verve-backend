@@ -73,7 +73,7 @@ def get_activity_name(
 def get_tag_name(
     name: str,
     locale: str = "en",
-    data_type: Literal["tags", "tag_categories"] = "tags",
+    data_type: Literal["tag", "tag_category"] = "tag",
 ) -> str:
     if locale == "en":
         return name

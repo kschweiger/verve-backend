@@ -646,7 +646,7 @@ def create_default_tags(
     assert passed_tag_categories.issubset(set(categories))
     name_db_map = {}
     for category_name in categories:
-        _name = get_tag_name(category_name, locale, "tag_categories")
+        _name = get_tag_name(category_name, locale, "tag_category")
         _cat = ActivityTagCategory(name=_name, user_id=user_id)  # type: ignore
         session.add(_cat)
         session.commit()
@@ -654,7 +654,7 @@ def create_default_tags(
         name_db_map[_name] = _cat.id
 
     for tag_name, category_name in tags:
-        _name = get_tag_name(tag_name, locale, "tags")
+        _name = get_tag_name(tag_name, locale, "tag")
         _tag = ActivityTag(
             name=_name,
             user_id=user_id,  # type: ignore

@@ -36,5 +36,12 @@
       "evening": "Evening Fitness Session",
       "night": "Night Fitness Session"
     }
+  },
+  "tag_category": {
+    "Workout": "Workout"
+  },
+  "tag": {
+    "Interval": "Interval",
+    "Endurance": "Endurance"
   }
 }
