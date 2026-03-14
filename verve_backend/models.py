@@ -728,6 +728,29 @@ class ActivityTagCategory(ActivityTagCategoryBase, table=True):
 
     __table_args__ = (
         UniqueConstraint("name", "user_id", name="uix_tag_cat_name_user_id"),
+        # Trigram index: powers the `%` operator and similarity() scoring.
+        # postgresql_ops maps the column to the gin_trgm_ops operator class,
+        # which pg_trgm requires — a plain GIN index on a text column won't
+        # support the % operator without it.
+        Index(
+            "idx_activity_tag_cats_name_gin_trgm",
+            "name",
+            postgresql_using="gin",
+            postgresql_ops={"name": "gin_trgm_ops"},
+        ),
+        # Functional GIN index over the daitch_mokotoff(name) expression.
+        # text() is required here because SQLAlchemy's Index() does not
+        # accept func.daitch_mokotoff() as a functional expression directly
+        # in __table_args__ for non-mapped-column expressions — text() is
+        # the documented escape hatch for this case.
+        # fastupdate=off prevents deferred index updates from causing stale
+        # reads under concurrent write load.
+        Index(
+            "idx_activity_tag_cats_name_dm",
+            text("daitch_mokotoff(name)"),
+            postgresql_using="gin",
+            postgresql_with={"fastupdate": "off"},
+        ),
     )
 
 
@@ -757,5 +780,17 @@ class ActivityTag(ActivityTagBase, table=True):
     __table_args__ = (
         UniqueConstraint(
             "name", "user_id", "category_id", name="uix_tag_name_user_id_cat"
+        ),
+        Index(
+            "idx_activity_tags_name_gin_trgm",
+            "name",
+            postgresql_using="gin",
+            postgresql_ops={"name": "gin_trgm_ops"},
+        ),
+        Index(
+            "idx_activity_tags_name_dm",
+            text("daitch_mokotoff(name)"),
+            postgresql_using="gin",
+            postgresql_with={"fastupdate": "off"},
         ),
     )

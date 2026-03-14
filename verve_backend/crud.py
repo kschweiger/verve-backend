@@ -17,6 +17,7 @@ from verve_backend.api.common.locale import get_activity_name, get_tag_name
 from verve_backend.api.common.track import update_activity_with_track
 from verve_backend.api.deps import SupportedLocale
 from verve_backend.core.config import settings
+from verve_backend.core.db import get_search_query
 from verve_backend.core.meta_data import ActivityMetaData, validate_meta_data
 from verve_backend.core.security import get_password_hash, verify_password
 from verve_backend.core.timing import log_timing
@@ -662,3 +663,35 @@ def create_default_tags(
         )
         session.add(_tag)
         session.commit()
+
+
+def search_by_name(
+    *,
+    session: Session,
+    table_name: str,
+    query: str,
+    limit: int,
+    similarity_threshold: float,
+) -> list[int | uuid.UUID]:
+    query = query.strip()
+    if len(query) == 0:
+        return []
+
+    stmt = get_search_query(table_name=table_name)
+    result = session.exec(
+        text(stmt),  # type: ignore
+        params={
+            "query": query,
+            "limit": limit,
+            "threshold": similarity_threshold,
+        },
+    )
+
+    return [
+        (
+            row.id,
+            row.name,
+            row.score,
+        )
+        for row in result.mappings().all()
+    ]  # type: ignore

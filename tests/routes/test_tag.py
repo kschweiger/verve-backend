@@ -277,3 +277,79 @@ def test_delete_category(
         assert _tag_1_after.category_id is None
         assert _tag_2_after is not None
         assert _tag_2_after.category_id is None
+
+
+def test_tag_search(
+    db: Session,
+    client: TestClient,
+    user2_token: str,
+    user2_id: UUID,
+) -> None:
+    tag_names = [
+        "Long Run",
+        "Easy Run",
+        "Interval Session",
+        "Tempo Run",
+        "Recovery Day",
+        "Brick Workout",
+        "Race Pace",
+        "Hill Repeats",
+        "Outdoor Session",
+        "Treadmill Run",
+        "Group Workout",
+        "Solo Session",
+        "Post Injury",
+        "Morning Training",
+        "Evening Training",
+    ]
+    _tags = [ActivityTag(name=_name, user_id=user2_id) for _name in tag_names]
+    db.add_all(_tags)
+    db.commit()
+
+    response = client.get(
+        "/tag/search",
+        params={"query": "Run"},
+        headers={"Authorization": f"Bearer {user2_token}"},
+    )
+    assert response.status_code == 200
+    data = ListResponse[tuple[int, str, float]].model_validate(response.json())
+    assert len(data.data) > 1
+
+
+def test_category_search(
+    db: Session,
+    client: TestClient,
+    user2_token: str,
+    user2_id: UUID,
+) -> None:
+    category_names = [
+        "Run Workouts",
+        "Cycling Sessions",
+        "Swim Training",
+        "Strength Blocks",
+        "Recovery Focus",
+        "Race Preparation",
+        "Mobility & Prehab",
+        "Trail Adventures",
+        "Speed Development",
+        "Endurance Base",
+        "Technique Drills",
+        "Indoor Sessions",
+        "Outdoor Sessions",
+        "Injury Comeback",
+        "Group Training",
+    ]
+    _categories = [
+        ActivityTagCategory(name=_name, user_id=user2_id) for _name in category_names
+    ]
+    db.add_all(_categories)
+    db.commit()
+
+    response = client.get(
+        "/tag/category/find",
+        params={"query": "Training"},
+        headers={"Authorization": f"Bearer {user2_token}"},
+    )
+    assert response.status_code == 200
+    data = ListResponse[tuple[int, str, float]].model_validate(response.json())
+    assert len(data.data) > 1

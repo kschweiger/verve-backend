@@ -11,6 +11,7 @@ from starlette.status import (
     HTTP_404_NOT_FOUND,
 )
 
+from verve_backend import crud
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import (
     UserSession,
@@ -94,18 +95,45 @@ def add_tag(
     return tag
 
 
-@router.get("/find", response_model=ListResponse[ActivityTagPublic])
-async def find_tag_by_name(*, user_session: UserSession, search_str: str) -> Any:
+@router.get("/search", response_model=ListResponse[tuple[int, str, float]])
+async def find_tag_by_name(
+    *,
+    user_session: UserSession,
+    query: str,
+    limit: int = 20,
+    similarity_threshold: float = 0.3,
+) -> Any:
     """Fuzzy search tag names in the database"""
-    # TODO: Implement
-    pass
+    _, session = user_session
+
+    data = crud.search_by_name(
+        session=session,
+        table_name="activity_tags",
+        query=query,
+        limit=limit,
+        similarity_threshold=similarity_threshold,
+    )
+    return ListResponse(data=data)
 
 
-@router.get("/category/find", response_model=ListResponse[ActivityTagCategoryPublic])
-async def find_category_by_name(*, user_session: UserSession, search_str: str) -> Any:
+@router.get("/category/find", response_model=ListResponse[tuple[int, str, float]])
+async def find_category_by_name(
+    *,
+    user_session: UserSession,
+    query: str,
+    limit: int = 20,
+    similarity_threshold: float = 0.3,
+) -> Any:
     """Fuzzy search tag category names in the database"""
-    # TODO: Implement
-    pass
+    _, session = user_session
+    data = crud.search_by_name(
+        session=session,
+        table_name="activity_tag_categories",
+        query=query,
+        limit=limit,
+        similarity_threshold=similarity_threshold,
+    )
+    return ListResponse(data=data)
 
 
 @router.get("/{id}", response_model=ActivityTagPublic)
