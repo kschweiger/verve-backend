@@ -14,3 +14,4 @@ class Tag(StrEnum):
     HIGHLIGHTS = auto()
     MEDIA = auto()
     LOCATION = auto()
+    TAGGING = auto()

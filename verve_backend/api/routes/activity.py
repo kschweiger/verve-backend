@@ -41,6 +41,7 @@ from verve_backend.models import (
     ActivityCreate,
     ActivityPublic,
     ActivitySubType,
+    ActivityTag,
     ActivityType,
     EquipmentSet,
     Image,
@@ -273,6 +274,26 @@ async def add_locations_to_activity(
     session.commit()
 
     return {"detail": "Location added to activity"}
+
+
+@router.patch("/{id}/add_tag", tags=[Tag.TAGGING], status_code=HTTP_204_NO_CONTENT)
+async def add_tag_to_activity(
+    user_session: UserSession,
+    id: uuid.UUID,
+    tag_id: int,
+) -> None:
+    _, session = user_session
+    activity = session.get(Activity, id)
+    if not activity:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Activity not found")
+
+    tag = session.get(ActivityTag, tag_id)
+    if not tag:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Tag not found")
+
+    activity.tags.append(tag)
+    session.add(activity)
+    session.commit()
 
 
 @router.delete(
