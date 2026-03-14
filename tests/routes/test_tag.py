@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from uuid import UUID
 
 import pytest
@@ -6,6 +7,7 @@ from sqlmodel import Session, select
 
 from verve_backend.models import (
     Activity,
+    ActivityPublic,
     ActivityTag,
     ActivityTagCategory,
     ActivityTagCategoryCreate,
@@ -379,3 +381,52 @@ def test_add_tag_to_activity(
     post_activity = db.get(Activity, _act.id)
     assert post_activity is not None
     assert len(post_activity.tags) == 1
+
+
+def test_get_activities_with_tag(
+    db: Session,
+    client: TestClient,
+    temp_user_token: str,
+    temp_user_id: UUID,
+) -> None:
+    tag = ActivityTag(name="Test Tag", user_id=temp_user_id)
+    db.add(tag)
+    db.commit()
+    db.refresh(tag)
+
+    activity_1 = Activity(
+        start=datetime(2024, 1, 1, 10),
+        duration=timedelta(minutes=30),
+        distance=1.0,
+        moving_duration=timedelta(minutes=25),
+        type_id=1,
+        sub_type_id=None,
+        name="Some Name",
+        user_id=temp_user_id,
+    )
+    activity_2 = Activity(
+        start=datetime(2024, 1, 5, 10),
+        duration=timedelta(minutes=30),
+        distance=2.0,
+        moving_duration=timedelta(minutes=25),
+        type_id=1,
+        sub_type_id=None,
+        name="Some Name",
+        user_id=temp_user_id,
+    )
+    activity_1.tags.append(tag)
+    activity_2.tags.append(tag)
+    db.add_all([activity_1, activity_2])
+    db.commit()
+    db.refresh(activity_1)
+    db.refresh(activity_2)
+
+    response = client.get(
+        f"/tag/{tag.id}/activities",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+
+    assert response.status_code == 200
+    data = ListResponse[ActivityPublic].model_validate(response.json())
+    assert len(data.data) == 2
+    assert set([a.id for a in data.data]) == {activity_1.id, activity_2.id}

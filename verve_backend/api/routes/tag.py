@@ -4,7 +4,7 @@ from uuid import UUID
 import structlog
 from fastapi import APIRouter, HTTPException
 from sqlalchemy.exc import DatabaseError
-from sqlmodel import select
+from sqlmodel import col, select
 from starlette.status import (
     HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST,
@@ -17,11 +17,14 @@ from verve_backend.api.deps import (
     UserSession,
 )
 from verve_backend.models import (
+    Activity,
+    ActivityPublic,
     ActivityTag,
     ActivityTagCategory,
     ActivityTagCategoryCreate,
     ActivityTagCategoryPublic,
     ActivityTagCreate,
+    ActivityTagLink,
     ActivityTagPublic,
     ListResponse,
 )
@@ -168,6 +171,33 @@ def remove_tag(
 
     session.delete(tag)
     session.commit()
+
+
+@router.get("/{id}/activities", response_model=ListResponse[ActivityPublic])
+async def get_activities_for_tag(
+    *,
+    user_session: UserSession,
+    id: int,
+) -> Any:
+    _, session = user_session
+    tag = session.get(ActivityTag, id)
+    if not tag:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Tag not found")
+
+    stmt = (
+        select(Activity)
+        .join(
+            ActivityTagLink,
+            col(Activity.id) == col(ActivityTagLink.activity_id),
+        )
+        .where(
+            col(ActivityTagLink.tag_id) == id,
+        )
+    )
+
+    activities = session.exec(stmt).all()
+
+    return ListResponse(data=list(map(ActivityPublic.model_validate, activities)))
 
 
 @router.patch(
