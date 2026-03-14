@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
 from verve_backend.models import (
+    Activity,
     ActivityTag,
     ActivityTagCategory,
     ActivityTagCategoryCreate,
@@ -353,3 +354,28 @@ def test_category_search(
     assert response.status_code == 200
     data = ListResponse[tuple[int, str, float]].model_validate(response.json())
     assert len(data.data) > 1
+
+
+def test_add_tag_to_activity(
+    db: Session,
+    client: TestClient,
+    user1_token: str,
+    user1_id: UUID,
+) -> None:
+    _act = db.exec(select(Activity).where(Activity.user_id == user1_id)).first()
+    assert _act is not None
+    _tag = db.exec(select(ActivityTag).where(ActivityTag.user_id == user1_id)).first()
+    assert _tag is not None
+
+    response = client.patch(
+        f"/activity/{_act.id}/add_tag",
+        params={"tag_id": _tag.id},
+        headers={"Authorization": f"Bearer {user1_token}"},
+    )
+
+    assert response.status_code == 204
+
+    db.reset()
+    post_activity = db.get(Activity, _act.id)
+    assert post_activity is not None
+    assert len(post_activity.tags) == 1

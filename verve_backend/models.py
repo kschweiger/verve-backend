@@ -108,6 +108,23 @@ class ActivityEquipment(SQLModel, table=True):
     )
 
 
+class ActivityTagLink(SQLModel, table=True):
+    __tablename__: str = "activity_tag_links"  # type: ignore
+
+    activity_id: uuid.UUID = Field(
+        foreign_key="activities.id",
+        nullable=False,
+        ondelete="CASCADE",
+        primary_key=True,
+    )
+    tag_id: int = Field(
+        foreign_key="activity_tags.id",
+        nullable=False,
+        ondelete="CASCADE",
+        primary_key=True,
+    )
+
+
 class LocationActivityLink(SQLModel, table=True):
     __tablename__: str = "location_activity_links"  # type: ignore
 
@@ -282,6 +299,14 @@ class Activity(ActivityBase, table=True):
     locations: list["Location"] = Relationship(
         back_populates="activities",
         link_model=LocationActivityLink,
+        sa_relationship_kwargs={
+            "lazy": "select",
+        },
+    )
+
+    tags: list["ActivityTag"] = Relationship(
+        back_populates="activities",
+        link_model=ActivityTagLink,
         sa_relationship_kwargs={
             "lazy": "select",
         },
@@ -776,6 +801,14 @@ class ActivityTag(ActivityTagBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_id: uuid.UUID = Field(
         foreign_key="users.id", nullable=False, index=True, ondelete="CASCADE"
+    )
+
+    activities: list[Activity] = Relationship(
+        back_populates="tags",
+        link_model=ActivityTagLink,
+        sa_relationship_kwargs={
+            "lazy": "select",
+        },
     )
     __table_args__ = (
         UniqueConstraint(
