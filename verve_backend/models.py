@@ -108,6 +108,23 @@ class ActivityEquipment(SQLModel, table=True):
     )
 
 
+class ActivityTagLink(SQLModel, table=True):
+    __tablename__: str = "activity_tag_links"  # type: ignore
+
+    activity_id: uuid.UUID = Field(
+        foreign_key="activities.id",
+        nullable=False,
+        ondelete="CASCADE",
+        primary_key=True,
+    )
+    tag_id: int = Field(
+        foreign_key="activity_tags.id",
+        nullable=False,
+        ondelete="CASCADE",
+        primary_key=True,
+    )
+
+
 class LocationActivityLink(SQLModel, table=True):
     __tablename__: str = "location_activity_links"  # type: ignore
 
@@ -282,6 +299,14 @@ class Activity(ActivityBase, table=True):
     locations: list["Location"] = Relationship(
         back_populates="activities",
         link_model=LocationActivityLink,
+        sa_relationship_kwargs={
+            "lazy": "select",
+        },
+    )
+
+    tags: list["ActivityTag"] = Relationship(
+        back_populates="activities",
+        link_model=ActivityTagLink,
         sa_relationship_kwargs={
             "lazy": "select",
         },
@@ -702,5 +727,103 @@ class ActivityHighlight(ActivityHighlightBase, table=True):
             "rank",
             "type_id",
             name="uix_highlight_rank",
+        ),
+    )
+
+
+class ActivityTagCategoryBase(SQLModel):
+    name: str
+
+
+class ActivityTagCategoryCreate(ActivityTagCategoryBase):
+    pass
+
+
+class ActivityTagCategoryPublic(ActivityTagCategoryBase):
+    id: int
+
+
+class ActivityTagCategory(ActivityTagCategoryBase, table=True):
+    __tablename__: str = "activity_tag_categories"  # type: ignore
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", nullable=False, index=True, ondelete="CASCADE"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("name", "user_id", name="uix_tag_cat_name_user_id"),
+        # Trigram index: powers the `%` operator and similarity() scoring.
+        # postgresql_ops maps the column to the gin_trgm_ops operator class,
+        # which pg_trgm requires — a plain GIN index on a text column won't
+        # support the % operator without it.
+        Index(
+            "idx_activity_tag_cats_name_gin_trgm",
+            "name",
+            postgresql_using="gin",
+            postgresql_ops={"name": "gin_trgm_ops"},
+        ),
+        # Functional GIN index over the daitch_mokotoff(name) expression.
+        # text() is required here because SQLAlchemy's Index() does not
+        # accept func.daitch_mokotoff() as a functional expression directly
+        # in __table_args__ for non-mapped-column expressions — text() is
+        # the documented escape hatch for this case.
+        # fastupdate=off prevents deferred index updates from causing stale
+        # reads under concurrent write load.
+        Index(
+            "idx_activity_tag_cats_name_dm",
+            text("daitch_mokotoff(name)"),
+            postgresql_using="gin",
+            postgresql_with={"fastupdate": "off"},
+        ),
+    )
+
+
+class ActivityTagBase(SQLModel):
+    name: str
+
+    category_id: None | int = Field(
+        default=None, foreign_key="activity_tag_categories.id"
+    )
+
+
+class ActivityTagCreate(ActivityTagBase):
+    pass
+
+
+class ActivityTagPublic(ActivityTagBase):
+    id: int
+
+
+class ActivityTag(ActivityTagBase, table=True):
+    __tablename__: str = "activity_tags"  # type: ignore
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", nullable=False, index=True, ondelete="CASCADE"
+    )
+
+    activities: list[Activity] = Relationship(
+        back_populates="tags",
+        link_model=ActivityTagLink,
+        sa_relationship_kwargs={
+            "lazy": "select",
+        },
+    )
+    __table_args__ = (
+        UniqueConstraint(
+            "name", "user_id", "category_id", name="uix_tag_name_user_id_cat"
+        ),
+        Index(
+            "idx_activity_tags_name_gin_trgm",
+            "name",
+            postgresql_using="gin",
+            postgresql_ops={"name": "gin_trgm_ops"},
+        ),
+        Index(
+            "idx_activity_tags_name_dm",
+            text("daitch_mokotoff(name)"),
+            postgresql_using="gin",
+            postgresql_with={"fastupdate": "off"},
         ),
     )

@@ -1,4 +1,6 @@
+import importlib.resources
 from functools import lru_cache
+from typing import Literal
 
 from sqlalchemy import Engine
 from sqlmodel import create_engine
@@ -37,3 +39,13 @@ def get_engine(echo: bool = False, rls: bool = False) -> Engine:
     per unique combination of arguments, for the entire process lifetime.
     """
     return _build_engine(rls=rls, echo=echo)
+
+
+@lru_cache(maxsize=16)
+def get_search_query(table_name: Literal["activity_tags"]) -> str:
+    template = (
+        importlib.resources.files("verve_backend.queries")
+        .joinpath("search_name_fuzzy.sql")
+        .read_text(encoding="utf-8")
+    )
+    return template.replace("{__table_name__}", table_name)

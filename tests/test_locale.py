@@ -5,6 +5,7 @@ import pytest
 from verve_backend.api.common.locale import (
     TimeOfDay,
     get_activity_name,
+    get_tag_name,
     get_time_of_day,
 )
 
@@ -32,3 +33,22 @@ def test_get_time_of_day(ts: datetime, exp: TimeOfDay) -> None:
 )
 def test_get_activity_name(act: str, ts: datetime, locale: str, exp: str) -> None:
     assert exp == get_activity_name(act, ts, locale)
+
+
+@pytest.mark.parametrize(
+    ("name", "locale", "data_type", "exp"),
+    [
+        ("Interval", "en", "tag", "Interval"),
+        ("Interval", "de", "tag", "Intervall"),
+        ("Interval", "fr", "tag", "Interval"),
+        ("Workout", "en", "tag_category", "Workout"),
+        ("Workout", "de", "tag_category", "Training"),
+        ("Workout", "fr", "tag_category", "Workout"),
+    ],
+)
+def test_get_tag_name(name: str, locale: str, data_type: str, exp: str) -> None:
+    assert exp == get_tag_name(
+        name,
+        locale,
+        data_type,  # type: ignore
+    )

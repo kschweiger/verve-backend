@@ -50,6 +50,16 @@ jobs:
         run: |
           psql -h localhost -U testuser -d testdb -c "CREATE EXTENSION IF NOT EXISTS postgis;"
 
+      - name: Enable pg_trgm Extension
+        env:
+          PGPASSWORD: testpassword
+        run: |
+          psql -h localhost -U testuser -d testdb -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;"
+      - name: Enable fuzzystrmatch Extension
+        env:
+          PGPASSWORD: testpassword
+        run: |
+          psql -h localhost -U testuser -d testdb -c "CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;"
       - name: Configure RLS User and Permissions
         env:
           PGPASSWORD: testpassword
