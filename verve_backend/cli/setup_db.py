@@ -94,6 +94,8 @@ RSL_TABLES = [
     ("equipment_set", "equipment_sets"),
     ("default_equipment_set", "default_equipment_sets"),
     ("location", "locations"),
+    ("activity_tag", "activity_tags"),
+    ("activity_tag_category", "activity_tag_categories"),
 ]
 
 

@@ -12,6 +12,7 @@ import sqlalchemy as sa
 import sqlmodel
 
 from alembic import op
+from verve_backend.core.config import settings
 
 # revision identifiers, used by Alembic.
 revision: str = "5e40e7670600"
@@ -163,6 +164,17 @@ def upgrade() -> None:
                     "category_id": category_ids.get(category_name),
                 },
             )
+
+    schema = settings.POSTGRES_SCHEMA
+    for prefix, table in [
+        ("activity_tag", "activity_tags"),
+        ("activity_tag_category", "activity_tag_categories"),
+    ]:
+        op.execute(f"ALTER TABLE {schema}.{table} ENABLE ROW LEVEL SECURITY")
+        op.execute(f"""
+            CREATE POLICY {prefix}_isolation_policy ON {schema}.{table}
+            FOR ALL USING (user_id = current_setting('verve_user.curr_user')::uuid)
+        """)
     # ### end Alembic commands ###
 
 
