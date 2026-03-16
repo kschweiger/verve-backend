@@ -42,6 +42,8 @@ from verve_backend.models import (
     ActivityPublic,
     ActivitySubType,
     ActivityTag,
+    ActivityTagCategory,
+    ActivityTagLink,
     ActivityType,
     EquipmentSet,
     Image,
@@ -336,13 +338,20 @@ def get_activities(
     month: Annotated[int | None, Query(ge=1, lt=13)] = None,
     type_id: int | None = None,
     sub_type_id: int | None = None,
+    tag_id: int | None = None,
+    category_id: int | None = None,
 ) -> Any:
     _, session = user_session
 
     if type_id is None and sub_type_id is not None:
         raise HTTPException(
             status_code=HTTP_400_BAD_REQUEST,
-            detail="Sub Activity must be set together with Activity",
+            detail="Sub Activity Type must be set together with Activity Type",
+        )
+    if tag_id is not None and category_id is not None:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail="Tag and Tag Category cannot be set together",
         )
     if type_id is not None and sub_type_id is not None:
         validate_sub_type_id(session, ActivitySubType, type_id, sub_type_id)
@@ -365,6 +374,22 @@ def get_activities(
         stmt = stmt.where(Activity.type_id == type_id)
         if sub_type_id is not None:
             stmt = stmt.where(Activity.sub_type_id == sub_type_id)
+    if tag_id is not None or category_id is not None:
+        stmt = (
+            stmt.join(
+                ActivityTagLink,
+                col(Activity.id) == col(ActivityTagLink.activity_id),
+            )
+            .join(ActivityTag, col(ActivityTagLink.tag_id) == col(ActivityTag.id))
+            .join(
+                ActivityTagCategory,
+                col(ActivityTag.category_id) == col(ActivityTagCategory.id),
+            )
+        )
+        if tag_id is not None:
+            stmt = stmt.where(ActivityTag.id == tag_id)
+        else:
+            stmt = stmt.where(ActivityTagCategory.id == category_id)
 
     activities = session.exec(stmt).all()
     _data = [ActivityPublic.model_validate(a) for a in activities]

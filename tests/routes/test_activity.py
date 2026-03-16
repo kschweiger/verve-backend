@@ -18,6 +18,8 @@ from verve_backend.models import (
     ActivityCreate,
     ActivityHighlight,
     ActivityPublic,
+    ActivityTag,
+    ActivityTagCategory,
     ActivityType,
     EquipmentSet,
     Image,
@@ -43,6 +45,99 @@ def test_get_activities(client: TestClient, user1_token: str) -> None:
         headers={"Authorization": f"Bearer {user1_token}"},
     )
     assert response.status_code == 200
+
+
+def test_get_activities_tags(
+    db: Session, client: TestClient, temp_user_token: str, temp_user_id: UUID
+) -> None:
+    cat = ActivityTagCategory(name="Some activity category", user_id=temp_user_id)
+    db.add(cat)
+    db.commit()
+    db.refresh(cat)
+    tag_1 = ActivityTag(name="Tag 1", category_id=cat.id, user_id=temp_user_id)
+    tag_2 = ActivityTag(name="Tag 2", category_id=cat.id, user_id=temp_user_id)
+    db.add_all([tag_1, tag_2])
+    db.commit()
+    db.refresh(tag_1)
+    db.refresh(tag_2)
+    activity_1 = Activity(
+        start=datetime(2024, 1, 1, 10),
+        duration=timedelta(minutes=30),
+        distance=1.0,
+        moving_duration=timedelta(minutes=25),
+        type_id=1,
+        sub_type_id=None,
+        name="Some Name",
+        user_id=temp_user_id,
+    )
+    activity_2 = Activity(
+        start=datetime(2024, 1, 5, 10),
+        duration=timedelta(minutes=30),
+        distance=2.0,
+        moving_duration=timedelta(minutes=25),
+        type_id=1,
+        sub_type_id=None,
+        name="Some Name",
+        user_id=temp_user_id,
+    )
+    activity_3 = Activity(
+        start=datetime(2024, 1, 8, 10),
+        duration=timedelta(minutes=30),
+        distance=2.0,
+        moving_duration=timedelta(minutes=25),
+        type_id=1,
+        sub_type_id=None,
+        name="Some Name",
+        user_id=temp_user_id,
+    )
+
+    activity_1.tags.append(tag_1)
+    activity_2.tags.append(tag_2)
+    db.add_all([activity_1, activity_2, activity_3])
+    db.commit()
+    db.refresh(activity_1)
+    db.refresh(activity_2)
+    db.refresh(activity_3)
+
+    response = client.get(
+        "/activity",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+
+    assert response.status_code == 200
+    data = ActivitiesPublic.model_validate(response.json())
+    assert len(data.data) == 3
+
+    response = client.get(
+        "/activity",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        params={"tag_id": tag_1.id},
+    )
+
+    assert response.status_code == 200
+    data = ActivitiesPublic.model_validate(response.json())
+    assert len(data.data) == 1
+
+    response = client.get(
+        "/activity",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        params={"category_id": cat.id},
+    )
+
+    assert response.status_code == 200
+    data = ActivitiesPublic.model_validate(response.json())
+    assert len(data.data) == 2
+
+    response = client.get(
+        "/activity",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        params={
+            "tag_id": tag_1.id,
+            "category_id": cat.id,
+        },
+    )
+
+    assert response.status_code == 400
 
 
 @pytest.mark.parametrize(
