@@ -6,6 +6,7 @@ from sqlmodel import text
 from verve_backend.api.deps import SessionDep
 from verve_backend.api.routes import (
     activity,
+    admin,
     equipment,
     goal,
     heatmap,
@@ -24,6 +25,7 @@ from verve_backend.core.config import settings
 api_router = APIRouter()
 
 api_router.include_router(users.router)
+api_router.include_router(admin.router)
 api_router.include_router(login.router)
 api_router.include_router(activity.router)
 api_router.include_router(track.router)

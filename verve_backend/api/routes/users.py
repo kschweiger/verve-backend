@@ -46,7 +46,7 @@ class PasswordChangeRequest(BaseModel):
     new_password: UserPassword
 
 
-@router.post("/create", response_model=UserPublic)
+@router.post("/create", response_model=UserPublic, tags=[Tag.ADMIN])
 def create_user(
     *,
     session: SessionDep,

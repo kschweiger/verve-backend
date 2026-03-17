@@ -15,3 +15,4 @@ class Tag(StrEnum):
     MEDIA = auto()
     LOCATION = auto()
     TAGGING = auto()
+    ADMIN = auto()
