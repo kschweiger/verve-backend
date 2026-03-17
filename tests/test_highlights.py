@@ -4,7 +4,6 @@ from uuid import UUID
 from geo_track_analyzer import PyTrack, Track
 from sqlmodel import Session, select
 
-from verve_backend.api.common.track import update_activity_with_track
 from verve_backend.crud import insert_track
 from verve_backend.highlights.crud import update_top_n_highlights
 from verve_backend.highlights.registry import registry
@@ -29,6 +28,8 @@ def create_dummy_activity(
     name: str | None = None,
 ) -> Activity:
     """Creates a simple activity, saves it to the DB, and returns it."""
+    from verve_backend.api.common.track import update_activity_with_track
+
     activity = Activity(
         user_id=user_id,
         start=start,
@@ -291,4 +292,70 @@ def test_process_activity_highlights_no_movement(
 
     assert len(highlights) > 0, (
         "Should compute highlights even for no-movement activities"
+    )
+
+
+def test_power_of_time_only_valid_durations(
+    db: Session,
+    temp_user_id: UUID,
+) -> None:
+    times = []
+    powers = []
+    for i in range(21):
+        times.append(datetime(2024, 1, 1) + timedelta(seconds=i * 60))
+        powers.append(150 + i % 10)
+
+    track = PyTrack(
+        points=[(1, 1)] * len(times),
+        times=times,
+        elevations=None,
+        extensions={
+            "power": powers,
+        },
+    )
+    activity = create_dummy_activity(
+        db,
+        temp_user_id,
+        datetime(2024, 1, 1),
+        500.0,
+        track=track,
+        name="Stationary activity",
+        type_id=6,  # Indoor cardio
+    )
+    db.commit()
+
+    process_activity_highlights(activity_id=activity.id, user_id=temp_user_id)
+    highlights = db.exec(
+        select(ActivityHighlight)
+        .where(ActivityHighlight.user_id == temp_user_id)
+        .where(ActivityHighlight.type_id == 6)
+    ).all()
+
+    unexpected_metrics = [
+        HighlightMetric.AVG_POWER30MIN,
+        HighlightMetric.AVG_POWER60MIN,
+    ]
+    expected_metrics = [
+        HighlightMetric.AVG_POWER1MIN,
+        HighlightMetric.AVG_POWER2MIN,
+        HighlightMetric.AVG_POWER5MIN,
+        HighlightMetric.AVG_POWER10MIN,
+        HighlightMetric.AVG_POWER20MIN,
+    ]
+
+    found_unexpected = []
+    found_expected = []
+    for hl in highlights:
+        if hl.metric in unexpected_metrics:
+            found_unexpected.append(hl.metric)
+        if hl.metric in expected_metrics:
+            found_expected.append(hl.metric)
+
+    for em in found_expected:
+        print(em)
+    assert len(found_unexpected) == 0, (
+        f"Unexprected metrics found: {unexpected_metrics}"
+    )
+    assert len(set(found_expected)) == len(expected_metrics), (
+        f"Expected metrics {set(expected_metrics).difference(set(found_expected))} missing:"  # noqa: E501
     )
