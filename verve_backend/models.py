@@ -30,6 +30,7 @@ UserPassword = Annotated[str, Field(min_length=8, max_length=40)]
 
 U = TypeVar("U")
 V = TypeVar("V")
+W = TypeVar("W", bound=int | uuid.UUID)
 
 
 class PydanticJSON(types.TypeDecorator):
@@ -89,6 +90,12 @@ class ListResponse(BaseModel, Generic[U]):
 
 class DictResponse(BaseModel, Generic[U, V]):
     data: dict[U, V]
+
+
+class PhraseCandidate(BaseModel, Generic[W]):
+    id: W
+    phrase: str
+    score: float
 
 
 class ActivityEquipment(SQLModel, table=True):

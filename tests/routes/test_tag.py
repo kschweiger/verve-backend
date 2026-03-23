@@ -15,6 +15,7 @@ from verve_backend.models import (
     ActivityTagCreate,
     ActivityTagPublic,
     ListResponse,
+    PhraseCandidate,
 )
 
 
@@ -315,7 +316,7 @@ def test_tag_search(
         headers={"Authorization": f"Bearer {user2_token}"},
     )
     assert response.status_code == 200
-    data = ListResponse[tuple[int, str, float]].model_validate(response.json())
+    data = ListResponse[PhraseCandidate[int]].model_validate(response.json())
     assert len(data.data) > 1
 
 
@@ -354,7 +355,7 @@ def test_category_search(
         headers={"Authorization": f"Bearer {user2_token}"},
     )
     assert response.status_code == 200
-    data = ListResponse[tuple[int, str, float]].model_validate(response.json())
+    data = ListResponse[PhraseCandidate[int]].model_validate(response.json())
     assert len(data.data) > 1
 
 

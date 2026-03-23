@@ -672,7 +672,7 @@ def search_by_name(
     query: str,
     limit: int,
     similarity_threshold: float,
-) -> list[int | uuid.UUID]:
+) -> list[tuple[int | uuid.UUID, str, float]]:
     query = query.strip()
     if len(query) == 0:
         return []

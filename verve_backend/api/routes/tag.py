@@ -27,6 +27,7 @@ from verve_backend.models import (
     ActivityTagLink,
     ActivityTagPublic,
     ListResponse,
+    PhraseCandidate,
 )
 
 router = APIRouter(prefix="/tag", tags=[Tag.TAGGING])
@@ -98,7 +99,7 @@ def add_tag(
     return tag
 
 
-@router.get("/search", response_model=ListResponse[tuple[int, str, float]])
+@router.get("/search", response_model=ListResponse[PhraseCandidate[int]])
 async def find_tag_by_name(
     *,
     user_session: UserSession,
@@ -116,10 +117,15 @@ async def find_tag_by_name(
         limit=limit,
         similarity_threshold=similarity_threshold,
     )
-    return ListResponse(data=data)
+    return ListResponse(
+        data=[
+            PhraseCandidate(id=_id, phrase=_name, score=_score)
+            for _id, _name, _score in data
+        ]
+    )
 
 
-@router.get("/category/find", response_model=ListResponse[tuple[int, str, float]])
+@router.get("/category/find", response_model=ListResponse[PhraseCandidate[int]])
 async def find_category_by_name(
     *,
     user_session: UserSession,
@@ -136,7 +142,12 @@ async def find_category_by_name(
         limit=limit,
         similarity_threshold=similarity_threshold,
     )
-    return ListResponse(data=data)
+    return ListResponse(
+        data=[
+            PhraseCandidate(id=_id, phrase=_name, score=_score)
+            for _id, _name, _score in data
+        ]
+    )
 
 
 @router.get("/{id}", response_model=ActivityTagPublic)
