@@ -1,4 +1,23 @@
 <!-- insertion marker -->
+<a name="1.8.0"></a>
+
+## [1.8.0](https://github.com/kschweiger/verve-backend/compare/1.7.0...1.8.0) (2026-03-23)
+
+### Features
+
+- **location:** add route for querying locations by name  (#104) ([fc321be](https://github.com/kschweiger/verve-backend/commit/fc321be5f202ea940197f66d3a62d24abd07bd61))
+- Add admin routes and implement endpoint for recalculating highlights (#41) ([c58fcef](https://github.com/kschweiger/verve-backend/commit/c58fcefb2934e22e3157749e934e699000c884d9))
+- add activity tagging system (#94) ([72038ab](https://github.com/kschweiger/verve-backend/commit/72038ab3da2d1ea6fc3cc904ea677c0d05fe73f3))
+
+### Bug Fixes
+
+- **highlights:** Fix issues with calculating time based highlights longer than the track (#40) ([fa69f71](https://github.com/kschweiger/verve-backend/commit/fa69f711ef863d1acfdc9dd2d26b90418649c0b8))
+
+### Code Refactoring
+
+- replace tuple with PhraseCandidate model ([c8d6ae7](https://github.com/kschweiger/verve-backend/commit/c8d6ae7cf348cd84a3d755d9e8fbfc6023dc49b8))
+- update to python 3.14 and make engine a singleton ([6b8d5cc](https://github.com/kschweiger/verve-backend/commit/6b8d5cc7e69bf8cca702c7bd3abedccf57787f11))
+
 <a name="1.7.0"></a>
 
 ## [1.7.0](https://github.com/kschweiger/verve-backend/compare/1.6.2...1.7.0) (2026-02-22)
