@@ -3,6 +3,8 @@ from datetime import datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
+from geoalchemy2.shape import from_shape
+from shapely.geometry import Point
 from sqlmodel import Session, select
 
 from verve_backend.crud import get_by_name
@@ -14,10 +16,12 @@ from verve_backend.models import (
     ActivityType,
     DictResponse,
     ListResponse,
+    Location,
     LocationCreate,
     LocationPublic,
     LocationSubType,
     LocationType,
+    PhraseCandidate,
 )
 
 
@@ -466,3 +470,40 @@ def test_modify_location_type_invalid_sub_type(
     )
 
     assert response.status_code == 404
+
+
+def test_location_search(
+    db: Session,
+    client: TestClient,
+    temp_user_token: str,
+    temp_user_id: uuid.UUID,
+) -> None:
+    location_names = [
+        "Morning Training Hub",
+        "Evening Training Ground",
+        "Altitude Training Center",
+        "Strength & Conditioning Lab",
+        "River Loop Track",
+        "Cycle Studio East",
+    ]
+
+    _locations = [
+        Location(
+            name=_name,
+            loc=from_shape(Point(1, 1), srid=4326),
+            user_id=temp_user_id,
+            type_id=1,
+            sub_type_id=1,
+        )
+        for _name in location_names
+    ]
+    db.add_all(_locations)
+    db.commit()
+    response = client.get(
+        "/location/find",
+        params={"query": "Training"},
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+    assert response.status_code == 200
+    data = ListResponse[PhraseCandidate[uuid.UUID]].model_validate(response.json())
+    assert len(data.data) > 1
