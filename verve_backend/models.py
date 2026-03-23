@@ -621,6 +621,18 @@ class Location(LocationBase, table=True):
             "loc",  # Column Name (Make sure this matches the field name!)
             postgresql_using="gist",  # Algorithm
         ),
+        Index(
+            "idx_locations_name_gin_trgm",
+            "name",
+            postgresql_using="gin",
+            postgresql_ops={"name": "gin_trgm_ops"},
+        ),
+        Index(
+            "idx_locations_name_dm",
+            text("daitch_mokotoff(name)"),
+            postgresql_using="gin",
+            postgresql_with={"fastupdate": "off"},
+        ),
     )
 
 

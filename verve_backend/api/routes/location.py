@@ -30,6 +30,7 @@ from verve_backend.models import (
     LocationCreate,
     LocationPublic,
     LocationSubType,
+    PhraseCandidate,
 )
 from verve_backend.result import Err, Ok
 
@@ -121,6 +122,31 @@ async def get_all_locations(
     location = session.exec(stmt).all()
     return ListResponse[LocationPublic](
         data=[to_public_location(loc) for loc in location],
+    )
+
+
+@router.get("/find", response_model=ListResponse[PhraseCandidate[uuid.UUID]])
+async def find_location_by_name(
+    *,
+    user_session: UserSession,
+    query: str,
+    limit: int = 20,
+    similarity_threshold: float = 0.3,
+) -> Any:
+    """Fuzzy search location names in the database"""
+    _, session = user_session
+    data = crud.search_by_name(
+        session=session,
+        table_name="locations",
+        query=query,
+        limit=limit,
+        similarity_threshold=similarity_threshold,
+    )
+    return ListResponse(
+        data=[
+            PhraseCandidate(id=_id, phrase=_name, score=_score)
+            for _id, _name, _score in data
+        ]
     )
 
 
