@@ -21,7 +21,7 @@ dependencies = [
   "pydantic-settings==2.13.1",
   "pyjwt==2.12.1",
   "pyproj==3.7.2",
-  "redis==7.3.0",
+  "redis==7.4.0",
   "shapely==2.1.2",
   "sqlalchemy==2.0.48",
   "sqlmodel==0.0.37",
