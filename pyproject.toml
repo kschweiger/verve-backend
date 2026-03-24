@@ -8,8 +8,8 @@ requires-python = ">=3.14,<3.15"
 dependencies = [
   "alembic==1.18.4",
   "bcrypt==4.3.0",
-  "boto3==1.42.74",
-  "boto3-stubs[s3]==1.42.74",
+  "boto3==1.42.75",
+  "boto3-stubs[s3]==1.42.75",
   "celery==5.6.2",
   "fastapi[standard]==0.135.2",
   "geo-track-analyzer==2.0.1",
@@ -92,7 +92,7 @@ test = [
 package = true
 
 [build-system]
-requires = ["uv_build>=0.11.0,<0.11.1"]
+requires = ["uv_build>=0.11.1,<0.11.2"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
