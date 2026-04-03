@@ -11,6 +11,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from mypy_boto3_s3.client import S3Client
 from pydantic import ValidationError
+from sqlalchemy import event
 from sqlmodel import Session, text
 from starlette.concurrency import run_in_threadpool
 from structlog.contextvars import bind_contextvars
@@ -70,8 +71,15 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 def _create_rls_session(user_id: UUID) -> Session:
     session = Session(get_engine(rls=True, echo=False))
-    session.exec(text(f"SET verve_user.curr_user = '{user_id}'"))  # type: ignore
-    session.commit()
+
+    # Listen for the beginning of ANY transaction started by THIS specific session instance  # noqa: E501
+    @event.listens_for(session, "after_begin")
+    def receive_after_begin(sess, transaction, connection):
+        connection.execute(
+            text("SELECT set_config('verve_user.curr_user', :user_id, true)"),
+            {"user_id": str(user_id)},
+        )
+
     return session
 
 
