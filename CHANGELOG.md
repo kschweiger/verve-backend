@@ -1,4 +1,12 @@
 <!-- insertion marker -->
+<a name="1.8.1"></a>
+
+## [1.8.1](https://github.com/kschweiger/verve-backend/compare/1.8.0...1.8.1) (2026-04-03)
+
+### Bug Fixes
+
+- **deps:** fix rls session user setting ([eee2944](https://github.com/kschweiger/verve-backend/commit/eee2944501190981511796a17b1f119ab56b8221))
+
 <a name="1.8.0"></a>
 
 ## [1.8.0](https://github.com/kschweiger/verve-backend/compare/1.7.0...1.8.0) (2026-03-23)
