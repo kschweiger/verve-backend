@@ -1092,3 +1092,54 @@ def test_add_and_rm_location_to_activity(
     _activity = db.get(Activity, activity_id)
     assert _activity is not None
     assert len(_activity.locations) == 0
+
+
+def test_add_and_remove_tags(
+    db: Session, client: TestClient, temp_user_token: str, temp_user_id: UUID
+) -> None:
+    tag_1 = ActivityTag(name="Tag 1", user_id=temp_user_id)
+    db.add_all([tag_1])
+    db.commit()
+    db.refresh(tag_1)
+    activity_1 = Activity(
+        start=datetime(2024, 1, 1, 10),
+        duration=timedelta(minutes=30),
+        distance=1.0,
+        moving_duration=timedelta(minutes=25),
+        type_id=1,
+        sub_type_id=None,
+        name="Some Name",
+        user_id=temp_user_id,
+    )
+    db.add_all([activity_1])
+    db.commit()
+    db.refresh(activity_1)
+
+    activity_id = activity_1.id
+    tag_id = tag_1.id
+
+    assert len(activity_1.tags) == 0
+    response = client.patch(
+        f"/activity/{activity_id}/add_tag",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        params={"tag_id": str(tag_id)},
+    )
+
+    assert response.status_code == 204
+
+    db.expire_all()  # Clear all cached objects
+    _activity = db.get(Activity, activity_id)
+    assert _activity is not None
+    assert len(_activity.tags) == 1
+    assert _activity.tags[0].id == tag_id
+
+    response = client.delete(
+        f"/activity/{activity_id}/tag/{tag_id}",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+    assert response.status_code == 204
+
+    db.expire_all()  # Clear all cached objects
+    _activity = db.get(Activity, activity_id)
+    assert _activity is not None
+    assert len(_activity.tags) == 0

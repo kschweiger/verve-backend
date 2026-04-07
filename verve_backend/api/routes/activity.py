@@ -329,6 +329,32 @@ async def delete_location_from_activity(
     return
 
 
+@router.delete(
+    "/{id}/tag/{tag_id}", tags=[Tag.TAGGING], status_code=HTTP_204_NO_CONTENT
+)
+async def delete_tag_from_activity(
+    user_session: UserSession, id: uuid.UUID, tag_id: int
+) -> None:
+    _, session = user_session
+
+    activity = session.get(Activity, id)
+    if not activity:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Activity not found")
+
+    tag = session.get(ActivityTag, tag_id)
+    if not tag:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Tag not found")
+
+    if tag not in activity.tags:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST, detail="Tag not associated with activity"
+        )
+    activity.tags.remove(tag)
+    session.commit()
+
+    return
+
+
 @router.get("/", response_model=ActivitiesPublic)
 def get_activities(
     user_session: UserSession,
