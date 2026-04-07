@@ -448,3 +448,38 @@ def test_all_tags(
     data = UserTagResponse.model_validate(response.json())
     assert len(data.categories) > 0
     assert len(data.tags) > 0
+
+
+def test_delete_tag_from_category(
+    db: Session,
+    client: TestClient,
+    temp_user_token: str,
+    temp_user_id: UUID,
+) -> None:
+    pass
+    _cat = ActivityTagCategory(name="Some Cat", user_id=temp_user_id)
+    db.add(_cat)
+    db.commit()
+    db.refresh(_cat)
+
+    _tag_1 = ActivityTag(
+        name="all_tag_test_tag_1", user_id=temp_user_id, category_id=_cat.id
+    )
+    _tag_2 = ActivityTag(
+        name="all_tag_test_tag_2", user_id=temp_user_id, category_id=_cat.id
+    )
+    db.add_all([_tag_1, _tag_2])
+    db.commit()
+    db.refresh(_tag_1)
+    db.refresh(_tag_2)
+    response = client.patch(
+        f"/tag/category/{_cat.id}/remove/{_tag_1.id}",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+
+    assert response.status_code == 204
+
+    db.reset()
+    _tag_1_after = db.get(ActivityTag, _tag_1.id)
+    assert _tag_1_after
+    assert _tag_1_after.category_id is None

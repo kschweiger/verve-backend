@@ -255,6 +255,30 @@ def add_tag_to_category(
     session.commit()
 
 
+@router.patch(
+    "/category/{category_id}/remove/{tag_id}",
+    status_code=HTTP_204_NO_CONTENT,
+)
+def rm_tag_to_category(
+    *,
+    user_session: UserSession,
+    category_id: int,
+    tag_id: int,
+) -> None:
+    _, session = user_session
+    category = session.get(ActivityTagCategory, category_id)
+    if not category:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Category not found")
+
+    tag = session.get(ActivityTag, tag_id)
+    if not tag:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Tag not found")
+
+    tag.category_id = None
+    session.add(tag)
+    session.commit()
+
+
 @router.get("/category/{id}", response_model=ListResponse[ActivityTagPublic])
 def get_all_tags_in_category(*, user_session: UserSession, id: int) -> Any:
     """Get all tags in a certain category"""
