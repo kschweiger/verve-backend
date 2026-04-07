@@ -1,4 +1,18 @@
 <!-- insertion marker -->
+<a name="1.9.0"></a>
+
+## [1.9.0](https://github.com/kschweiger/verve-backend/compare/1.8.1...1.9.0) (2026-04-07)
+
+### Features
+
+- **tag:** add route to remove tag from category ([35452b2](https://github.com/kschweiger/verve-backend/commit/35452b2373b5e166b1f6162cab9d158baa3aba3e))
+- **tag:** add route to get all tags and categories for a user ([0c62897](https://github.com/kschweiger/verve-backend/commit/0c62897bbd2a547814bb3b1b7d95c9a50e5fcadf))
+- **activity:** add route to remove tag from activity ([4dccee6](https://github.com/kschweiger/verve-backend/commit/4dccee6c91f2edbe39821277155fb429a35b59d7))
+
+### Code Refactoring
+
+- **activity:** return tags with ActivityPublic ([c78cd9a](https://github.com/kschweiger/verve-backend/commit/c78cd9ad3e2f041ff07f83e18c01c5f76a00a7fb))
+
 <a name="1.8.1"></a>
 
 ## [1.8.1](https://github.com/kschweiger/verve-backend/compare/1.8.0...1.8.1) (2026-04-03)
