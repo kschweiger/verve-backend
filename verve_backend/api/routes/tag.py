@@ -3,6 +3,7 @@ from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.exc import DatabaseError
 from sqlmodel import col, select
 from starlette.status import (
@@ -35,6 +36,11 @@ router = APIRouter(prefix="/tag", tags=[Tag.TAGGING])
 logger = structlog.getLogger(__name__)
 
 
+class UserTagResponse(BaseModel):
+    tags: list[ActivityTagPublic]
+    categories: list[ActivityTagCategoryPublic]
+
+
 @router.put(
     "/category/add",
     response_model=ActivityTagCategoryPublic,
@@ -60,6 +66,20 @@ def add_tag_category(
         )
 
     return cat
+
+
+@router.get("/all", response_model=UserTagResponse)
+def get_all_tags(*, user_session: UserSession) -> Any:
+    """Get all tags for a user"""
+    _, session = user_session
+
+    tags = session.exec(select(ActivityTag)).all()
+    cats = session.exec(select(ActivityTagCategory)).all()
+
+    return UserTagResponse(
+        tags=tags,  # type: ignore
+        categories=cats,  # type: ignore
+    )
 
 
 @router.put(
@@ -235,8 +255,9 @@ def add_tag_to_category(
     session.commit()
 
 
-@router.get("/category/{id}", response_model=ListResponse[ActivityTagCategoryPublic])
-def get_all_tags(*, user_session: UserSession, id: int) -> Any:
+@router.get("/category/{id}", response_model=ListResponse[ActivityTagPublic])
+def get_all_tags_in_category(*, user_session: UserSession, id: int) -> Any:
+    """Get all tags in a certain category"""
     _, session = user_session
     category = session.get(ActivityTagCategory, id)
     if not category:

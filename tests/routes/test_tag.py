@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
+from verve_backend.api.routes.tag import UserTagResponse
 from verve_backend.models import (
     Activity,
     ActivityPublic,
@@ -431,3 +432,19 @@ def test_get_activities_with_tag(
     data = ListResponse[ActivityPublic].model_validate(response.json())
     assert len(data.data) == 2
     assert set([a.id for a in data.data]) == {activity_1.id, activity_2.id}
+
+
+def test_all_tags(
+    client: TestClient,
+    user1_token: str,
+) -> None:
+    response = client.get(
+        "/tag/all",
+        headers={"Authorization": f"Bearer {user1_token}"},
+    )
+
+    assert response.status_code == 200
+
+    data = UserTagResponse.model_validate(response.json())
+    assert len(data.categories) > 0
+    assert len(data.tags) > 0
