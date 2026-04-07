@@ -285,6 +285,8 @@ class ActivityPublic(ActivityBase):
     id: uuid.UUID
     created_at: datetime
 
+    tags: list["ActivityTagPublic"]
+
 
 class Activity(ActivityBase, table=True):
     __tablename__: str = "activities"  # type: ignore

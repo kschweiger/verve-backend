@@ -31,6 +31,7 @@ def test_activities_to_calendar_weeks() -> None:
             distance=1.0,
             type_id=1,
             sub_type_id=1,
+            tags=[],
         ),
         # 2 activities from 1 type on a day
         ActivityPublic(
@@ -42,6 +43,7 @@ def test_activities_to_calendar_weeks() -> None:
             distance=2.0,
             type_id=1,
             sub_type_id=1,
+            tags=[],
         ),
         ActivityPublic(
             id=UUID("8df76316-2e99-4f9d-8ca8-9db8e67f5522"),
@@ -52,6 +54,7 @@ def test_activities_to_calendar_weeks() -> None:
             distance=5.0,
             type_id=1,
             sub_type_id=2,
+            tags=[],
         ),
         # 2 activities from 2 type on a day
         ActivityPublic(
@@ -63,6 +66,7 @@ def test_activities_to_calendar_weeks() -> None:
             distance=7.0,
             type_id=1,
             sub_type_id=1,
+            tags=[],
         ),
         ActivityPublic(
             id=UUID("79403e8e-6f3c-4356-b69d-f4af241b0350"),
@@ -73,6 +77,7 @@ def test_activities_to_calendar_weeks() -> None:
             distance=9.0,
             type_id=2,
             sub_type_id=None,
+            tags=[],
         ),
     ]
 
