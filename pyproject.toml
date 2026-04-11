@@ -14,7 +14,7 @@ dependencies = [
   "fastapi[standard]==0.135.3",
   "geo-track-analyzer==2.0.1",
   "geoalchemy2==0.18.4",
-  "gevent==25.9.1",
+  "gevent==26.4.0",
   "passlib==1.7.4",
   "psycopg==3.3.3",
   "pydantic==2.12.5",
