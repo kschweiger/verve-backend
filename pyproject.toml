@@ -18,7 +18,7 @@ dependencies = [
   "passlib==1.7.4",
   "psycopg==3.3.3",
   "pydantic==2.13.2",
-  "pydantic-settings==2.13.1",
+  "pydantic-settings==2.14.0",
   "pyjwt==2.12.1",
   "pyproj==3.7.2",
   "redis==7.4.0",
