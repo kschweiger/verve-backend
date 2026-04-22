@@ -8,8 +8,8 @@ requires-python = ">=3.14,<3.15"
 dependencies = [
   "alembic==1.18.4",
   "bcrypt==4.3.0",
-  "boto3==1.42.93",
-  "boto3-stubs[s3]==1.42.93",
+  "boto3==1.42.94",
+  "boto3-stubs[s3]==1.42.94",
   "celery==5.6.3",
   "fastapi[standard]==0.136.0",
   "geo-track-analyzer==2.0.1",
