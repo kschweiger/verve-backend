@@ -48,6 +48,8 @@ from verve_backend.models import (
     LocationCreate,
     LocationSubType,
     LocationType,
+    SegmentCut,
+    SegmentSet,
     TrackPoint,
     User,
     UserCreate,
@@ -695,3 +697,36 @@ def search_by_name(
         )
         for row in result.mappings().all()
     ]  # type: ignore
+
+
+def add_segment_set(
+    *,
+    session: Session,
+    user_id: uuid.UUID,
+    activity_id: uuid.UUID,
+    name: str,
+    point_ids: list[int],
+) -> Result[uuid.UUID, str]:
+    _set = SegmentSet(user_id=user_id, activity_id=activity_id, name=name)
+
+    try:
+        session.add(_set)
+        session.commit()
+    except:
+        raise NotImplementedError()
+
+    session.refresh(_set)
+
+    for point_id in point_ids:
+        cut = SegmentCut(
+            user_id=user_id,
+            set_id=_set.id,
+            point_id=point_id,
+        )
+        session.add(cut)
+        try:
+            session.commit()
+        except:
+            raise NotImplementedError()
+
+    return Ok(_set.id)
