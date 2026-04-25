@@ -87,7 +87,7 @@ class SegementSetCreate(BaseModel):
 
 
 @router.post(
-    "/segment_set",
+    "/segments/set",
     status_code=HTTP_204_NO_CONTENT,
     tags=[Tag.SEGMENTS],
 )
@@ -151,6 +151,26 @@ def add_segment_set(user_session: UserSession, segment_set: SegementSetCreate) -
     session.commit()
 
 
+@router.get(
+    "/segments/sets/{activity_id}",
+    response_model=ListResponse[uuid.UUID],
+    tags=[Tag.SEGMENTS],
+)
+def get_user_segment_sets(
+    user_session: UserSession,
+    activity_id: uuid.UUID,
+) -> Any:
+    _user_id, session = user_session
+
+    data = session.exec(
+        select(SegmentSet.id)
+        .where(SegmentSet.user_id == uuid.UUID(_user_id))
+        .where(SegmentSet.activity_id == activity_id)
+    ).all()
+
+    return ListResponse(data=list(data))
+
+
 class SegmentMtrics(BaseModel):
     avg: float
     min: float
@@ -189,8 +209,9 @@ class SegmentStatisticsResponse(BaseModel):
 
 
 @router.get(
-    "/segment",
+    "/segments/set/{segment_set_id}",
     response_model=SegmentStatisticsResponse,
+    tags=[Tag.SEGMENTS],
 )
 def segment_statistics(
     user_session: UserSession,
@@ -303,6 +324,7 @@ def get_track_data(user_session: UserSession, activity_id: uuid.UUID) -> Any:
     ).all()
     track_points = [
         TrackPointResponse(
+            id=row.id,
             segment_id=row.segment_id,
             latitude=row.latitude,
             longitude=row.longitude,

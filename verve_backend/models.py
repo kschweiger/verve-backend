@@ -463,6 +463,7 @@ class TrackPoint(SQLModel, table=True):
 
 
 class TrackPointResponse(BaseModel):
+    id: int
     segment_id: int
     latitude: float | None
     longitude: float | None
