@@ -463,6 +463,7 @@ class TrackPoint(SQLModel, table=True):
 
 
 class TrackPointResponse(BaseModel):
+    id: int
     segment_id: int
     latitude: float | None
     longitude: float | None
@@ -848,3 +849,29 @@ class ActivityTag(ActivityTagBase, table=True):
             postgresql_with={"fastupdate": "off"},
         ),
     )
+
+
+class SegmentSet(SQLModel, table=True):
+    __tablename__: str = "segment_sets"  # type: ignore
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid7, primary_key=True)
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", nullable=False, index=True, ondelete="CASCADE"
+    )
+    activity_id: uuid.UUID = Field(
+        foreign_key="activities.id", index=True, ondelete="CASCADE"
+    )
+    name: str
+
+
+class SegmentCut(SQLModel, table=True):
+    __tablename__: str = "segment_cuts"  # type: ignore
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", nullable=False, index=True, ondelete="CASCADE"
+    )
+    set_id: uuid.UUID = Field(
+        foreign_key="segment_sets.id", nullable=False, ondelete="CASCADE", index=True
+    )
+    point_id: int

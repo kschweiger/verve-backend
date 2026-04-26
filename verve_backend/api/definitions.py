@@ -16,3 +16,5 @@ class Tag(StrEnum):
     LOCATION = auto()
     TAGGING = auto()
     ADMIN = auto()
+    SEGMENTS = auto()
+    STATISTICS = auto()
