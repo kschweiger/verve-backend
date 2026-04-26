@@ -725,29 +725,26 @@ def search_by_name(
     ]  # type: ignore
 
 
-def add_segment_set(
+def validate_point_ids(
     *,
     session: Session,
-    user_id: uuid.UUID,
     activity_id: uuid.UUID,
-    name: str,
     point_ids: list[int],
-) -> Result[uuid.UUID, tuple[uuid.UUID, str]]:
-    # Validate inputs against database
+) -> tuple[uuid.UUID, str] | None:
     max_id = session.exec(
         select(func.max(TrackPoint.id)).where(TrackPoint.activity_id == activity_id)
     ).first()
     if max_id is None:
         err_id = uuid.uuid4()
         logger.error("[%s] No track found for activity %s", err_id, activity_id)
-        return Err((err_id, "No track found for activity"))
+        return err_id, "No track found for activity"
 
     if max(point_ids) > max_id:
         err_id = uuid.uuid4()
         logger.error(
             "[%s] Got max point id %s but max is %s", err_id, max(point_ids), max_id
         )
-        return Err((err_id, "Point id larger than number of points in track"))
+        return err_id, "Point id larger than number of points in track"
 
     points = session.exec(
         select(TrackPoint.id)
@@ -762,7 +759,50 @@ def add_segment_set(
             err_id,
             set(points).difference(point_ids),
         )
-        return Err((err_id, "Not all track ids are in the track"))
+        return err_id, "Not all track ids are in the track"
+
+
+def insert_cuts(
+    session: Session,
+    user_id: uuid.UUID,
+    set_id: uuid.UUID,
+    point_ids: list[int],
+) -> tuple[uuid.UUID, str] | None:
+    for point_id in point_ids:
+        cut = SegmentCut(
+            user_id=user_id,
+            set_id=set_id,
+            point_id=point_id,
+        )
+        session.add(cut)
+        try:
+            session.commit()
+        except DatabaseError as e:
+            err_id = uuid.uuid4()
+            logger.error(
+                "[%s] Database error while segment cut %s; set %s",
+                err_id,
+                point_id,
+                set_id,
+            )
+            logger.error("[%s] %s", err_id, e)
+            return err_id, "Encountered database error"
+
+
+def add_segment_set(
+    *,
+    session: Session,
+    user_id: uuid.UUID,
+    activity_id: uuid.UUID,
+    name: str,
+    point_ids: list[int],
+) -> Result[uuid.UUID, tuple[uuid.UUID, str]]:
+    if err := validate_point_ids(
+        session=session,
+        activity_id=activity_id,
+        point_ids=point_ids,
+    ):
+        return Err(err)
 
     # Now to the insert
     _set = SegmentSet(user_id=user_id, activity_id=activity_id, name=name)
@@ -777,25 +817,15 @@ def add_segment_set(
         return Err((err_id, "Encountered database error"))
 
     session.refresh(_set)
-
-    for point_id in point_ids:
-        cut = SegmentCut(
-            user_id=user_id,
-            set_id=_set.id,
-            point_id=point_id,
-        )
-        session.add(cut)
-        try:
-            session.commit()
-        except DatabaseError as e:
-            err_id = uuid.uuid4()
-            logger.error(
-                "[%s] Database error while segment cut %s; set %s",
-                err_id,
-                point_id,
-                _set.id,
-            )
-            logger.error("[%s] %s", err_id, e)
-            return Err((err_id, "Encountered database error"))
+    if err := insert_cuts(
+        session=session,
+        user_id=user_id,
+        set_id=_set.id,
+        point_ids=point_ids,
+    ):
+        logger.info("Deleting base set because cut generation failed")
+        session.delete(_set)
+        session.commit()
+        return Err(err)
 
     return Ok(_set.id)

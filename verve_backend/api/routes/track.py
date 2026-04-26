@@ -8,7 +8,9 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlmodel import select, text
 from starlette.status import (
+    HTTP_200_OK,
     HTTP_201_CREATED,
+    HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST,
 )
 
@@ -19,6 +21,7 @@ from verve_backend.api.deps import ObjectStoreClient, UserSession
 from verve_backend.models import (
     Activity,
     ListResponse,
+    SegmentCut,
     SegmentSet,
     TrackPoint,
     TrackPointResponse,
@@ -153,6 +156,97 @@ def get_user_segment_sets(
     ).all()
 
     return ListResponse(data=list(data))
+
+
+@router.delete(
+    "/segments/set/{segment_set_id}",
+    status_code=HTTP_204_NO_CONTENT,
+    tags=[Tag.SEGMENTS],
+)
+def delete_segment_set(
+    user_session: UserSession,
+    segment_set_id: uuid.UUID,
+) -> None:
+    """Delte segment set"""
+    _, session = user_session
+
+    _set = session.get(SegmentSet, segment_set_id)
+    if _set is None:
+        raise HTTPException(status_code=404, detail="Segment set not found")
+
+    session.delete(_set)
+    session.commit()
+
+
+class UpdateSegmentSet(BaseModel):
+    name: str | None = None
+    cuts: list[int] | None = None
+
+
+@router.patch(
+    "/segments/set/{segment_set_id}",
+    status_code=HTTP_200_OK,
+    tags=[Tag.SEGMENTS],
+)
+def update_segment_set(
+    user_session: UserSession,
+    segment_set_id: uuid.UUID,
+    data: UpdateSegmentSet,
+) -> Any:
+    """Rename segment set and/or update cuts in a segments"""
+    _user_id, session = user_session
+    user_id = uuid.UUID(_user_id)
+
+    _set = session.get(SegmentSet, segment_set_id)
+    if _set is None:
+        raise HTTPException(status_code=404, detail="Segment set not found")
+
+    if data.name is None and data.cuts is None:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail="At least one of name or cuts must be provided for update",
+        )
+
+    if data.name:
+        logger.debug("Updating set name to %s", data.name)
+        _set.name = data.name
+        session.commit()
+
+    if data.cuts:
+        err = crud.validate_point_ids(
+            session=session,
+            activity_id=_set.activity_id,
+            point_ids=data.cuts,
+        )
+        if err is not None:
+            err_id, err_msg = err
+            raise HTTPException(
+                status_code=HTTP_400_BAD_REQUEST,
+                detail=f"{err_msg}. Eror Code: {err_id}",
+            )
+
+        _cuts = session.exec(
+            select(SegmentCut)
+            .where(SegmentCut.set_id == segment_set_id)
+            .where(SegmentCut.user_id == user_id)
+        ).all()
+
+        err = crud.insert_cuts(
+            session=session,
+            user_id=user_id,
+            set_id=segment_set_id,
+            point_ids=data.cuts,
+        )
+        if err is not None:
+            err_id, err_msg = err
+            raise HTTPException(
+                status_code=HTTP_400_BAD_REQUEST,
+                detail=f"{err_msg}. Eror Code: {err_id}",
+            )
+        logger.debug("Deleting previous cuts")
+        for cut in _cuts:
+            session.delete(cut)
+        session.commit()
 
 
 class SegmentMtrics(BaseModel):
