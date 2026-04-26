@@ -54,7 +54,9 @@ def test_get_segment_stats(
     )
     assert response.status_code == 200
 
-    SegmentStatisticsResponse.model_validate(response.json())
+    data = SegmentStatisticsResponse.model_validate(response.json())
+
+    assert len(data.cuts) == 1
 
 
 def test_get_segment_stats_invalid_segment(

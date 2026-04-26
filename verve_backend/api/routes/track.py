@@ -249,41 +249,42 @@ def update_segment_set(
         session.commit()
 
 
-class SegmentMtrics(BaseModel):
+class SegmentMetrics(BaseModel):
     avg: float
     min: float
     max: float
 
 
 class SegmentResponse(BaseModel):
-    distance: float = Field(description="Distance of the segment in m")
-    duration: float = Field(description="Duration of the segment in seconds")
+    distance_m: float = Field(description="Distance of the segment in m")
+    duration_s: float = Field(description="Duration of the segment in seconds")
 
     elevation_gain: float = Field(description="Elevation gain of the segment in m")
     elevation_loss: float = Field(description="Elevation loss of the segment in m")
 
-    speed: SegmentMtrics | None = Field(
+    speed: SegmentMetrics | None = Field(
         default=None, description="Speed metrics for the segment in m/s"
     )
-    heartrate: SegmentMtrics | None = Field(
+    heartrate: SegmentMetrics | None = Field(
         default=None, description="Heartrate metrics for the segment in bpm"
     )
-    power: SegmentMtrics | None = Field(
+    power: SegmentMetrics | None = Field(
         default=None, description="Power metrics for the segment in W"
     )
-    cadence: SegmentMtrics | None = Field(
+    cadence: SegmentMetrics | None = Field(
         default=None, description="Cadence metrics for the segment in rpm"
     )
 
-    avg_pace: float | None = Field(
+    avg_pace_s_per_km: float | None = Field(
         default=None, description="Average pace of the segment in sec/km"
     )
 
 
 class SegmentStatisticsResponse(BaseModel):
-    segment_id: uuid.UUID
+    segment_set_id: uuid.UUID
     name: str
     segments: list[SegmentResponse]
+    cuts: list[int]
 
 
 @router.get(
@@ -301,6 +302,12 @@ def segment_statistics(
     _set = session.get(SegmentSet, segment_set_id)
     if _set is None:
         raise HTTPException(status_code=404, detail="Segment set not found")
+
+    _cuts = session.exec(
+        select(SegmentCut.point_id)
+        .where(SegmentCut.set_id == segment_set_id)
+        .where(SegmentCut.user_id == user_id)
+    ).all()
 
     stmt = (
         importlib.resources.files("verve_backend.queries")
@@ -324,28 +331,28 @@ def segment_statistics(
 
         hr = None
         if row["max_heartrate"] is not None:
-            hr = SegmentMtrics(
+            hr = SegmentMetrics(
                 min=row["min_heartrate"],
                 max=row["max_heartrate"],
                 avg=row["avg_heartrate"],
             )
         speed = None
         if row["max_speed_m_s"] is not None:
-            speed = SegmentMtrics(
+            speed = SegmentMetrics(
                 min=row["min_speed_m_s"],
                 max=row["max_speed_m_s"],
                 avg=row["avg_speed_m_s"],
             )
         power = None
         if row["max_power"] is not None:
-            power = SegmentMtrics(
+            power = SegmentMetrics(
                 min=row["min_power"],
                 max=row["max_power"],
                 avg=row["avg_power"],
             )
         cadence = None
         if row["max_cadence"] is not None:
-            cadence = SegmentMtrics(
+            cadence = SegmentMetrics(
                 min=row["min_cadence"],
                 max=row["max_cadence"],
                 avg=row["avg_cadence"],
@@ -353,22 +360,23 @@ def segment_statistics(
 
         _segments.append(
             SegmentResponse(
-                distance=_row["distance_m"],
-                duration=_row["elapsed_s"],
+                distance_m=_row["distance_m"],
+                duration_s=_row["elapsed_s"],
                 elevation_gain=_row["elevation_gain_m"],
                 elevation_loss=_row["elevation_loss_m"],
                 heartrate=hr,
                 power=power,
                 cadence=cadence,
                 speed=speed,
-                avg_pace=_row["avg_pace_s_per_km"],
+                avg_pace_s_per_km=_row["avg_pace_s_per_km"],
             )
         )
 
     return SegmentStatisticsResponse(
-        segment_id=segment_set_id,
+        segment_set_id=segment_set_id,
         name=_set.name,
         segments=_segments,
+        cuts=list(_cuts),
     )
 
 
