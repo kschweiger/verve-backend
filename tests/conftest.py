@@ -496,13 +496,6 @@ def generate_data(session: Session) -> None:
         session=session,
         user_id=created_users[0].id,
         activity_id=activity_6.id,
-        name="Default Set",
-        point_ids=[49],
-    )
-    crud.add_segment_set(
-        session=session,
-        user_id=created_users[0].id,
-        activity_id=activity_6.id,
         name="Custom Set",
         point_ids=[20, 40, 60, 80],
     )

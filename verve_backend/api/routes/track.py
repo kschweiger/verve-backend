@@ -6,10 +6,10 @@ import structlog
 from fastapi import APIRouter, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from sqlmodel import col, func, select, text
+from sqlmodel import select, text
 from starlette.status import (
     HTTP_201_CREATED,
-    HTTP_204_NO_CONTENT,
+    HTTP_400_BAD_REQUEST,
 )
 
 from verve_backend import crud
@@ -19,11 +19,11 @@ from verve_backend.api.deps import ObjectStoreClient, UserSession
 from verve_backend.models import (
     Activity,
     ListResponse,
-    SegmentCut,
     SegmentSet,
     TrackPoint,
     TrackPointResponse,
 )
+from verve_backend.result import Err, Ok
 from verve_backend.tasks import process_activity_highlights
 
 logger = structlog.getLogger(__name__)
@@ -86,12 +86,18 @@ class SegementSetCreate(BaseModel):
     cuts: list[int]
 
 
+class SegmentSetPublic(BaseModel):
+    id: uuid.UUID
+    name: str
+    activity_id: uuid.UUID
+
+
 @router.post(
     "/segments/set",
-    status_code=HTTP_204_NO_CONTENT,
     tags=[Tag.SEGMENTS],
+    response_model=SegmentSetPublic,
 )
-def add_segment_set(user_session: UserSession, segment_set: SegementSetCreate) -> None:
+def add_segment_set(user_session: UserSession, segment_set: SegementSetCreate) -> Any:
     _user_id, session = user_session
     user_id = uuid.UUID(_user_id)
 
@@ -107,48 +113,26 @@ def add_segment_set(user_session: UserSession, segment_set: SegementSetCreate) -
         raise HTTPException(status_code=400, detail="Segment set cuts must be unique")
 
     _cuts = sorted(segment_set.cuts)
-
-    max_id = session.exec(
-        select(func.max(TrackPoint.id)).where(
-            TrackPoint.activity_id == segment_set.activity_id
-        )
-    ).first()
-    if max_id is None:
-        raise HTTPException(status_code=400, detail="Activity has no track points")
-
-    if _cuts[-1] > max_id:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cut idx must be less than the number of track points ({max_id})",
-        )
-
-    points = session.exec(
-        select(TrackPoint.id)
-        .where(TrackPoint.activity_id == segment_set.activity_id)
-        .where(col(TrackPoint.id).in_(_cuts))
-    ).all()
-
-    if len(points) != len(_cuts):
-        raise HTTPException(
-            status_code=400, detail="Some cut idx are not valid track points"
-        )
-
-    _set = SegmentSet(
-        name=segment_set.name,
+    result = crud.add_segment_set(
+        session=session,
         user_id=user_id,
         activity_id=segment_set.activity_id,
+        name=segment_set.name,
+        point_ids=_cuts,
     )
-    session.add(_set)
-    session.commit()
-    session.refresh(_set)
-
-    assert _set.id is not None
-
-    _cuts = [
-        (SegmentCut(user_id=user_id, set_id=_set.id, point_id=cut)) for cut in _cuts
-    ]
-    session.add_all(_cuts)
-    session.commit()
+    match result:
+        case Ok(set_id):
+            logger.info("Segment set %s created successfully", set_id)
+            return SegmentSetPublic(
+                id=set_id,
+                name=segment_set.name,
+                activity_id=segment_set.activity_id,
+            )
+        case Err((err_id, err_msg)):
+            raise HTTPException(
+                status_code=HTTP_400_BAD_REQUEST,
+                detail=f"{err_msg}. Eror Code: {err_id}",
+            )
 
 
 @router.get(

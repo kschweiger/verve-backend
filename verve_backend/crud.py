@@ -11,7 +11,7 @@ from geoalchemy2.shape import from_shape, to_shape
 from pyproj import Transformer
 from shapely.geometry import Point
 from sqlalchemy.exc import DatabaseError
-from sqlmodel import Session, col, insert, select, text
+from sqlmodel import Session, col, func, insert, select, text
 
 from verve_backend.api.common.locale import get_activity_name, get_tag_name
 from verve_backend.api.common.track import update_activity_with_track
@@ -319,6 +319,32 @@ def insert_track(
         session.exec(insert(TrackPoint), params=batch)  # type: ignore
         session.commit()
         n_points += len(batch)
+
+    if track.n_segments > 1:
+        logger.debug("Found track with segments. Adding segment cuts")
+        segment_end_stmt = (
+            select(
+                TrackPoint.segment_id,
+                func.max(TrackPoint.id).label("point_id"),
+            )
+            .where(TrackPoint.activity_id == activity_id)
+            .where(TrackPoint.user_id == user_id)
+            .group_by(col(TrackPoint.segment_id))
+            .order_by(col(TrackPoint.segment_id))
+        )
+
+        segment_ends = session.exec(segment_end_stmt).all()
+        cut_point_ids = [point_id for _, point_id in segment_ends[:-1]]
+        if cut_point_ids:
+            add_segment_set(
+                session=session,
+                user_id=uuid.UUID(str(user_id)),
+                activity_id=uuid.UUID(str(activity_id)),
+                name="Raw track segments",
+                point_ids=cut_point_ids,
+            )
+        else:
+            raise RuntimeError("Expected to find segment cuts but found none")
 
     return n_points
 
@@ -706,14 +732,49 @@ def add_segment_set(
     activity_id: uuid.UUID,
     name: str,
     point_ids: list[int],
-) -> Result[uuid.UUID, str]:
+) -> Result[uuid.UUID, tuple[uuid.UUID, str]]:
+    # Validate inputs against database
+    max_id = session.exec(
+        select(func.max(TrackPoint.id)).where(TrackPoint.activity_id == activity_id)
+    ).first()
+    if max_id is None:
+        err_id = uuid.uuid4()
+        logger.error("[%s] No track found for activity %s", err_id, activity_id)
+        return Err((err_id, "No track found for activity"))
+
+    if max(point_ids) > max_id:
+        err_id = uuid.uuid4()
+        logger.error(
+            "[%s] Got max point id %s but max is %s", err_id, max(point_ids), max_id
+        )
+        return Err((err_id, "Point id larger than number of points in track"))
+
+    points = session.exec(
+        select(TrackPoint.id)
+        .where(TrackPoint.activity_id == activity_id)
+        .where(col(TrackPoint.id).in_(point_ids))
+    ).all()
+
+    if len(points) != len(point_ids):
+        err_id = uuid.uuid4()
+        logger.error(
+            "[%s] Not all passed track ids are part of the track. Difference: %s",
+            err_id,
+            set(points).difference(point_ids),
+        )
+        return Err((err_id, "Not all track ids are in the track"))
+
+    # Now to the insert
     _set = SegmentSet(user_id=user_id, activity_id=activity_id, name=name)
 
     try:
         session.add(_set)
         session.commit()
-    except:
-        raise NotImplementedError()
+    except DatabaseError as e:
+        err_id = uuid.uuid4()
+        logger.error("[%s] Database error while creating segment set", err_id)
+        logger.error("[%s] %s", err_id, e)
+        return Err((err_id, "Encountered database error"))
 
     session.refresh(_set)
 
@@ -726,7 +787,15 @@ def add_segment_set(
         session.add(cut)
         try:
             session.commit()
-        except:
-            raise NotImplementedError()
+        except DatabaseError as e:
+            err_id = uuid.uuid4()
+            logger.error(
+                "[%s] Database error while segment cut %s; set %s",
+                err_id,
+                point_id,
+                _set.id,
+            )
+            logger.error("[%s] %s", err_id, e)
+            return Err((err_id, "Encountered database error"))
 
     return Ok(_set.id)
