@@ -12,7 +12,15 @@ from pydantic import (
     EmailStr,
 )
 from sqlalchemy import JSON, Column
-from sqlmodel import Field, Index, Relationship, SQLModel, UniqueConstraint, text
+from sqlmodel import (
+    Field,
+    ForeignKeyConstraint,
+    Index,
+    Relationship,
+    SQLModel,
+    UniqueConstraint,
+    text,
+)
 
 from verve_backend.enums import GoalAggregation, GoalType, TemporalType
 
@@ -863,6 +871,10 @@ class SegmentSet(SQLModel, table=True):
     )
     name: str
 
+    __table_args__ = (
+        UniqueConstraint("id", "user_id", name="uix_segment_sets_id_user_id"),
+    )
+
 
 class SegmentCut(SQLModel, table=True):
     __tablename__: str = "segment_cuts"  # type: ignore
@@ -871,7 +883,15 @@ class SegmentCut(SQLModel, table=True):
     user_id: uuid.UUID = Field(
         foreign_key="users.id", nullable=False, index=True, ondelete="CASCADE"
     )
-    set_id: uuid.UUID = Field(
-        foreign_key="segment_sets.id", nullable=False, ondelete="CASCADE", index=True
-    )
+    set_id: uuid.UUID = Field(nullable=False, index=True)
+
     point_id: int
+    __table_args__ = (
+        UniqueConstraint("set_id", "point_id", name="uix_segment_cuts_set_point"),
+        ForeignKeyConstraint(
+            ["set_id", "user_id"],
+            ["segment_sets.id", "segment_sets.user_id"],
+            name="fk_segment_cuts_set_id_user_id",
+            ondelete="CASCADE",
+        ),
+    )

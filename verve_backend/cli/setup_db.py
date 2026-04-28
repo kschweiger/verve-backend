@@ -96,6 +96,8 @@ RSL_TABLES = [
     ("location", "locations"),
     ("activity_tag", "activity_tags"),
     ("activity_tag_category", "activity_tag_categories"),
+    ("segment_set", "segment_sets"),
+    ("segment_cut", "segment_cuts"),
 ]
 
 
