@@ -147,8 +147,10 @@ SELECT
     / NULLIF(SUM(pm.distance_m), 0)
     * 1000.0 AS avg_pace_s_per_km,
 
-    SUM(GREATEST(pm.elevation_delta_m, 0)) AS elevation_gain_m,
-    SUM(ABS(LEAST(pm.elevation_delta_m, 0))) AS elevation_loss_m,
+    SUM(GREATEST(pm.elevation_delta_m, 0))
+        FILTER (WHERE pm.elevation_delta_m IS NOT NULL) AS elevation_gain_m,
+    SUM(ABS(LEAST(pm.elevation_delta_m, 0)))
+        FILTER (WHERE pm.elevation_delta_m IS NOT NULL) AS elevation_loss_m,
 
     AVG(pm.heartrate) FILTER (WHERE pm.heartrate IS NOT NULL) AS avg_heartrate,
     MAX(pm.heartrate) AS max_heartrate,
@@ -183,4 +185,3 @@ GROUP BY
     boundary_pm.time
 
 ORDER BY s.segment_index ASC;
-

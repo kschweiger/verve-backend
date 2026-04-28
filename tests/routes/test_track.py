@@ -1,3 +1,4 @@
+import json
 import uuid
 from datetime import datetime, timedelta
 from importlib import resources
@@ -347,3 +348,48 @@ def test_delete_segment_set(
         select(SegmentCut).where(col(SegmentCut.set_id) == set_id)
     ).all()
     assert len(selected_cuts) == 0
+
+
+def test_get_segment_stats_weight_training_e2e(
+    client: TestClient,
+    temp_user_token: str,
+) -> None:
+    with (
+        resources.files("tests.resources")
+        .joinpath("processed_Weight_Training.json")
+        .open("rb") as f
+    ):
+        json_content = f.read()
+
+    _data = json.loads(json_content)
+    _data["properties"] = None
+    json_content = json.dumps(_data).encode("utf-8")
+
+    response = client.post(
+        "/activity/auto/",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        files={
+            "file": ("weights_training.json", json_content, "application/octet-stream")
+        },
+        params={"type_id": 5, "sub_type_id": 19},
+    )
+    activity_id = response.json()["id"]
+
+    assert response.status_code == 200
+    response = client.post(
+        "/track/segments/set",
+        json=dict(name="Some name", activity_id=str(activity_id), cuts=[30]),
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+    assert response.status_code == 200
+    new_set = SegmentSetPublic.model_validate(response.json())
+
+    response = client.get(
+        f"/track/segments/set/{new_set.id}",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+    assert response.status_code == 200
+
+    data = SegmentStatisticsResponse.model_validate(response.json())
+
+    assert len(data.cuts) == 1

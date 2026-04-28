@@ -256,11 +256,15 @@ class SegmentMetrics(BaseModel):
 
 
 class SegmentResponse(BaseModel):
-    distance_m: float = Field(description="Distance of the segment in m")
+    distance_m: float | None = Field(description="Distance of the segment in m")
     duration_s: float = Field(description="Duration of the segment in seconds")
 
-    elevation_gain: float = Field(description="Elevation gain of the segment in m")
-    elevation_loss: float = Field(description="Elevation loss of the segment in m")
+    elevation_gain: float | None = Field(
+        description="Elevation gain of the segment in m"
+    )
+    elevation_loss: float | None = Field(
+        description="Elevation loss of the segment in m"
+    )
 
     speed: SegmentMetrics | None = Field(
         default=None, description="Speed metrics for the segment in m/s"
@@ -327,6 +331,7 @@ def segment_statistics(
 
     _segments = []
     for row in data:
+        print(row)
         _row = dict(row)
 
         hr = None
