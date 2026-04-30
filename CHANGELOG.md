@@ -1,4 +1,12 @@
 <!-- insertion marker -->
+<a name="1.10.0"></a>
+
+## [1.10.0](https://github.com/kschweiger/verve-backend/compare/1.9.0...1.10.0) (2026-04-30)
+
+### Features
+
+- virtual segments (#144) ([be7d1dd](https://github.com/kschweiger/verve-backend/commit/be7d1ddf4e802d0b55315ec683bdb2012d00ca3b))
+
 <a name="1.9.0"></a>
 
 ## [1.9.0](https://github.com/kschweiger/verve-backend/compare/1.8.1...1.9.0) (2026-04-07)
