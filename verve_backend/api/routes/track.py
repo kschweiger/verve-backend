@@ -1,12 +1,12 @@
 import importlib.resources
 import uuid
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Any, Literal, Self
 
 import structlog
 from fastapi import APIRouter, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlmodel import select, text
 from starlette.status import (
     HTTP_200_OK,
@@ -302,6 +302,12 @@ class SegmentDisplayMetadata(BaseModel):
     speed_unit: Literal["m/s", "km/h", "miles/h"] = "km/h"
     pace_unit: Literal["s/km", "s/mile", "min/km", "min/mile"] = "min/km"
 
+    @model_validator(mode="after")
+    def check_primary_in_display(self) -> Self:
+        if self.primary_metric not in self.display_metrics:
+            raise ValueError("Primary metric must be included in display metrics")
+        return self
+
 
 class SegmentStatisticsResponse(BaseModel):
     segment_set_id: uuid.UUID
@@ -446,6 +452,17 @@ def segment_statistics(
         display_metrics.append(SegmentMetric.HEARTRATE)
     if has_cadence:
         display_metrics.append(SegmentMetric.CADENCE)
+
+    if len(display_metrics) == 0:
+        err_code = uuid.uuid4()
+        logger.error("[%s] No display metrics in set %s", err_code, _set.id)
+        raise HTTPException(
+            status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal Error. Error code: {err_code}",
+        )
+
+    if primary_metric not in display_metrics:
+        primary_metric = display_metrics[0]
 
     display_metadata = SegmentDisplayMetadata(
         primary_metric=primary_metric, display_metrics=display_metrics
