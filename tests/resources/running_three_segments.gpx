@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Verve Test Fixture"
+     xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>Running Three Segments</name>
+    <time>2026-04-30T06:30:00Z</time>
+  </metadata>
+  <trk>
+    <name>Morning Run With Three Segments</name>
+    <type>running</type>
+    <trkseg>
+      <trkpt lat="47.995000" lon="7.850000">
+        <ele>276.0</ele>
+        <time>2026-04-30T06:30:00Z</time>
+        <extensions><heartrate>128</heartrate></extensions>
+      </trkpt>
+      <trkpt lat="47.995240" lon="7.850180">
+        <ele>276.8</ele>
+        <time>2026-04-30T06:30:12Z</time>
+        <extensions><heartrate>131</heartrate></extensions>
+      </trkpt>
+      <trkpt lat="47.995480" lon="7.850360">
+        <ele>277.5</ele>
+        <time>2026-04-30T06:30:24Z</time>
+        <extensions><heartrate>134</heartrate></extensions>
+      </trkpt>
+      <trkpt lat="47.995720" lon="7.850540">
+        <ele>278.1</ele>
+        <time>2026-04-30T06:30:36Z</time>
+        <extensions><heartrate>137</heartrate></extensions>
+      </trkpt>
+      <trkpt lat="47.995960" lon="7.850720">
+        <ele>278.9</ele>
+        <time>2026-04-30T06:30:48Z</time>
+        <extensions><heartrate>140</heartrate></extensions>
+      </trkpt>
+      <trkpt lat="47.996200" lon="7.850900">
+        <ele>279.6</ele>
+        <time>2026-04-30T06:31:00Z</time>
+        <extensions><heartrate>143</heartrate></extensions>
+      </trkpt>
+      <trkpt lat="47.996440" lon="7.851080">
+        <ele>280.2</ele>
+        <time>2026-04-30T06:31:12Z</time>
+        <extensions><heartrate>146</heartrate></extensions>
+      </trkpt>
+      <trkpt lat="47.996680" lon="7.851260">
+        <ele>280.9</ele>
+        <time>2026-04-30T06:31:24Z</time>
+        <extensions><heartrate>148</heartrate></extensions>
+      </trkpt>
+    </trkseg>
+    <trkseg>
+      <trkpt lat="47.996920" lon="7.851460">
+        <ele>281.8</ele>
+        <time>2026-04-30T06:31:34Z</time>
+        <extensions><heartrate>152</heartrate></extensions>
+      </trkpt>
+      <trkpt lat="47.997180" lon="7.851700">
+        <ele>282.7</ele>
+        <time>2026-04-30T06:31:44Z</time>
+        <extensions><heartrate>157</heartrate></extensions>
+      </trkpt>
+      <trkpt lat="47.997440" lon="7.851940">
+        <ele>283.9</ele>
+        <time>2026-04-30T06:31:54Z</time>
+        <extensions><heartrate>162</heartrate></extensions>
+      </trkpt>
+      <trkpt lat="47.997700" lon="7.852180">
+        <ele>285.0</ele>
+        <time>2026-04-30T06:32:04Z</time>
+        <extensions><heartrate>166</heartrate></extensions>
+      </trkpt>
+      <trkpt lat="47.997960" lon="7.852420">
+        <ele>286.1</ele>
+        <time>2026-04-30T06:32:14Z</time>
+        <extensions><heartrate>169</heartrate></extensions>
+      </trkpt>
+      <trkpt lat="47.998220" lon="7.852660">
+        <ele>287.0</ele>
+        <time>2026-04-30T06:32:24Z</time>
+        <extensions><heartrate>171</heartrate></extensions>
+      </trkpt>
+      <trkpt lat="47.998480" lon="7.852900">
+        <ele>287.8</ele>
+        <time>2026-04-30T06:32:34Z</time>
+        <extensions><heartrate>173</heartrate></extensions>
+      </trkpt>
+      <trkpt lat="47.998740" lon="7.853140">
+        <ele>288.4</ele>
+        <time>2026-04-30T06:32:44Z</time>
+        <extensions><heartrate>174</heartrate></extensions>
+      </trkpt>
+    </trkseg>
+    <trkseg>
+      <trkpt lat="47.999000" lon="7.853320">
+        <ele>288.1</ele>
+        <time>2026-04-30T06:32:58Z</time>
+        <extensions><heartrate>168</heartrate></extensions>
+      </trkpt>
+      <trkpt lat="47.999220" lon="7.853480">
+        <ele>287.7</ele>
+        <time>2026-04-30T06:33:12Z</time>
+        <extensions><heartrate>163</heartrate></extensions>
+      </trkpt>
+      <trkpt lat="47.999440" lon="7.853640">
+        <ele>287.3</ele>
+        <time>2026-04-30T06:33:26Z</time>
+        <extensions><heartrate>158</heartrate></extensions>
+      </trkpt>
+      <trkpt lat="47.999660" lon="7.853800">
+        <ele>286.9</ele>
+        <time>2026-04-30T06:33:40Z</time>
+        <extensions><heartrate>153</heartrate></extensions>
+      </trkpt>
+      <trkpt lat="47.999880" lon="7.853960">
+        <ele>286.4</ele>
+        <time>2026-04-30T06:33:54Z</time>
+        <extensions><heartrate>149</heartrate></extensions>
+      </trkpt>
+      <trkpt lat="48.000100" lon="7.854120">
+        <ele>285.9</ele>
+        <time>2026-04-30T06:34:08Z</time>
+        <extensions><heartrate>145</heartrate></extensions>
+      </trkpt>
+      <trkpt lat="48.000320" lon="7.854280">
+        <ele>285.4</ele>
+        <time>2026-04-30T06:34:22Z</time>
+        <extensions><heartrate>141</heartrate></extensions>
+      </trkpt>
+      <trkpt lat="48.000540" lon="7.854440">
+        <ele>285.0</ele>
+        <time>2026-04-30T06:34:36Z</time>
+        <extensions><heartrate>138</heartrate></extensions>
+      </trkpt>
+    </trkseg>
+  </trk>
+</gpx>

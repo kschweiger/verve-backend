@@ -1,6 +1,7 @@
 import importlib.resources
 import uuid
-from typing import Any
+from enum import StrEnum
+from typing import Any, Literal
 
 import structlog
 from fastapi import APIRouter, HTTPException, UploadFile
@@ -12,6 +13,7 @@ from starlette.status import (
     HTTP_201_CREATED,
     HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST,
+    HTTP_500_INTERNAL_SERVER_ERROR,
 )
 
 from verve_backend import crud
@@ -20,6 +22,7 @@ from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import ObjectStoreClient, UserSession
 from verve_backend.models import (
     Activity,
+    ActivityType,
     ListResponse,
     SegmentCut,
     SegmentSet,
@@ -255,6 +258,14 @@ class SegmentMetrics(BaseModel):
     max: float
 
 
+class SegmentMetric(StrEnum):
+    PACE = "pace"
+    HEARTRATE = "heartrate"
+    POWER = "power"
+    SPEED = "speed"
+    CADENCE = "cadence"
+
+
 class SegmentResponse(BaseModel):
     distance_m: float | None = Field(description="Distance of the segment in m")
     duration_s: float = Field(description="Duration of the segment in seconds")
@@ -284,11 +295,21 @@ class SegmentResponse(BaseModel):
     )
 
 
+class SegmentDisplayMetadata(BaseModel):
+    """Defines how the frontend should display the segment"""
+
+    primary_metric: SegmentMetric
+    display_metrics: list[SegmentMetric]
+    speed_unit: Literal["m/s", "km/h", "miles/h"] = "km/h"
+    pace_unit: Literal["s/km", "s/mile", "min/km", "min/mile"] = "min/km"
+
+
 class SegmentStatisticsResponse(BaseModel):
     segment_set_id: uuid.UUID
     name: str
     segments: list[SegmentResponse]
     cuts: list[int]
+    display_metadata: SegmentDisplayMetadata
 
 
 @router.get(
@@ -306,6 +327,12 @@ def segment_statistics(
     _set = session.get(SegmentSet, segment_set_id)
     if _set is None:
         raise HTTPException(status_code=404, detail="Segment set not found")
+
+    activitiy = session.get(Activity, _set.activity_id)
+    if activitiy is None:
+        raise HTTPException(
+            status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Activity not found"
+        )
 
     _cuts = session.exec(
         select(SegmentCut.point_id)
@@ -330,12 +357,17 @@ def segment_statistics(
     data = data.mappings().all()
 
     _segments = []
+    has_speed = False
+    has_heartrate = False
+    has_power = False
+    has_cadence = False
+    has_pace = False
     for row in data:
-        print(row)
         _row = dict(row)
 
         hr = None
         if row["max_heartrate"] is not None:
+            has_heartrate = True
             hr = SegmentMetrics(
                 min=row["min_heartrate"],
                 max=row["max_heartrate"],
@@ -343,6 +375,7 @@ def segment_statistics(
             )
         speed = None
         if row["max_speed_m_s"] is not None:
+            has_speed = True
             speed = SegmentMetrics(
                 min=row["min_speed_m_s"],
                 max=row["max_speed_m_s"],
@@ -350,6 +383,7 @@ def segment_statistics(
             )
         power = None
         if row["max_power"] is not None:
+            has_power = True
             power = SegmentMetrics(
                 min=row["min_power"],
                 max=row["max_power"],
@@ -357,11 +391,15 @@ def segment_statistics(
             )
         cadence = None
         if row["max_cadence"] is not None:
+            has_cadence = True
             cadence = SegmentMetrics(
                 min=row["min_cadence"],
                 max=row["max_cadence"],
                 avg=row["avg_cadence"],
             )
+
+        if row["avg_pace_s_per_km"] is not None:
+            has_pace = True
 
         _segments.append(
             SegmentResponse(
@@ -377,11 +415,42 @@ def segment_statistics(
             )
         )
 
+    _types = session.exec(select(ActivityType)).all()
+
+    types = {t.name: t.id for t in _types}
+
+    primary_metric = SegmentMetric.SPEED
+    display_metrics = []
+
+    if activitiy.type_id == types["Cycling"]:
+        if has_power:
+            primary_metric = SegmentMetric.POWER
+        elif has_heartrate:
+            primary_metric = SegmentMetric.HEARTRATE
+
+    elif activitiy.type_id == types["Foot Sports"]:  # noqa: SIM102
+        if has_pace:
+            primary_metric = SegmentMetric.PACE
+            display_metrics.append(SegmentMetric.PACE)
+
+    if has_speed:
+        display_metrics.append(SegmentMetric.SPEED)
+    if has_power:
+        display_metrics.append(SegmentMetric.POWER)
+    if has_heartrate:
+        display_metrics.append(SegmentMetric.HEARTRATE)
+    if has_cadence:
+        display_metrics.append(SegmentMetric.CADENCE)
+
+    display_metadata = SegmentDisplayMetadata(
+        primary_metric=primary_metric, display_metrics=display_metrics
+    )
     return SegmentStatisticsResponse(
         segment_set_id=segment_set_id,
         name=_set.name,
         segments=_segments,
         cuts=list(_cuts),
+        display_metadata=display_metadata,
     )
 
 

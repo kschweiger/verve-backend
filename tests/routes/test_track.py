@@ -2,6 +2,7 @@ import json
 import uuid
 from datetime import datetime, timedelta
 from importlib import resources
+from typing import Literal
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,7 +10,11 @@ from geo_track_analyzer import GPXFileTrack
 from sqlmodel import Session, col, select
 
 from verve_backend import crud
-from verve_backend.api.routes.track import SegmentSetPublic, SegmentStatisticsResponse
+from verve_backend.api.routes.track import (
+    SegmentMetric,
+    SegmentSetPublic,
+    SegmentStatisticsResponse,
+)
 from verve_backend.models import (
     ActivitiesPublic,
     Activity,
@@ -49,6 +54,11 @@ def test_get_segment_stats(
     assert len(_sets) > 0
     _set = _sets[0]
 
+    activity = db.get(Activity, _set.activity_id)
+    assert activity is not None
+    # This should be cycling
+    assert activity.type_id == 1
+
     response = client.get(
         f"/track/segments/set/{_set.id}",
         headers={"Authorization": f"Bearer {user1_token}"},
@@ -58,6 +68,11 @@ def test_get_segment_stats(
     data = SegmentStatisticsResponse.model_validate(response.json())
 
     assert len(data.cuts) == 1
+
+    # Expecting cycling track with POWER so this should be primary metric
+    assert data.display_metadata.primary_metric == SegmentMetric.POWER
+    # Cycling should explicitly not show pace
+    assert SegmentMetric.PACE not in data.display_metadata.display_metrics
 
 
 def test_get_segment_stats_invalid_segment(
@@ -95,6 +110,7 @@ def test_get_segment_sets(
 def _add_activity(
     db: Session,
     user: User,
+    type: Literal["cycling", "running"] = "cycling",
 ) -> Activity:
     activity = crud.create_activity(
         session=db,
@@ -102,15 +118,19 @@ def _add_activity(
             start=datetime(year=2026, month=1, day=1, hour=13),
             duration=timedelta(days=0, seconds=60 * 60 * 1),
             distance=None,
-            type_id=1,
-            sub_type_id=1,
+            type_id=1 if type == "cycling" else 2,
+            sub_type_id=1 if type == "cycling" else 8,
             name=None,
         ),
         user=user,  # type: ignore
     ).unwrap()
 
     resource_files = resources.files("tests.resources")
-    track = GPXFileTrack(resource_files / "two_segments_100_points.gpx")  # type: ignore
+    if type == "cycling":
+        track = GPXFileTrack(resource_files / "two_segments_100_points.gpx")  # type: ignore
+    else:
+        track = GPXFileTrack(resource_files / "running_three_segments.gpx")  # type: ignore
+
     crud.insert_track(
         session=db,
         track=track,
@@ -120,6 +140,40 @@ def _add_activity(
     )
 
     return activity
+
+
+def test_get_segment_stats_running(
+    db: Session,
+    client: TestClient,
+    temp_user_token: str,
+    temp_user_id: uuid.UUID,
+) -> None:
+    user = db.get(User, temp_user_id)
+    assert user is not None
+    activity = _add_activity(db, user, "running")
+    _sets = db.exec(
+        select(SegmentSet)
+        .where(SegmentSet.user_id == temp_user_id)
+        .where(SegmentSet.activity_id == activity.id)
+    ).all()
+    assert len(_sets) == 1
+    assert activity.type_id == 2
+
+    response = client.get(
+        f"/track/segments/set/{_sets[0].id}",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+    assert response.status_code == 200
+
+    data = SegmentStatisticsResponse.model_validate(response.json())
+
+    assert len(data.cuts) == 2
+
+    # Expecting cycling track with POWER so this should be primary metric
+    assert data.display_metadata.primary_metric == SegmentMetric.PACE
+    assert SegmentMetric.POWER not in data.display_metadata.display_metrics
+    assert SegmentMetric.CADENCE not in data.display_metadata.display_metrics
+    assert SegmentMetric.HEARTRATE in data.display_metadata.display_metrics
 
 
 def test_add_segment(
