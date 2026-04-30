@@ -465,6 +465,41 @@ def generate_data(session: Session) -> None:
         track=track,
     )
 
+    activity_6 = crud.create_activity(
+        session=session,
+        create=models.ActivityCreate(
+            start=datetime(year=2026, month=1, day=1, hour=13),
+            duration=timedelta(days=0, seconds=60 * 60 * 1),
+            distance=None,
+            type_id=1,
+            sub_type_id=1,
+            name=None,
+        ),
+        user=created_users[0],  # type: ignore
+    ).unwrap()
+
+    track = GPXFileTrack(resource_files / "two_segments_100_points.gpx")  # type: ignore
+    crud.insert_track(
+        session=session,
+        track=track,
+        activity_id=activity_6.id,
+        user_id=created_users[0].id,
+        batch_size=500,
+    )
+    crud.update_activity_with_track_data(
+        session=session,
+        activity_id=activity_6.id,
+        track=track,
+    )
+    process_activity_highlights(activity_id=activity_6.id, user_id=created_users[0].id)
+    crud.add_segment_set(
+        session=session,
+        user_id=created_users[0].id,
+        activity_id=activity_6.id,
+        name="Custom Set",
+        point_ids=[20, 40, 60, 80],
+    )
+
     crud.create_location(
         session=session,
         user_id=created_users[1].id,

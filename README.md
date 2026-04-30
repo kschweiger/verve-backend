@@ -3,7 +3,7 @@
 
 ## Dependencies
 
-- A postgreSQL instance with enables postgis extension
+- A postgreSQL instance with enables postgis extension. **Postgres >= 18 required**
 - Some kind of boto3 compatible object store (e.g. rustfs)
 
 ## Database setup

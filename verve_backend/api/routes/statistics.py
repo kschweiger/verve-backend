@@ -13,6 +13,7 @@ from starlette.status import (
 )
 
 from verve_backend.api.common.utils import check_and_raise_primary_key
+from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import UserSession
 from verve_backend.core.date_utils import get_month_grid, get_week_date_range
 from verve_backend.models import Activity, ActivityType, UserSettings
@@ -23,7 +24,7 @@ T = TypeVar("T", int, float)
 
 logger = structlog.getLogger(__name__)
 
-router = APIRouter(prefix="/statistics", tags=["statistics"])
+router = APIRouter(prefix="/statistics", tags=[Tag.STATISTICS])
 
 
 class StatsParam(BaseModel):

@@ -12,7 +12,15 @@ from pydantic import (
     EmailStr,
 )
 from sqlalchemy import JSON, Column
-from sqlmodel import Field, Index, Relationship, SQLModel, UniqueConstraint, text
+from sqlmodel import (
+    Field,
+    ForeignKeyConstraint,
+    Index,
+    Relationship,
+    SQLModel,
+    UniqueConstraint,
+    text,
+)
 
 from verve_backend.enums import GoalAggregation, GoalType, TemporalType
 
@@ -463,6 +471,7 @@ class TrackPoint(SQLModel, table=True):
 
 
 class TrackPointResponse(BaseModel):
+    id: int
     segment_id: int
     latitude: float | None
     longitude: float | None
@@ -846,5 +855,43 @@ class ActivityTag(ActivityTagBase, table=True):
             text("daitch_mokotoff(name)"),
             postgresql_using="gin",
             postgresql_with={"fastupdate": "off"},
+        ),
+    )
+
+
+class SegmentSet(SQLModel, table=True):
+    __tablename__: str = "segment_sets"  # type: ignore
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid7, primary_key=True)
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", nullable=False, index=True, ondelete="CASCADE"
+    )
+    activity_id: uuid.UUID = Field(
+        foreign_key="activities.id", index=True, ondelete="CASCADE"
+    )
+    name: str
+
+    __table_args__ = (
+        UniqueConstraint("id", "user_id", name="uix_segment_sets_id_user_id"),
+    )
+
+
+class SegmentCut(SQLModel, table=True):
+    __tablename__: str = "segment_cuts"  # type: ignore
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", nullable=False, index=True, ondelete="CASCADE"
+    )
+    set_id: uuid.UUID = Field(nullable=False, index=True)
+
+    point_id: int
+    __table_args__ = (
+        UniqueConstraint("set_id", "point_id", name="uix_segment_cuts_set_point"),
+        ForeignKeyConstraint(
+            ["set_id", "user_id"],
+            ["segment_sets.id", "segment_sets.user_id"],
+            name="fk_segment_cuts_set_id_user_id",
+            ondelete="CASCADE",
         ),
     )
