@@ -254,8 +254,8 @@ def update_segment_set(
 
 class SegmentMetrics(BaseModel):
     avg: float
-    min: float
-    max: float
+    min: float | None
+    max: float | None
 
 
 class SegmentMetric(StrEnum):
@@ -289,9 +289,8 @@ class SegmentResponse(BaseModel):
     cadence: SegmentMetrics | None = Field(
         default=None, description="Cadence metrics for the segment in rpm"
     )
-
-    avg_pace_s_per_km: float | None = Field(
-        default=None, description="Average pace of the segment in sec/km"
+    pace: SegmentMetrics | None = Field(
+        default=None, description="Pace of the segment in sec/km"
     )
 
 
@@ -398,8 +397,14 @@ def segment_statistics(
                 avg=row["avg_cadence"],
             )
 
+        pace = None
         if row["avg_pace_s_per_km"] is not None:
             has_pace = True
+            pace = SegmentMetrics(
+                avg=row["avg_pace_s_per_km"],
+                max=None,
+                min=None,
+            )
 
         _segments.append(
             SegmentResponse(
@@ -411,7 +416,7 @@ def segment_statistics(
                 power=power,
                 cadence=cadence,
                 speed=speed,
-                avg_pace_s_per_km=_row["avg_pace_s_per_km"],
+                pace=pace,
             )
         )
 
