@@ -40,6 +40,16 @@ router = APIRouter(prefix="/media", tags=[Tag.MEDIA])
 logger = structlog.getLogger(__name__)
 
 
+def public_url(presigned_url: str) -> str:
+    public_prefix = settings.BOTO3_PUBLIC_URL_PREFIX
+    if not public_prefix:
+        return presigned_url
+    internal_endpoint = settings.BOTO3_ENDPOINT.rstrip("/")
+    if not presigned_url.startswith(f"{internal_endpoint}/"):
+        return presigned_url
+    return f"{public_prefix.rstrip('/')}/{presigned_url[len(internal_endpoint) + 1 :]}"
+
+
 @router.put("/image/activity/{activity_id}", tags=[Tag.IMAGE, Tag.UPLOAD])
 async def add_image(
     *,
@@ -144,7 +154,7 @@ async def get_image(
         ExpiresIn=3600,  # URL valid for 1 hour
     )
 
-    return ImageURLResponse(id=image.id, url=presigned_url)
+    return ImageURLResponse(id=image.id, url=public_url(presigned_url))
 
 
 @router.delete(
@@ -209,7 +219,7 @@ async def get_activity_images(
         image_data.append(
             ImageURLResponse(
                 id=img.id,
-                url=presigned_url,
+                url=public_url(presigned_url),
             )
         )
 

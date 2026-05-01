@@ -65,6 +65,7 @@ class Settings(BaseSettings):
     BOTO3_SIGNATURE: str = "s3v4"
     BOTO3_REGION: str = "us-east-1"
     BOTO3_BUCKET_NAME: str = "verve"
+    BOTO3_PUBLIC_URL_PREFIX: str | None = None
 
     REDIS_SERVER: str = "localhost"
     REDIS_PORT: int = 6379
