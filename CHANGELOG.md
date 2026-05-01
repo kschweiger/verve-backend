@@ -1,4 +1,12 @@
 <!-- insertion marker -->
+<a name="1.10.1"></a>
+
+## [1.10.1](https://github.com/kschweiger/verve-backend/compare/1.10.0...1.10.1) (2026-05-01)
+
+### Bug Fixes
+
+- add public URL prefix for S3 presigned URLs ([9d2946d](https://github.com/kschweiger/verve-backend/commit/9d2946d7be3d9f8ea61a2f13dd2e9e899dd90176))
+
 <a name="1.10.0"></a>
 
 ## [1.10.0](https://github.com/kschweiger/verve-backend/compare/1.9.0...1.10.0) (2026-04-30)
