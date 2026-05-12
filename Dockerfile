@@ -3,7 +3,7 @@
 # ==========================================
 FROM python:3.14-slim-bookworm AS builder
 
-COPY --from=ghcr.io/astral-sh/uv:latest@sha256:3a59a3cdd5f7c217faa36e32dbc7fddbb0412889c2a0a5229f6d790e5a019dd7 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:latest@sha256:1025398289b62de8269e70c45b91ffa37c373f38118d7da036fb8bb8efc85d97 /uv /bin/uv
 
 ENV UV_COMPILE_BYTECODE=1 \
   UV_LINK_MODE=copy \
