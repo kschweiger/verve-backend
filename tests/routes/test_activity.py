@@ -11,7 +11,7 @@ from pytest_mock import MockerFixture
 from sqlmodel import Session, select
 
 from verve_backend import crud
-from verve_backend.core.meta_data import LapData, SwimmingMetaData, SwimStyle
+from verve_backend.core.meta_data import LapData, SetData, SwimmingMetaData, SwimStyle
 from verve_backend.models import (
     ActivitiesPublic,
     Activity,
@@ -483,16 +483,56 @@ def test_update_activity_errors(
         (
             "Swimming",
             SwimmingMetaData(
-                segments=[
-                    LapData(
-                        count=10,
+                pool_length_meters=50,
+                lap_count=2,
+                set_count=1,
+                sets=[
+                    SetData(
+                        index=0,
+                        start_time=datetime(
+                            year=2025, month=1, day=2, hour=13, minute=10
+                        ),
+                        end_time=datetime(
+                            year=2025, month=1, day=2, hour=13, minute=12, second=30
+                        ),
+                        durations=timedelta(minutes=2),
+                        distance_meters=100,
                         style=SwimStyle.FREESTYLE,
-                        duration=timedelta(minutes=20),
-                        lap_lengths=50,
+                        lap_start_index=0,
+                        lap_end_index=1,
+                        lap_count=2,
+                        avg_swofl=30.0,
+                    )
+                ],
+                laps=[
+                    LapData(
+                        index=0,
+                        start_time=datetime(
+                            year=2025, month=1, day=2, hour=13, minute=10
+                        ),
+                        end_time=datetime(
+                            year=2025, month=1, day=2, hour=13, minute=11
+                        ),
+                        durations=timedelta(minutes=1),
+                        distance_meters=50,
+                        style=SwimStyle.FREESTYLE,
+                        swolf=30.0,
+                        rest_after=timedelta(seconds=30),
                     ),
-                    LapData(count=10),
-                    LapData(count=10, style=SwimStyle.FREESTYLE),
-                ]
+                    LapData(
+                        index=1,
+                        start_time=datetime(
+                            year=2025, month=1, day=2, hour=13, minute=11, second=30
+                        ),
+                        end_time=datetime(
+                            year=2025, month=1, day=2, hour=13, minute=12, second=30
+                        ),
+                        durations=timedelta(minutes=1),
+                        distance_meters=50,
+                        style=SwimStyle.FREESTYLE,
+                        swolf=30.0,
+                    ),
+                ],
             ),
             200,
         ),
