@@ -1,8 +1,8 @@
 from datetime import datetime
 from typing import Any, Literal, Self
 
-from pydantic import BaseModel, Field, field_validator, model_validator
-from pydantic.aliases import AliasChoices
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic.alias_generators import to_camel
 
 from verve_backend.schema.meta_data import KnownMetaDataEnvelope
 
@@ -13,7 +13,14 @@ def check_length(data: list | None, exp_length: int) -> bool:
     return data is not None and len(data) != exp_length
 
 
-class MetricSummary(BaseModel):
+class VerveBaseModel(BaseModel):
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+
+class MetricSummary(VerveBaseModel):
     """Extensible structure for metric aggregates"""
 
     avg: float | None = None
@@ -21,22 +28,16 @@ class MetricSummary(BaseModel):
     min: float | None = None
 
 
-class ActivityStats(BaseModel):
+class ActivityStats(VerveBaseModel):
     """Grouped statistics"""
 
     speed: MetricSummary | None = Field(default=None)
-
-    heart_rate: MetricSummary | None = Field(
-        default=None,
-        serialization_alias="heartRate",
-        validation_alias=AliasChoices("heartRate", "heart_rate"),
-    )
-
+    heart_rate: MetricSummary | None = None
     power: MetricSummary | None = Field(default=None)
     cadence: MetricSummary | None = Field(default=None)
 
 
-class EquipmentExport(BaseModel):
+class EquipmentExport(VerveBaseModel):
     """Snapshot of equipment used"""
 
     name: str
@@ -45,30 +46,20 @@ class EquipmentExport(BaseModel):
     model: str | None = None
 
 
-class LineStringGeometry(BaseModel):
+class LineStringGeometry(VerveBaseModel):
     type: Literal["LineString"] = "LineString"
     coordinates: list[Coordinates]
 
 
-class LineProperties(BaseModel):
-    coord_times: list[datetime] = Field(
-        default_factory=list,
-        serialization_alias="coordTimes",
-        validation_alias=AliasChoices("coordTimes", "coord_times"),
-    )
-
-    heart_rates: list[int | None] | None = Field(
-        default=None,
-        serialization_alias="heartRates",
-        validation_alias=AliasChoices("heartRates", "heart_rates"),
-    )
-
+class LineProperties(VerveBaseModel):
+    coord_times: list[datetime] = Field(default_factory=list)
+    heart_rates: list[int | None] | None = None
     cadences: list[int | None] | None = None
     powers: list[float | None] | None = None
     temperatures: list[float | None] | None = None
 
 
-class LineFeature(BaseModel):
+class LineFeature(VerveBaseModel):
     type: Literal["Feature"] = "Feature"
     geometry: LineStringGeometry | None = None
     properties: LineProperties
@@ -96,74 +87,49 @@ class LineFeature(BaseModel):
         return self
 
 
-class VerveProperties(BaseModel):
+class VerveProperties(VerveBaseModel):
     # -- Identification --
-    verve_version: Literal["1.0"] = Field(
-        default="1.0",
-        serialization_alias="verveVersion",
-        validation_alias=AliasChoices("verveVersion", "verve_version"),
-    )
+    verve_version: Literal["1.0"] = "1.0"
     generator: str = "VerveBackend"
 
     # -- Core Data --
     name: str
     description: str | None = None
 
-    activity_type: str = Field(
-        serialization_alias="activityType",
-        validation_alias=AliasChoices("activityType", "activity_type"),
-    )  # e.g. "Cycling"
-
-    activity_sub_type: str | None = Field(
-        default=None,
-        serialization_alias="activitySubType",
-        validation_alias=AliasChoices("activitySubType", "activity_sub_type"),
-    )
-
-    start_time: datetime = Field(
-        serialization_alias="startTime",
-        validation_alias=AliasChoices("startTime", "start_time"),
-    )
+    activity_type: str  # e.g. "Cycling"
+    activity_sub_type: str | None = None
+    start_time: datetime
 
     # -- Dimensions --
     duration: float = Field(
         description="Total duration in seconds",
         serialization_alias="durationSeconds",
-        validation_alias=AliasChoices("durationSeconds", "duration"),
+        validation_alias="durationSeconds",
     )
 
     moving_duration: float | None = Field(
         default=None,
         description="Moving duration in seconds",
         serialization_alias="movingDurationSeconds",
-        validation_alias=AliasChoices("movingDurationSeconds", "moving_duration"),
+        validation_alias="movingDurationSeconds",
     )
 
     distance: float | None = Field(
         default=None,
         description="Total distance in m",
         serialization_alias="totalDistanceMeters",
-        validation_alias=AliasChoices("totalDistanceMeters", "distance"),
+        validation_alias="totalDistanceMeters",
     )
 
     energy: float | None = Field(
         default=None,
         description="Calories burnt in kcal",
         serialization_alias="totalEnergyKcal",
-        validation_alias=AliasChoices("totalEnergyKcal", "energy"),
+        validation_alias="totalEnergyKcal",
     )
 
-    elevation_gain: float | None = Field(
-        default=None,
-        serialization_alias="elevationGain",
-        validation_alias=AliasChoices("elevationGain", "elevation_gain"),
-    )
-
-    elevation_loss: float | None = Field(
-        default=None,
-        serialization_alias="elevationLoss",
-        validation_alias=AliasChoices("elevationLoss", "elevation_loss"),
-    )
+    elevation_gain: float | None = None
+    elevation_loss: float | None = None
 
     # -- Extensible Aggregates --
     stats: ActivityStats = Field(default_factory=ActivityStats)
@@ -176,7 +142,7 @@ class VerveProperties(BaseModel):
     )  # The arbitrary JSON blob from DB
 
 
-class VerveFeature(BaseModel):
+class VerveFeature(VerveBaseModel):
     type: Literal["FeatureCollection"] = "FeatureCollection"
     features: list[LineFeature]
     properties: VerveProperties
