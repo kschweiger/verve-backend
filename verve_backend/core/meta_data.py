@@ -1,10 +1,10 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import Any, Self
 from uuid import UUID, uuid4
 
 import structlog
-from pydantic import BaseModel, ValidationError, model_validator
+from pydantic import BaseModel, Field, ValidationError, model_validator
 
 from verve_backend.models import ActivitySubType, ActivityType
 
@@ -28,18 +28,80 @@ class SwimStyle(StrEnum):
     BACKSTROKE = "backstroke"
     BREASTSTROKE = "breaststroke"
     BUTTERFLY = "butterfly"
+    KICKBOARD = "kickboard"
+    MIXED = "mixed"
+    UNKNOWN = "unknown"
+
+
+class SetData(BaseModel):
+    index: int
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    durations: timedelta | None = None
+    lap_start_index: int | None = None
+    lap_end_index: int | None = None
+    lap_count: int | None = None
+    distance_meters: int | None = None
+    style: SwimStyle | None = None
+    stroke_count: int | None = None
+    avg_swofl: float | None = None
+    rest_after: timedelta | None = None
 
 
 class LapData(BaseModel):
-    count: int
-    lap_lengths: int | None = None
+    index: int
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    durations: timedelta | None = None
+    distance_meters: int | None = None
     style: SwimStyle | None = None
-    duration: timedelta | None = None
+    stroke_count: int | None = None
+    swolf: float | None = None
+    rest_after: timedelta | None = None
 
 
 class SwimmingMetaData(ActivityMetaData):
     target: str = "SwimmingMetaData"
-    segments: list[LapData]
+    pool_length_meters: int | None = None
+    total_stroke_count: int | None = None
+    avg_swofl: float | None = None
+    lap_count: int | None = None
+    set_count: int | None = None
+    styles: list[SwimStyle] | None = None
+    laps: list[LapData] | None = Field(default=None)
+    sets: list[SetData] | None = Field(
+        default=None,
+    )
+
+    @model_validator(mode="after")
+    def validate_meta_data(self) -> Self:
+        # Check laps/sets and corresponding count variables
+        if self.laps and not self.lap_count:
+            raise ValueError("lap_count must be provided if laps are included")
+        if self.lap_count and not self.laps:
+            raise ValueError("laps must be provided if lap_count is included")
+        if self.sets and not self.set_count:
+            raise ValueError("set_count must be provided if sets are included")
+        if self.set_count and not self.sets:
+            raise ValueError("sets must be provided if set_count is included")
+
+        required_fields = [
+            "pool_length_meters",
+            "total_stroke_count",
+            "avg_swofl",
+            "lap_count",
+            "set_count",
+            "styles",
+            "sets",
+            "laps",
+        ]
+        if not any(getattr(self, f) for f in required_fields):
+            raise ValueError(
+                "At least one of the following fields must be provided: "
+                + ", ".join(required_fields)
+            )
+
+        return self
 
 
 def validate_meta_data(

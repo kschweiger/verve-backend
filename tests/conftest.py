@@ -286,7 +286,12 @@ def generate_data(session: Session) -> None:
         setup_location_types,
         setup_rls_policies,
     )
-    from verve_backend.core.meta_data import LapData, SwimmingMetaData, SwimStyle
+    from verve_backend.core.meta_data import (
+        LapData,
+        SetData,
+        SwimmingMetaData,
+        SwimStyle,
+    )
     from verve_backend.tasks import process_activity_highlights
 
     setup_activity_types(session)
@@ -366,14 +371,56 @@ def generate_data(session: Session) -> None:
             sub_type_id=2,
             name=None,
             meta_data=SwimmingMetaData(
-                segments=[
-                    LapData(
-                        count=4,
-                        lap_lengths=50,
-                        duration=timedelta(minutes=20),
+                pool_length_meters=50,
+                lap_count=2,
+                set_count=1,
+                sets=[
+                    SetData(
+                        index=0,
+                        start_time=datetime(
+                            year=2025, month=1, day=2, hour=13, minute=10
+                        ),
+                        end_time=datetime(
+                            year=2025, month=1, day=2, hour=13, minute=12, second=30
+                        ),
+                        durations=timedelta(minutes=2),
+                        distance_meters=100,
                         style=SwimStyle.FREESTYLE,
+                        lap_start_index=0,
+                        lap_end_index=1,
+                        lap_count=2,
+                        avg_swofl=30.0,
                     )
-                ]
+                ],
+                laps=[
+                    LapData(
+                        index=0,
+                        start_time=datetime(
+                            year=2025, month=1, day=2, hour=13, minute=10
+                        ),
+                        end_time=datetime(
+                            year=2025, month=1, day=2, hour=13, minute=11
+                        ),
+                        durations=timedelta(minutes=1),
+                        distance_meters=50,
+                        style=SwimStyle.FREESTYLE,
+                        swolf=30.0,
+                        rest_after=timedelta(seconds=30),
+                    ),
+                    LapData(
+                        index=1,
+                        start_time=datetime(
+                            year=2025, month=1, day=2, hour=13, minute=11, second=30
+                        ),
+                        end_time=datetime(
+                            year=2025, month=1, day=2, hour=13, minute=12, second=30
+                        ),
+                        durations=timedelta(minutes=1),
+                        distance_meters=50,
+                        style=SwimStyle.FREESTYLE,
+                        swolf=30.0,
+                    ),
+                ],
             ).model_dump(mode="json"),
         ),
         user=created_users[0],  # type: ignore

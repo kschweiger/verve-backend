@@ -235,7 +235,7 @@ class ActivitySubType(ActivitySubTypeBase, table=True):
     )
 
 
-class ActivityBase(SQLModel):
+class ActivityCore(SQLModel):
     start: datetime
 
     duration: timedelta = Field(
@@ -282,6 +282,9 @@ class ActivityBase(SQLModel):
     )
 
     name: str = Field(...)
+
+
+class ActivityBase(ActivityCore):
     meta_data: dict = Field(sa_column=Column(JSON), default_factory=dict)
 
 
@@ -290,6 +293,13 @@ class ActivityCreate(ActivityBase):
 
 
 class ActivityPublic(ActivityBase):
+    id: uuid.UUID
+    created_at: datetime
+
+    tags: list["ActivityTagPublic"]
+
+
+class ActivityCorePublic(ActivityCore):
     id: uuid.UUID
     created_at: datetime
 
@@ -418,7 +428,7 @@ class EquipmentSet(EquipmentSetBase, table=True):
 
 
 class ActivitiesPublic(SQLModel):
-    data: list[ActivityPublic]
+    data: list[ActivityCorePublic]
     count: int
 
 

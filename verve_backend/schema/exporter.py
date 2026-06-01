@@ -1,13 +1,23 @@
+from collections.abc import Callable
+from typing import Any
 from uuid import UUID
 
 from geoalchemy2 import Geometry
 from sqlmodel import Session, func, select
 
+from verve_backend.core.meta_data import SwimmingMetaData
 from verve_backend.models import (
     Activity,
     ActivitySubType,
     ActivityType,
     TrackPoint,
+)
+from verve_backend.schema.meta_data import (
+    KnownMetaDataEnvelope,
+    SwimLapDataV1,
+    SwimmingMetaDataEnvelopeV1,
+    SwimmingMetaDataV1,
+    SwimSetDataV1,
 )
 from verve_backend.schema.verve_file import (
     ActivityStats,
@@ -19,6 +29,81 @@ from verve_backend.schema.verve_file import (
     VerveFeature,
     VerveProperties,
 )
+
+MetaDataExport = KnownMetaDataEnvelope | dict[str, Any]
+MetaDataExporter = Callable[[dict], MetaDataExport]
+
+
+def _swimming_metadata_for_verve_export(meta_data: dict) -> SwimmingMetaDataEnvelopeV1:
+    core_meta_data = SwimmingMetaData.model_validate(meta_data)
+    return SwimmingMetaDataEnvelopeV1(
+        data=SwimmingMetaDataV1(
+            pool_length_meters=core_meta_data.pool_length_meters,
+            total_stroke_count=core_meta_data.total_stroke_count,
+            average_swolf=core_meta_data.avg_swofl,
+            lap_count=core_meta_data.lap_count,
+            set_count=core_meta_data.set_count,
+            stroke_styles=core_meta_data.styles,
+            laps=[
+                SwimLapDataV1(
+                    index=lap.index,
+                    start_time=lap.start_time,
+                    end_time=lap.end_time,
+                    duration_seconds=None
+                    if lap.durations is None
+                    else lap.durations.total_seconds(),
+                    distance_meters=lap.distance_meters,
+                    stroke_style=lap.style,
+                    stroke_count=lap.stroke_count,
+                    swolf=lap.swolf,
+                    rest_after_seconds=None
+                    if lap.rest_after is None
+                    else lap.rest_after.total_seconds(),
+                )
+                for lap in core_meta_data.laps or []
+            ]
+            or None,
+            sets=[
+                SwimSetDataV1(
+                    index=set_data.index,
+                    start_time=set_data.start_time,
+                    end_time=set_data.end_time,
+                    duration_seconds=None
+                    if set_data.durations is None
+                    else set_data.durations.total_seconds(),
+                    lap_start_index=set_data.lap_start_index,
+                    lap_end_index=set_data.lap_end_index,
+                    lap_count=set_data.lap_count,
+                    distance_meters=set_data.distance_meters,
+                    stroke_style=set_data.style,
+                    stroke_count=set_data.stroke_count,
+                    average_swolf=set_data.avg_swofl,
+                    rest_after_seconds=None
+                    if set_data.rest_after is None
+                    else set_data.rest_after.total_seconds(),
+                )
+                for set_data in core_meta_data.sets or []
+            ]
+            or None,
+        )
+    )
+
+
+METADATA_EXPORTERS: dict[str, MetaDataExporter] = {
+    "SwimmingMetaData": _swimming_metadata_for_verve_export,
+}
+
+
+def _metadata_for_verve_export(meta_data: dict) -> MetaDataExport:
+    target = meta_data.get("target")
+    if not isinstance(target, str):
+        return meta_data
+
+    exporter = METADATA_EXPORTERS.get(target)
+    if exporter is None:
+        return meta_data
+
+    return exporter(meta_data)
 
 
 def _cast(session: Session, activity_id: UUID) -> VerveFeature:
@@ -52,7 +137,7 @@ def _cast(session: Session, activity_id: UUID) -> VerveFeature:
             ),
             power=MetricSummary(avg=activity.avg_power, max=activity.max_power),
         ),
-        metadata=activity.meta_data,
+        metadata=_metadata_for_verve_export(activity.meta_data),
         equipment=[
             EquipmentExport(
                 name=e.name,
