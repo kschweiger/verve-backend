@@ -1,5 +1,6 @@
 from importlib import resources
 
+from verve_backend.schema.exporter import _metadata_for_verve_export
 from verve_backend.schema.meta_data import SwimmingMetaDataEnvelopeV1
 from verve_backend.schema.verve_file import VerveFeature
 
@@ -124,3 +125,49 @@ def test_verve_file_accepts_snake_case_and_exports_camel_case() -> None:
     assert dumped["properties"]["elevationGain"] == 5.0
     assert dumped["properties"]["elevationLoss"] == 4.0
     assert dumped["properties"]["stats"]["heartRate"]["avg"] == 120.0
+
+
+def test_exporter_converts_core_swimming_metadata_to_envelope() -> None:
+    metadata = _metadata_for_verve_export(
+        {
+            "target": "SwimmingMetaData",
+            "pool_length_meters": 50,
+            "lap_count": 2,
+            "set_count": 1,
+            "styles": ["freestyle"],
+            "laps": [
+                {
+                    "index": 0,
+                    "durations": "PT1M",
+                    "distance_meters": 50,
+                    "style": "freestyle",
+                    "swolf": 30,
+                }
+            ],
+            "sets": [
+                {
+                    "index": 0,
+                    "durations": "PT2M",
+                    "distance_meters": 100,
+                    "style": "freestyle",
+                    "avg_swofl": 30,
+                }
+            ],
+        }
+    )
+    dumped = metadata.model_dump(mode="json", by_alias=True, exclude_none=True)
+
+    assert dumped["target"] == "SwimmingMetaData"
+    assert dumped["version"] == "1.0"
+    assert dumped["data"]["poolLengthMeters"] == 50.0
+    assert dumped["data"]["lapCount"] == 2
+    assert dumped["data"]["setCount"] == 1
+    assert dumped["data"]["laps"][0]["durationSeconds"] == 60.0
+    assert dumped["data"]["laps"][0]["strokeStyle"] == "freestyle"
+    assert dumped["data"]["sets"][0]["averageSwolf"] == 30.0
+
+
+def test_exporter_keeps_unknown_metadata_raw() -> None:
+    metadata = _metadata_for_verve_export({"some": "value"})
+
+    assert metadata == {"some": "value"}
