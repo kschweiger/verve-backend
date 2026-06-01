@@ -4,6 +4,8 @@ from typing import Any, Literal, Self
 from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic.aliases import AliasChoices
 
+from verve_backend.schema.meta_data import KnownMetaDataEnvelope
+
 Coordinates = tuple[float, float, float]  # NOTE: Lon, Lat, Ele
 
 
@@ -168,8 +170,9 @@ class VerveProperties(BaseModel):
 
     # -- Context --
     equipment: list[EquipmentExport] | None = Field(default=None)
-    metadata: dict[str, Any] = Field(
-        default_factory=dict
+    metadata: KnownMetaDataEnvelope | dict[str, Any] = Field(
+        default_factory=dict,
+        union_mode="left_to_right",
     )  # The arbitrary JSON blob from DB
 
 

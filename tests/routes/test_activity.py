@@ -1032,6 +1032,52 @@ def test_import_activity_verve_file_without_geo_e2e_with_eager_celery(
     assert duration_highlight.value > 0
 
 
+def test_import_activity_swimming_verve_file_stores_core_metadata(
+    mocker: MockerFixture,
+    client: TestClient,
+    user2_token: str,
+    db: Session,
+    celery_eager,
+) -> None:
+    from verve_backend.api.routes import activity
+
+    spy = mocker.spy(activity, "_import_verve_file")
+    with (
+        resources.files("tests.resources")
+        .joinpath("swimming_verve_file.json")
+        .open("rb") as f
+    ):
+        json_content = f.read()
+
+    response = client.post(
+        "/activity/import/",
+        headers={"Authorization": f"Bearer {user2_token}"},
+        files={"file": ("Swim.json", json_content, "application/octet-stream")},
+    )
+    assert response.status_code == 200
+
+    assert spy.call_count == 1
+
+    activity_id = response.json()["id"]
+    imported_activity = db.get(Activity, activity_id)
+    assert imported_activity is not None
+    assert imported_activity.meta_data["target"] == "SwimmingMetaData"
+    assert "version" not in imported_activity.meta_data
+    assert "data" not in imported_activity.meta_data
+    assert imported_activity.meta_data["pool_length_meters"] == 50
+    assert imported_activity.meta_data["lap_count"] == 16
+    assert imported_activity.meta_data["set_count"] == 10
+    assert imported_activity.meta_data["styles"] == [
+        "backstroke",
+        "breaststroke",
+        "freestyle",
+    ]
+    assert len(imported_activity.meta_data["laps"]) == 16
+    assert len(imported_activity.meta_data["sets"]) == 10
+    assert imported_activity.meta_data["laps"][0]["style"] == "breaststroke"
+    assert imported_activity.meta_data["sets"][0]["avg_swofl"] == 83.65062963962555
+
+
 def test_import_invalid_json_file(
     mocker: MockerFixture,
     client: TestClient,
