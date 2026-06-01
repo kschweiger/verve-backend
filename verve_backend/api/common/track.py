@@ -15,7 +15,7 @@ from geo_track_analyzer.track import GeoJsonTrack
 from sqlmodel import Session
 from starlette.status import (
     HTTP_400_BAD_REQUEST,
-    HTTP_422_UNPROCESSABLE_ENTITY,
+    HTTP_422_UNPROCESSABLE_CONTENT,
     HTTP_500_INTERNAL_SERVER_ERROR,
 )
 
@@ -51,14 +51,14 @@ def add_track(
         except UnsupportedGeoJsonTypeError:
             logger.error("geojson file type not supported")
             raise HTTPException(
-                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="GeoJSON file type not supported. Only LineString and "
                 "MultiLineString are supported.",
             )
         except EmptyGeoJsonError:
             logger.debug("geojson file empty")
             raise HTTPException(
-                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="GeoJSON file contains no track data.",
             )
         except GeoJsonWithoutGeometryError:
@@ -83,7 +83,7 @@ def add_track(
         orig_file_type = "json"
     else:
         raise HTTPException(
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422_UNPROCESSABLE_CONTENT,
             detail="File type not supported. Only .fit, .gpx, and .json files are "
             "supported.",
         )
