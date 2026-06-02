@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from typing import Any
 
 import pytest
@@ -5,6 +6,7 @@ import pytest
 from verve_backend.core.meta_data import (
     ActivityMetaData,
     LapData,
+    SetData,
     SwimmingMetaData,
     SwimStyle,
     parse_meta_data,
@@ -22,8 +24,51 @@ def test_activity_meta_data_target() -> None:
     "initial_data",
     [
         SwimmingMetaData(
-            segments=[LapData(count=5, lap_lengths=50, style=SwimStyle.FREESTYLE)]
-        ),
+            pool_length_meters=50,
+            lap_count=2,
+            set_count=1,
+            sets=[
+                SetData(
+                    index=0,
+                    start_time=datetime(year=2025, month=1, day=2, hour=13, minute=10),
+                    end_time=datetime(
+                        year=2025, month=1, day=2, hour=13, minute=12, second=30
+                    ),
+                    durations=timedelta(minutes=2),
+                    distance_meters=100,
+                    style=SwimStyle.FREESTYLE,
+                    lap_start_index=0,
+                    lap_end_index=1,
+                    lap_count=2,
+                    avg_swofl=30.0,
+                )
+            ],
+            laps=[
+                LapData(
+                    index=0,
+                    start_time=datetime(year=2025, month=1, day=2, hour=13, minute=10),
+                    end_time=datetime(year=2025, month=1, day=2, hour=13, minute=11),
+                    durations=timedelta(minutes=1),
+                    distance_meters=50,
+                    style=SwimStyle.FREESTYLE,
+                    swolf=30.0,
+                    rest_after=timedelta(seconds=30),
+                ),
+                LapData(
+                    index=1,
+                    start_time=datetime(
+                        year=2025, month=1, day=2, hour=13, minute=11, second=30
+                    ),
+                    end_time=datetime(
+                        year=2025, month=1, day=2, hour=13, minute=12, second=30
+                    ),
+                    durations=timedelta(minutes=1),
+                    distance_meters=50,
+                    style=SwimStyle.FREESTYLE,
+                    swolf=30.0,
+                ),
+            ],
+        )
     ],
 )
 def test_parse_meta_data(
@@ -38,11 +83,64 @@ def test_parse_meta_data(
     "raw_data",
     [
         # Missing target
-        {"segments": [{"count": 10}]},
-        # Missing required value
-        {"target": "SwimmingMetaData", "segments": [{"style": "freestyle"}]},
+        {
+            "pool_length_meters": 50,
+            "sets": [{"index": 0, "style": "freestyle"}],
+            "laps": [{"index": 0, "style": "freestyle"}],
+        },
+        # No required filed set
+        {
+            "target": "SwimmingMetaData",
+        },
+        # Required index in sets missing
+        {
+            "target": "SwimmingMetaData",
+            "pool_length_meters": 50,
+            "lap_count": 1,
+            "set_count": 1,
+            "sets": [{"style": "freestyle"}],
+            "laps": [{"index": 0, "style": "freestyle"}],
+        },
+        # Required index in laps missing
+        {
+            "target": "SwimmingMetaData",
+            "pool_length_meters": 50,
+            "lap_count": 1,
+            "set_count": 1,
+            "sets": [{"index": 0, "style": "freestyle"}],
+            "laps": [{"style": "freestyle"}],
+        },
+        # lap count missing with set laps
+        {
+            "target": "SwimmingMetaData",
+            "pool_length_meters": 50,
+            "laps": [{"index": 0, "style": "freestyle"}],
+        },
+        # lap count set but laps missing
+        {
+            "target": "SwimmingMetaData",
+            "pool_length_meters": 50,
+            "lap_count": 1,
+        },
+        # set count missing with set sets
+        {
+            "target": "SwimmingMetaData",
+            "pool_length_meters": 50,
+            "sets": [{"index": 0, "style": "freestyle"}],
+        },
+        # set count set but sets missing
+        {
+            "target": "SwimmingMetaData",
+            "pool_length_meters": 50,
+            "set_count": 1,
+        },
         # Invaild enum type
-        {"target": "SwimmingMetaData", "segments": [{"count": 2, "style": "doggy"}]},
+        {
+            "target": "SwimmingMetaData",
+            "pool_length_meters": 50,
+            "sets": [{"index": 0, "style": "doggy"}],
+            "laps": [{"index": 0, "style": "freestyle"}],
+        },
     ],
 )
 def test_parse_meta_data_invalid(raw_data: dict[str, Any]) -> None:

@@ -16,9 +16,8 @@ from verve_backend.models import (
     Equipment,
 )
 from verve_backend.result import Err, Ok
-from verve_backend.schema.verve_file import (
-    VerveFeature,
-)
+from verve_backend.schema.meta_data import KnownMetaDataEnvelope
+from verve_backend.schema.verve_file import VerveFeature
 
 logger = structlog.getLogger(__name__)
 
@@ -88,6 +87,10 @@ def convert_verve_file_to_activity(
     else:
         _sub_type_id = activity_sub_type.id if activity_sub_type else None
 
+    meta_data = data.properties.metadata
+    if isinstance(meta_data, KnownMetaDataEnvelope):
+        meta_data = meta_data.to_core_meta_data().model_dump(mode="json")
+
     activity = Activity(
         user_id=user_id,
         created_at=datetime.now(),
@@ -123,7 +126,7 @@ def convert_verve_file_to_activity(
         max_power=data.properties.stats.power.max
         if data.properties.stats.power
         else None,
-        meta_data=data.properties.metadata,
+        meta_data=meta_data,
     )
 
     if data.properties.equipment:

@@ -11,7 +11,7 @@ from pytest_mock import MockerFixture
 from sqlmodel import Session, select
 
 from verve_backend import crud
-from verve_backend.core.meta_data import LapData, SwimmingMetaData, SwimStyle
+from verve_backend.core.meta_data import LapData, SetData, SwimmingMetaData, SwimStyle
 from verve_backend.models import (
     ActivitiesPublic,
     Activity,
@@ -483,16 +483,56 @@ def test_update_activity_errors(
         (
             "Swimming",
             SwimmingMetaData(
-                segments=[
-                    LapData(
-                        count=10,
+                pool_length_meters=50,
+                lap_count=2,
+                set_count=1,
+                sets=[
+                    SetData(
+                        index=0,
+                        start_time=datetime(
+                            year=2025, month=1, day=2, hour=13, minute=10
+                        ),
+                        end_time=datetime(
+                            year=2025, month=1, day=2, hour=13, minute=12, second=30
+                        ),
+                        durations=timedelta(minutes=2),
+                        distance_meters=100,
                         style=SwimStyle.FREESTYLE,
-                        duration=timedelta(minutes=20),
-                        lap_lengths=50,
+                        lap_start_index=0,
+                        lap_end_index=1,
+                        lap_count=2,
+                        avg_swofl=30.0,
+                    )
+                ],
+                laps=[
+                    LapData(
+                        index=0,
+                        start_time=datetime(
+                            year=2025, month=1, day=2, hour=13, minute=10
+                        ),
+                        end_time=datetime(
+                            year=2025, month=1, day=2, hour=13, minute=11
+                        ),
+                        durations=timedelta(minutes=1),
+                        distance_meters=50,
+                        style=SwimStyle.FREESTYLE,
+                        swolf=30.0,
+                        rest_after=timedelta(seconds=30),
                     ),
-                    LapData(count=10),
-                    LapData(count=10, style=SwimStyle.FREESTYLE),
-                ]
+                    LapData(
+                        index=1,
+                        start_time=datetime(
+                            year=2025, month=1, day=2, hour=13, minute=11, second=30
+                        ),
+                        end_time=datetime(
+                            year=2025, month=1, day=2, hour=13, minute=12, second=30
+                        ),
+                        durations=timedelta(minutes=1),
+                        distance_meters=50,
+                        style=SwimStyle.FREESTYLE,
+                        swolf=30.0,
+                    ),
+                ],
             ),
             200,
         ),
@@ -990,6 +1030,52 @@ def test_import_activity_verve_file_without_geo_e2e_with_eager_celery(
     duration_highlight = next((h for h in highlights if h.metric == "duration"), None)
     assert duration_highlight is not None
     assert duration_highlight.value > 0
+
+
+def test_import_activity_swimming_verve_file_stores_core_metadata(
+    mocker: MockerFixture,
+    client: TestClient,
+    user2_token: str,
+    db: Session,
+    celery_eager,
+) -> None:
+    from verve_backend.api.routes import activity
+
+    spy = mocker.spy(activity, "_import_verve_file")
+    with (
+        resources.files("tests.resources")
+        .joinpath("swimming_verve_file.json")
+        .open("rb") as f
+    ):
+        json_content = f.read()
+
+    response = client.post(
+        "/activity/import/",
+        headers={"Authorization": f"Bearer {user2_token}"},
+        files={"file": ("Swim.json", json_content, "application/octet-stream")},
+    )
+    assert response.status_code == 200
+
+    assert spy.call_count == 1
+
+    activity_id = response.json()["id"]
+    imported_activity = db.get(Activity, activity_id)
+    assert imported_activity is not None
+    assert imported_activity.meta_data["target"] == "SwimmingMetaData"
+    assert "version" not in imported_activity.meta_data
+    assert "data" not in imported_activity.meta_data
+    assert imported_activity.meta_data["pool_length_meters"] == 50
+    assert imported_activity.meta_data["lap_count"] == 16
+    assert imported_activity.meta_data["set_count"] == 10
+    assert imported_activity.meta_data["styles"] == [
+        "backstroke",
+        "breaststroke",
+        "freestyle",
+    ]
+    assert len(imported_activity.meta_data["laps"]) == 16
+    assert len(imported_activity.meta_data["sets"]) == 10
+    assert imported_activity.meta_data["laps"][0]["style"] == "breaststroke"
+    assert imported_activity.meta_data["sets"][0]["avg_swofl"] == 83.65062963962555
 
 
 def test_import_invalid_json_file(
