@@ -1,4 +1,16 @@
 <!-- insertion marker -->
+<a name="1.11.0"></a>
+
+## [1.11.0](https://github.com/kschweiger/verve-backend/compare/1.10.1...1.11.0) (2026-06-02)
+
+### Features
+
+- rework SwimMetaData object and add types swim meta data to verve file schema (#159) ([0478ef1](https://github.com/kschweiger/verve-backend/commit/0478ef11b88e745fc8baad39d3afc488c490d1ac))
+
+### Bug Fixes
+
+- replace deprecated HTTP status code constant ([de67e1c](https://github.com/kschweiger/verve-backend/commit/de67e1c660a4d06252c8e8391a21c623c5bf0da0))
+
 <a name="1.10.1"></a>
 
 ## [1.10.1](https://github.com/kschweiger/verve-backend/compare/1.10.0...1.10.1) (2026-05-01)
