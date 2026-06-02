@@ -13,7 +13,7 @@ dependencies = [
   "celery==5.6.3",
   "fastapi[standard]==0.136.3",
   "geo-track-analyzer==2.0.1",
-  "geoalchemy2==0.19.0",
+  "geoalchemy2==0.20.0",
   "gevent==26.5.0",
   "passlib==1.7.4",
   "psycopg==3.3.4",
