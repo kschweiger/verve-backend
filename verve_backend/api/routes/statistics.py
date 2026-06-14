@@ -100,8 +100,8 @@ class GridWeek(BaseModel):
     start_date: date = Field(description="Monday date for this week.")
     month: Annotated[int | None, valid_month] = Field(
         description=(
-            "Month number to label this week in the grid, or null when no label "
-            "should be shown. The frontend formats this into a localized month label."
+            "Month number to label this week when this week's Monday starts the first "
+            "displayed week for that month, or null when no label should be shown."
         )
     )
     days: list[GridDay | None] = Field(
