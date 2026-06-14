@@ -25,7 +25,7 @@ from verve_backend.api.routes.statistics import (
                     "duration_seconds": 0,
                 },
             },
-            "At least one week is required",
+            "List should have at least 1 item after validation",
         ),
         # Too few days
         (
@@ -33,7 +33,7 @@ from verve_backend.api.routes.statistics import (
                 "weeks": [
                     {
                         "start_date": "2024-01-01",
-                        "month_label": 1,
+                        "month": 1,
                         "days": [
                             {
                                 "date": "2024-01-01",
@@ -50,7 +50,67 @@ from verve_backend.api.routes.statistics import (
                     "duration_seconds": 60,
                 },
             },
-            "Each week must have exactly 7 days",
+            "List should have at least 7 items after validation",
+        ),
+        # Too many days
+        (
+            {
+                "weeks": [
+                    {
+                        "start_date": "2024-01-01",
+                        "month": 1,
+                        "days": [
+                            {
+                                "date": "2024-01-01",
+                                "activity_count": 1,
+                                "duration_seconds": 60,
+                            },
+                            {
+                                "date": "2024-01-02",
+                                "activity_count": 1,
+                                "duration_seconds": 60,
+                            },
+                            {
+                                "date": "2024-01-03",
+                                "activity_count": 1,
+                                "duration_seconds": 60,
+                            },
+                            {
+                                "date": "2024-01-04",
+                                "activity_count": 1,
+                                "duration_seconds": 60,
+                            },
+                            {
+                                "date": "2024-01-05",
+                                "activity_count": 1,
+                                "duration_seconds": 60,
+                            },
+                            {
+                                "date": "2024-01-06",
+                                "activity_count": 1,
+                                "duration_seconds": 60,
+                            },
+                            {
+                                "date": "2024-01-07",
+                                "activity_count": 1,
+                                "duration_seconds": 60,
+                            },
+                            {
+                                "date": "2024-01-08",
+                                "activity_count": 1,
+                                "duration_seconds": 60,
+                            },
+                        ],
+                    }
+                ],
+                "scale_max": {"activity_count": 1, "duration_seconds": 60},
+                "totals": {
+                    "active_days": 1,
+                    "activity_count": 1,
+                    "duration_seconds": 60,
+                },
+            },
+            "List should have at most 7 items after validation",
         ),
         # Intermediate Nones
         (
@@ -58,7 +118,7 @@ from verve_backend.api.routes.statistics import (
                 "weeks": [
                     {
                         "start_date": "2024-01-01",
-                        "month_label": 1,
+                        "month": 1,
                         "days": [
                             {
                                 "date": "2024-01-01",
@@ -93,7 +153,7 @@ from verve_backend.api.routes.statistics import (
                 "weeks": [
                     {
                         "start_date": "2024-01-01",
-                        "month_label": 1,
+                        "month": 1,
                         "days": [
                             {
                                 "date": "2024-01-01",
@@ -129,7 +189,7 @@ from verve_backend.api.routes.statistics import (
                     },
                     {
                         "start_date": "2024-01-08",
-                        "month_label": None,
+                        "month": None,
                         "days": [
                             {
                                 "date": "2024-01-08",
@@ -152,7 +212,7 @@ from verve_backend.api.routes.statistics import (
                     "duration_seconds": 0,
                 },
             },
-            "Each week must have exactly 7 days",
+            "List should have at least 7 items after validation",
         ),
         # None in full week
         (
@@ -160,7 +220,7 @@ from verve_backend.api.routes.statistics import (
                 "weeks": [
                     {
                         "start_date": "2024-01-01",
-                        "month_label": 1,
+                        "month": 1,
                         "days": [
                             {
                                 "date": "2024-01-01",
@@ -197,7 +257,7 @@ from verve_backend.api.routes.statistics import (
                     },
                     {
                         "start_date": "2024-01-08",
-                        "month_label": None,
+                        "month": None,
                         "days": [
                             {
                                 "date": "2024-01-08",
@@ -235,7 +295,7 @@ def test_activity_grid_response_validation(model: dict, match_exp: str) -> None:
         (
             {
                 "start_date": "2024-01-01",
-                "month_label": 2,
+                "month": 2,
                 "days": [
                     {
                         "date": "2024-01-01",
@@ -255,7 +315,7 @@ def test_activity_grid_response_validation(model: dict, match_exp: str) -> None:
         (
             {
                 "start_date": "2024-01-01",
-                "month_label": 1,
+                "month": 1,
                 "days": [
                     None,
                     {
@@ -275,7 +335,7 @@ def test_activity_grid_response_validation(model: dict, match_exp: str) -> None:
         (
             {
                 "start_date": "2024-01-02",
-                "month_label": None,
+                "month": None,
                 "days": [
                     {
                         "date": "2024-01-01",

@@ -80,30 +80,45 @@ def valid_month(value: int | None) -> int | None:
 
 
 class GridDay(BaseModel):
+    """Aggregated activity values for one calendar day."""
+
     date: date
     activity_count: int
     duration_seconds: int
 
 
 class GridWeek(BaseModel):
-    start_date: date
-    month_label: Annotated[int | None, valid_month]
-    days: list[GridDay | None]
+    """One Monday-starting calendar week in the activity grid.
 
-    @field_validator("days", mode="after")
-    @classmethod
-    def validate_days(cls, days: list[GridDay | None]) -> list[GridDay | None]:
-        if len(days) != 7:
-            raise ValueError("Each week must have exactly 7 days")
+    Contract:
+    - days always has exactly seven entries, ordered Monday through Sunday.
+    - A GridDay entry represents a past or current date.
+    - null is only used for future dates in the trailing/current week.
+    - Past dates without activity are GridDay entries with zero values.
+    """
 
-        return days
+    start_date: date = Field(description="Monday date for this week.")
+    month: Annotated[int | None, valid_month] = Field(
+        description=(
+            "Month number to label this week in the grid, or null when no label "
+            "should be shown. The frontend formats this into a localized month label."
+        )
+    )
+    days: list[GridDay | None] = Field(
+        min_length=7,
+        max_length=7,
+        description=(
+            "Seven entries ordered Monday through Sunday. Null is only allowed for "
+            "future dates, normally at the end of the current week."
+        ),
+    )
 
     @model_validator(mode="after")
     def validate_model(self) -> Self:
         first_day = self.days[0]
         if first_day is None:
             raise ValueError("First day of the week cannot be None")
-        if self.month_label and first_day.date.month != self.month_label:
+        if self.month and first_day.date.month != self.month:
             raise ValueError("First day of the week must match the month label")
         if self.start_date != first_day.date:
             raise ValueError("Start date must match the date of the first day")
@@ -122,16 +137,13 @@ class GridTotals(BaseModel):
 
 
 class ActivityGridResponse(BaseModel):
-    weeks: list[GridWeek]
+    weeks: list[GridWeek] = Field(min_length=1)
     scale_max: GridMax
     totals: GridTotals
 
     @field_validator("weeks", mode="after")
     @classmethod
     def validate_weeks(cls, weeks: list[GridWeek]) -> list[GridWeek]:
-        if not weeks:
-            raise ValueError("At least one week is required")
-
         last_week = weeks[-1]
 
         seen_none = False
@@ -441,7 +453,7 @@ def get_activity_grid(
         grid_weeks.append(
             GridWeek(
                 start_date=first_day.date,
-                month_label=label,
+                month=label,
                 days=week,
             )
         )
