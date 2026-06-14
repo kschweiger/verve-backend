@@ -1,11 +1,11 @@
 import importlib.resources
 from collections import defaultdict
 from datetime import date, datetime, timedelta
-from typing import Annotated, Any, Generic, TypeVar, cast
+from typing import Annotated, Any, Generic, Self, TypeVar, cast
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlmodel import func, select, text
 from starlette.status import (
     HTTP_400_BAD_REQUEST,
@@ -15,7 +15,11 @@ from starlette.status import (
 from verve_backend.api.common.utils import check_and_raise_primary_key
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import UserSession
-from verve_backend.core.date_utils import get_month_grid, get_week_date_range
+from verve_backend.core.date_utils import (
+    get_month_grid,
+    get_week_date_range,
+    iso_week_date_weeks_ago_berlin,
+)
 from verve_backend.models import Activity, ActivityType, UserSettings
 from verve_backend.transformations import CalendarWeek, build_calendar_response
 
@@ -64,6 +68,84 @@ class CalendarResponse(BaseModel):
     year: int
     month: int
     weeks: Annotated[list[CalendarWeek], Field(min_length=4, max_length=6)]
+
+
+def valid_month(value: int | None) -> int | None:
+    if value is None:
+        return value
+    if value >= 1 and value <= 12:
+        return value
+
+    raise ValueError("Month must be between 1 and 12")
+
+
+class GridDay(BaseModel):
+    date: date
+    activity_count: int
+    duration_seconds: int
+
+
+class GridWeek(BaseModel):
+    start_date: date
+    month_label: Annotated[int | None, valid_month]
+    days: list[GridDay | None]
+
+    @field_validator("days", mode="after")
+    @classmethod
+    def validate_days(cls, days: list[GridDay | None]) -> list[GridDay | None]:
+        if len(days) != 7:
+            raise ValueError("Each week must have exactly 7 days")
+
+        return days
+
+    @model_validator(mode="after")
+    def validate_model(self) -> Self:
+        first_day = self.days[0]
+        if first_day is None:
+            raise ValueError("First day of the week cannot be None")
+        if self.month_label and first_day.date.month != self.month_label:
+            raise ValueError("First day of the week must match the month label")
+        if self.start_date != first_day.date:
+            raise ValueError("Start date must match the date of the first day")
+        return self
+
+
+class GridMax(BaseModel):
+    activity_count: int
+    duration_seconds: int
+
+
+class GridTotals(BaseModel):
+    activity_count: int
+    duration_seconds: int
+    active_days: int
+
+
+class ActivityGridResponse(BaseModel):
+    weeks: list[GridWeek]
+    scale_max: GridMax
+    totals: GridTotals
+
+    @field_validator("weeks", mode="after")
+    @classmethod
+    def validate_weeks(cls, weeks: list[GridWeek]) -> list[GridWeek]:
+        if not weeks:
+            raise ValueError("At least one week is required")
+
+        last_week = weeks[-1]
+
+        seen_none = False
+        for day in last_week.days:
+            if day is None:
+                seen_none = True
+            elif seen_none:
+                raise ValueError("None is only allowed as trailing values in last week")
+
+        for week in weeks[0:-1]:
+            if any(d is None for d in week.days):
+                raise ValueError("None is only allowed in last week")
+
+        return weeks
 
 
 def process_metric_data(
@@ -272,3 +354,107 @@ def get_calendar(
     weeks = build_calendar_response(activities, month_date_grid, month)
 
     return CalendarResponse(year=year, month=month, weeks=weeks)
+
+
+def _find_grid_start_end(
+    weeks: int,
+) -> tuple[date, date]:
+    """Calculate the start and end date for the activity grid based on the number of
+    weeks."""
+    start_date = iso_week_date_weeks_ago_berlin(weeks_back=weeks)
+    today = datetime.now().date()
+    end_date = datetime.fromisocalendar(
+        year=today.year, week=today.isocalendar().week, day=7
+    ).date()
+
+    return start_date, end_date
+
+
+@router.get("/activity-grid", response_model=ActivityGridResponse)
+def get_activity_grid(
+    user_session: UserSession,
+    weeks: int = 52,
+) -> Any:
+    _, session = user_session
+    start_date, end_date = _find_grid_start_end(weeks)
+    today = datetime.now().date()
+    stmt = (
+        select(
+            func.date(Activity.start).label("date"),
+            func.count().label("activity_count"),
+            func.sum(Activity.duration).label("total_duration"),
+        )
+        .where(func.date(Activity.start) >= start_date)
+        .where(func.date(Activity.start) <= end_date)
+        .group_by(func.date(Activity.start))
+    )
+    _raw_data = session.exec(stmt).all()
+    raw_data = {}
+    for _date, _count, _duration in _raw_data:
+        raw_data[_date] = {
+            "activity_count": _count,
+            "duration_seconds": round(_duration.total_seconds()) if _duration else 0,
+        }
+    _date = start_date
+    grid_week_days: list[list[GridDay | None]] = []
+    total_count, max_count = 0, 0
+    total_duration_seconds, max_duration_seconds = 0, 0
+    activity_days = 0
+    while _date <= end_date:
+        if _date.isoweekday() == 1:
+            grid_week_days.append([])
+        if _date > today:
+            grid_week_days[-1].append(None)
+        else:
+            _data = raw_data.get(_date, {"activity_count": 0, "duration_seconds": 0})
+            total_count += _data["activity_count"]
+            total_duration_seconds += _data["duration_seconds"]
+            max_count = max(max_count, _data["activity_count"])
+            if _data["activity_count"] > 0:
+                activity_days += 1
+            max_duration_seconds = max(max_duration_seconds, _data["duration_seconds"])
+            grid_week_days[-1].append(
+                GridDay(
+                    date=_date,
+                    activity_count=_data["activity_count"],
+                    duration_seconds=_data["duration_seconds"],
+                )
+            )
+        _date += timedelta(days=1)
+
+    grid_weeks = []
+    months_found = set()
+    for week in grid_week_days:
+        start_date = week[0].date if week[0] is not None else None
+        first_day = week[0]
+        if first_day is None:
+            continue
+        label = None
+        months_in_week = set(d.date.month for d in week if d is not None)
+        if (
+            len(months_in_week) == 1
+            and months_in_week not in months_found
+            and first_day.date.day <= 7
+        ):
+            label = months_in_week.pop()
+            months_found.add(label)
+        grid_weeks.append(
+            GridWeek(
+                start_date=first_day.date,
+                month_label=label,
+                days=week,
+            )
+        )
+
+    return ActivityGridResponse(
+        weeks=grid_weeks,
+        scale_max=GridMax(
+            activity_count=max_count,
+            duration_seconds=max_duration_seconds,
+        ),
+        totals=GridTotals(
+            activity_count=total_count,
+            duration_seconds=total_duration_seconds,
+            active_days=activity_days,
+        ),
+    )
