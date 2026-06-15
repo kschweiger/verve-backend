@@ -460,6 +460,20 @@ def generate_data(session: Session) -> None:
     )
     assert strength_training_id is not None
     assert weight_training_id is not None
+
+    crud.create_activity(
+        session=session,
+        create=models.ActivityCreate(
+            start=datetime(year=2025, month=2, day=1, hour=13),
+            duration=timedelta(days=0, seconds=60 * 60 * 1),
+            distance=None,
+            type_id=strength_training_id,
+            sub_type_id=weight_training_id,
+            name="Some training that should show up in stats grid test",
+        ),
+        user=created_users[0],  # type: ignore
+    ).unwrap()
+
     activity_5 = crud.create_activity(
         session=session,
         create=models.ActivityCreate(

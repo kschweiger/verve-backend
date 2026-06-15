@@ -82,6 +82,7 @@ dev = [
   { include-group = "test" },
 ]
 test = [
+  "freezegun>=1.5.5",
   "pillow>=12.2.0",
   "pytest>=9.1.0",
   "pytest-cov>=7.1.0",

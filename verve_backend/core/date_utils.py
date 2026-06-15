@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 
 def get_week_date_range(year: int, week: int) -> tuple[date, date]:
@@ -90,6 +91,20 @@ def get_week_numbers_between_dates(start_date: date, end_date: date) -> list[int
         current_date += timedelta(days=1)
 
     return weeks
+
+
+def iso_week_date_weeks_ago_berlin(weeks_back: int, iso_weekday: int = 1) -> date:
+    if weeks_back < 0:
+        raise ValueError("weeks_back must be >= 0")
+
+    if not 1 <= iso_weekday <= 7:
+        raise ValueError("iso_weekday must be in range 1..7")
+
+    today = datetime.now(ZoneInfo("Europe/Berlin")).date()
+    target = today - timedelta(weeks=weeks_back)
+    iso = target.isocalendar()
+
+    return datetime.fromisocalendar(iso.year, iso.week, iso_weekday).date()
 
 
 if __name__ == "__main__":
