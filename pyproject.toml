@@ -8,8 +8,8 @@ requires-python = ">=3.14,<3.15"
 dependencies = [
   "alembic==1.18.4",
   "bcrypt==4.3.0",
-  "boto3==1.43.24",
-  "boto3-stubs[s3]==1.43.22",
+  "boto3==1.43.29",
+  "boto3-stubs[s3]==1.43.29",
   "celery==5.6.3",
   "fastapi[standard]==0.136.3",
   "geo-track-analyzer==2.0.1",
@@ -21,7 +21,7 @@ dependencies = [
   "pydantic-settings==2.14.1",
   "pyjwt==2.13.0",
   "pyproj==3.7.2",
-  "redis==7.4.0",
+  "redis==7.4.1",
   "shapely==2.1.2",
   "sqlalchemy==2.0.50",
   "sqlmodel==0.0.38",
@@ -74,7 +74,7 @@ ignore = [
 [dependency-groups]
 dev = [
   "debugpy>=1.8.21",
-  "matplotlib>=3.10.9",
+  "matplotlib>=3.11.0",
   "pandas>=2.3.3",
   "plotly>=6.8.0",
   "rich>=15.0.0",
@@ -84,7 +84,7 @@ dev = [
 test = [
   "freezegun>=1.5.5",
   "pillow>=12.2.0",
-  "pytest>=9.0.3",
+  "pytest>=9.1.0",
   "pytest-cov>=7.1.0",
   "pytest-mock>=3.15.1",
   "pytest-sugar>=1.1.1",
@@ -93,7 +93,7 @@ test = [
 package = true
 
 [build-system]
-requires = ["uv_build>=0.11.19,<0.11.20"]
+requires = ["uv_build>=0.11.21,<0.11.22"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
