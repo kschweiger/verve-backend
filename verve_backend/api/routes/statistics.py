@@ -6,7 +6,7 @@ from typing import Annotated, Any, Generic, Self, TypeVar, cast
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator, model_validator
-from sqlmodel import func, select, text
+from sqlmodel import Session, func, select, text
 from starlette.status import (
     HTTP_400_BAD_REQUEST,
     HTTP_501_NOT_IMPLEMENTED,
@@ -136,10 +136,17 @@ class GridTotals(BaseModel):
     active_days: int
 
 
+class GridSummary(BaseModel):
+    last_active_day: date | None
+    week_activity_streak: int = Field(ge=0)
+    activities_this_month: int = Field(ge=0)
+
+
 class ActivityGridResponse(BaseModel):
     weeks: list[GridWeek] = Field(min_length=1)
     scale_max: GridMax
     totals: GridTotals
+    summary: GridSummary
 
     @field_validator("weeks", mode="after")
     @classmethod
@@ -382,12 +389,27 @@ def _find_grid_start_end(
     return start_date, end_date
 
 
+def _run_query(session: Session, file_name: str, params: dict) -> tuple:
+    stmt = (
+        importlib.resources.files("verve_backend.queries")
+        .joinpath(file_name)
+        .read_text()
+    )
+
+    _data = session.exec(
+        text(stmt),  # type: ignore
+        params=params,
+    ).first()
+
+    return _data
+
+
 @router.get("/activity-grid", response_model=ActivityGridResponse)
 def get_activity_grid(
     user_session: UserSession,
     weeks: int = 52,
 ) -> Any:
-    _, session = user_session
+    _user_id, session = user_session
     start_date, end_date = _find_grid_start_end(weeks)
     today = datetime.now().date()
     stmt = (
@@ -458,6 +480,13 @@ def get_activity_grid(
             )
         )
 
+    _query_params = {"user_id": _user_id, "as_of_date": datetime.now().date()}
+    _week_streak = _run_query(session, "activity_streak_weeks.sql", _query_params)[0]
+    _activities_this_month = _run_query(
+        session, "activities_this_month.sql", _query_params
+    )[0]
+    _last_active_day = _run_query(session, "last_activity_date.sql", _query_params)[0]
+
     return ActivityGridResponse(
         weeks=grid_weeks,
         scale_max=GridMax(
@@ -468,5 +497,10 @@ def get_activity_grid(
             activity_count=total_count,
             duration_seconds=total_duration_seconds,
             active_days=activity_days,
+        ),
+        summary=GridSummary(
+            activities_this_month=_activities_this_month,
+            last_active_day=_last_active_day,
+            week_activity_streak=_week_streak,
         ),
     )

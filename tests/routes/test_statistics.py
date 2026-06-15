@@ -395,4 +395,8 @@ def test_activity_grid_route(
 
     _response = ActivityGridResponse.model_validate(response.json())
     # 1.2.2025 was saturday. So last day of last week should be None
+    print(_response.weeks[-1].days)
+    print(_response.summary)
     assert _response.weeks[-1].days[-1] is None
+    assert _response.summary.week_activity_streak == 1
+    assert _response.summary.last_active_day == date(year=2025, month=2, day=1)
