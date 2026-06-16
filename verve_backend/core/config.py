@@ -81,6 +81,8 @@ class Settings(BaseSettings):
 
     FRONTEND_HOST: str
 
+    RESET_PASSWORD_RESPONSE: Literal["append", "email"] = "append"
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> PostgresDsn:  # noqa: N802

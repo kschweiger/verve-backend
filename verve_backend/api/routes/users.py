@@ -5,7 +5,6 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import select
 from starlette.status import HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN
 
 from verve_backend import crud
@@ -181,12 +180,3 @@ async def replace_heatmap_settings(
 
     session.add(user_settings)
     session.commit()
-
-
-@router.get("/reset_password")
-def get_reset_link(
-    *,
-    session: SessionDep,
-    email: str,
-):
-    sql = select(User).where(User.email == email)
