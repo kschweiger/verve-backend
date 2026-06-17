@@ -1,4 +1,17 @@
 <!-- insertion marker -->
+<a name="1.12.0"></a>
+
+## [1.12.0](https://github.com/kschweiger/verve-backend/compare/1.11.0...1.12.0) (2026-06-17)
+
+### Features
+
+- add password reset mechanism (#172) ([49c4378](https://github.com/kschweiger/verve-backend/commit/49c4378dd1606c30657a928cdc0f4afc5afd8c62))
+- add activity grid endpoint (#170) ([e976c91](https://github.com/kschweiger/verve-backend/commit/e976c912194b31fe262192a0c61457f9005c9856))
+
+### Code Refactoring
+
+- migrate hashing to pwdlib (#173) ([94ff799](https://github.com/kschweiger/verve-backend/commit/94ff799320f534559320c9f14f362df3db2bf67f))
+
 <a name="1.11.0"></a>
 
 ## [1.11.0](https://github.com/kschweiger/verve-backend/compare/1.10.1...1.11.0) (2026-06-02)
