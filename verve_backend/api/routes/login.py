@@ -75,15 +75,8 @@ def forgot_password(
 
     _user = session.exec(select(User).where(User.email == data.email)).first()
     if _user:
-        token, token_hash = security.generate_reset_token()
+        token, _ = crud.add_reset_token(session=session, user_id=_user.id)
         link = f"{settings.FRONTEND_HOST}/reset-password?token={token}"
-        pw_reset_token = PasswordResetToken(
-            user_id=_user.id,
-            token_hash=token_hash,
-        )
-
-        session.add(pw_reset_token)
-        session.commit()
 
     if settings.RESET_PASSWORD_RESPONSE == "append":
         return PasswordForgotResponse(message=msg, reset_link=link)

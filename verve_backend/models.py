@@ -919,4 +919,4 @@ class PasswordResetToken(SQLModel, table=True):
         default_factory=lambda: datetime.now() + timedelta(hours=1)
     )
     used_at: datetime | None = Field(default=None)
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=lambda: datetime.now())

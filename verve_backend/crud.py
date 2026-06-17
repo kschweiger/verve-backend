@@ -19,7 +19,11 @@ from verve_backend.api.deps import SupportedLocale
 from verve_backend.core.config import settings
 from verve_backend.core.db import get_search_query
 from verve_backend.core.meta_data import ActivityMetaData, validate_meta_data
-from verve_backend.core.security import get_password_hash, verify_password
+from verve_backend.core.security import (
+    generate_reset_token,
+    get_password_hash,
+    verify_password,
+)
 from verve_backend.core.timing import log_timing
 from verve_backend.defaults import DEFAULT_TAG_CATEGORIES, DEFAULT_TAGS
 from verve_backend.enums import GoalType
@@ -48,6 +52,7 @@ from verve_backend.models import (
     LocationCreate,
     LocationSubType,
     LocationType,
+    PasswordResetToken,
     SegmentCut,
     SegmentSet,
     TrackPoint,
@@ -829,3 +834,16 @@ def add_segment_set(
         return Err(err)
 
     return Ok(_set.id)
+
+
+def add_reset_token(*, session: Session, user_id: uuid.UUID) -> tuple[str, str]:
+    token, token_hash = generate_reset_token()
+    pw_reset_token = PasswordResetToken(
+        user_id=user_id,
+        token_hash=token_hash,
+    )
+
+    session.add(pw_reset_token)
+    session.commit()
+
+    return token, token_hash
