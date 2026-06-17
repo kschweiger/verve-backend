@@ -905,3 +905,18 @@ class SegmentCut(SQLModel, table=True):
             ondelete="CASCADE",
         ),
     )
+
+
+class PasswordResetToken(SQLModel, table=True):
+    __tablename__: str = "password_reset_tokens"  # type: ignore
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", nullable=False, index=True, ondelete="CASCADE"
+    )
+    token_hash: str = Field(index=True)
+    expires_at: datetime = Field(
+        default_factory=lambda: datetime.now() + timedelta(hours=1)
+    )
+    used_at: datetime | None = Field(default=None)
+    created_at: datetime = Field(default_factory=lambda: datetime.now())
