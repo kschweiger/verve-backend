@@ -914,7 +914,7 @@ class PasswordResetToken(SQLModel, table=True):
     user_id: uuid.UUID = Field(
         foreign_key="users.id", nullable=False, index=True, ondelete="CASCADE"
     )
-    token_hash: str
+    token_hash: str = Field(index=True)
     expires_at: datetime = Field(
         default_factory=lambda: datetime.now() + timedelta(hours=1)
     )
