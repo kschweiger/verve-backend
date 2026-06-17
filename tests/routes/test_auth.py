@@ -103,6 +103,14 @@ def test_reset_password(
     for _token in tokens:
         assert _token.used_at is not None
 
+    # Try reusing the token
+    response = client.post(
+        "/login/reset-password",
+        json={"token": reset_token, "new_password": "newpassword123"},
+    )
+
+    assert response.status_code == 400
+
 
 def test_reset_password_token_expired(
     db: Session, client: TestClient, temp_user_token: str, temp_user_id: UUID

@@ -69,20 +69,18 @@ class PasswordForgotPayload(BaseModel):
 def forgot_password(
     session: SessionDep, data: PasswordForgotPayload
 ) -> PasswordForgotResponse:
+    if settings.RESET_PASSWORD_RESPONSE != "append":
+        raise HTTPException(status_code=501, detail="Email sending not implemented yet")
     msg = "If this account exists, you will receive an email"
-
     link = None
 
     _user = session.exec(select(User).where(User.email == data.email)).first()
     if _user:
         token, _ = crud.add_reset_token(session=session, user_id=_user.id)
-        link = f"{settings.FRONTEND_HOST}/reset-password?token={token}"
+        if settings.RESET_PASSWORD_RESPONSE == "append":
+            link = f"{settings.FRONTEND_HOST}/reset-password?token={token}"
 
-    if settings.RESET_PASSWORD_RESPONSE == "append":
-        return PasswordForgotResponse(message=msg, reset_link=link)
-
-    else:
-        raise NotImplementedError("Email sending not implemented yet")
+    return PasswordForgotResponse(message=msg, reset_link=link)
 
 
 class PasswordResetPayload(BaseModel):
