@@ -140,3 +140,38 @@ def test_get_highlights_single_metric(
         hl.scope == (HighlightTimeScope.YEARLY if year else HighlightTimeScope.LIFETIME)
         for hl in results.data
     )
+
+
+@pytest.mark.parametrize(("exp_data", "type_id"), [(True, 1), (False, 999)])
+def test_get_highlights_metric_with_type_id(
+    client: TestClient, user1_token: str, exp_data: bool, type_id: int
+) -> None:
+    response = client.get(
+        f"/highlights/metric/{HighlightMetric.DISTANCE.value}",
+        headers={"Authorization": f"Bearer {user1_token}"},
+        params={"type_id": type_id},
+    )
+    assert response.status_code == 200
+    results = ListResponse[ActivityHighlightPublic].model_validate(response.json())
+    if exp_data:
+        assert len(results.data) > 0
+        assert all(h.type_id == type_id for h in results.data)
+    else:
+        assert len(results.data) == 0
+
+    response = client.get(
+        "/highlights/",
+        headers={"Authorization": f"Bearer {user1_token}"},
+        params={"type_id": type_id},
+    )
+    assert response.status_code == 200
+    results = DictResponse[
+        HighlightMetric, list[ActivityHighlightPublic]
+    ].model_validate(response.json())
+
+    for hl in results.data.values():
+        if exp_data:
+            assert len(hl) > 0
+            assert all(h.type_id == type_id for h in hl)
+        else:
+            assert len(hl) == 0

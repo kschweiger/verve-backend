@@ -57,10 +57,13 @@ async def get_highlights_for_activity(
 def get_highlights(
     user_session: UserSession,
     year: int | None = None,
+    type_id: int | None = None,
 ) -> Any:
     _, session = user_session
 
     stmt = select(ActivityHighlight)
+    if type_id is not None:
+        stmt = stmt.where(ActivityHighlight.type_id == type_id)
     if year is not None:
         stmt = stmt.where(ActivityHighlight.scope == HighlightTimeScope.YEARLY)
         stmt = stmt.where(ActivityHighlight.year == year)
@@ -86,16 +89,20 @@ def get_highlights_by_metric(
     user_session: UserSession,
     metric: HighlightMetric,
     year: int | None = None,
+    type_id: int | None = None,
 ) -> Any:
     _, session = user_session
 
     stmt = select(ActivityHighlight).where(ActivityHighlight.metric == metric)
+    if type_id is not None:
+        stmt = stmt.where(ActivityHighlight.type_id == type_id)
     if year is not None:
         stmt = stmt.where(ActivityHighlight.scope == HighlightTimeScope.YEARLY)
         stmt = stmt.where(ActivityHighlight.year == year)
     else:
         stmt = stmt.where(ActivityHighlight.scope == HighlightTimeScope.LIFETIME)
 
+    print(stmt)
     highlights = session.exec(stmt).all()
 
     results = [get_public_highlight(hl) for hl in highlights]
