@@ -1,4 +1,12 @@
 <!-- insertion marker -->
+<a name="1.12.1"></a>
+
+## [1.12.1](https://github.com/kschweiger/verve-backend/compare/1.12.0...1.12.1) (2026-06-18)
+
+### Bug Fixes
+
+- add rls policy to tokens ([ed0a4e6](https://github.com/kschweiger/verve-backend/commit/ed0a4e65b171b9c4c25a0400da55113dfe69b17b))
+
 <a name="1.12.0"></a>
 
 ## [1.12.0](https://github.com/kschweiger/verve-backend/compare/1.11.0...1.12.0) (2026-06-17)
