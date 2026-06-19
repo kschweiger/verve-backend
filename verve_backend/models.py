@@ -92,6 +92,14 @@ class HeatmapSettings(BaseModel):
     )
 
 
+class RecordsSettings(BaseModel):
+    """Settings for the records view"""
+
+    default_activity_type: int = Field(
+        default=1, description="Default activity type to show records for"
+    )
+
+
 class ListResponse(BaseModel, Generic[U]):
     data: list[U]
 
@@ -698,6 +706,10 @@ class UserSettingsBase(SQLModel):
     heatmap_settings: HeatmapSettings = Field(
         sa_column=Column(PydanticJSON(HeatmapSettings)),
         default_factory=lambda: HeatmapSettings().model_dump(mode="json"),
+    )
+    records_settings: RecordsSettings = Field(
+        sa_column=Column(PydanticJSON(RecordsSettings)),
+        default_factory=lambda: RecordsSettings().model_dump(mode="json"),
     )
 
 

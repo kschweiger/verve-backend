@@ -19,6 +19,7 @@ from verve_backend.models import (
     ActivitySubType,
     ActivityType,
     HeatmapSettings,
+    RecordsSettings,
     User,
     UserCreate,
     UserPassword,
@@ -177,6 +178,22 @@ async def replace_heatmap_settings(
     assert user_settings is not None
 
     user_settings.heatmap_settings = data
+
+    session.add(user_settings)
+    session.commit()
+
+
+@router.patch("/me/records_settings")
+def replace_records_settings(
+    *, user_session: UserSession, data: RecordsSettings
+) -> Any:
+    _user_id, session = user_session
+
+    check_and_raise_primary_key(session, ActivityType, data.default_activity_type)
+    user_settings = session.get(UserSettings, UUID(_user_id))
+    assert user_settings is not None
+
+    user_settings.records_settings = data
 
     session.add(user_settings)
     session.commit()

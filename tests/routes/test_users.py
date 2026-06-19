@@ -4,7 +4,13 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from verve_backend.models import User, UserCreate, UserPublic
+from verve_backend.models import (
+    RecordsSettings,
+    User,
+    UserCreate,
+    UserPublic,
+    UserSettingsPublic,
+)
 
 
 @pytest.mark.parametrize(
@@ -128,3 +134,32 @@ def test_create_user_admin(
     assert response.status_code == 200
 
     UserPublic.model_validate(response.json())
+
+
+def test_replace_records_settings(
+    client: TestClient,
+    user1_token: str,
+) -> None:
+    response = client.get(
+        "/users/me/settings",
+        headers={"Authorization": f"Bearer {user1_token}"},
+    )
+    assert response.status_code == 200
+    print(response.json())
+    settings_pre = UserSettingsPublic.model_validate(response.json()["settings"])
+
+    response = client.patch(
+        "/users/me/records_settings",
+        headers={"Authorization": f"Bearer {user1_token}"},
+        json=RecordsSettings(default_activity_type=2).model_dump(mode="json"),
+    )
+    assert response.status_code == 200
+    response = client.get(
+        "/users/me/settings",
+        headers={"Authorization": f"Bearer {user1_token}"},
+    )
+    assert response.status_code == 200
+    settings_post = UserSettingsPublic.model_validate(response.json()["settings"])
+
+    assert settings_post.records_settings.default_activity_type == 2
+    assert settings_post.records_settings != settings_pre.records_settings
