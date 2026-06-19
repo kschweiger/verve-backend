@@ -8,10 +8,10 @@ requires-python = ">=3.14,<3.15"
 dependencies = [
   "alembic==1.18.4",
   "bcrypt==4.3.0",
-  "boto3==1.43.29",
-  "boto3-stubs[s3]==1.43.29",
+  "boto3==1.43.33",
+  "boto3-stubs[s3]==1.43.33",
   "celery==5.6.3",
-  "fastapi[standard]==0.137.1",
+  "fastapi[standard]==0.137.2",
   "geo-track-analyzer==2.0.1",
   "geoalchemy2==0.20.0",
   "gevent==26.5.0",
@@ -23,9 +23,9 @@ dependencies = [
   "pyproj==3.7.2",
   "redis==7.4.1",
   "shapely==2.1.2",
-  "sqlalchemy==2.0.50",
+  "sqlalchemy==2.0.51",
   "sqlmodel==0.0.38",
-  "structlog==25.5.0",
+  "structlog==26.1.0",
 ]
 
 [project.scripts]
@@ -93,7 +93,7 @@ test = [
 package = true
 
 [build-system]
-requires = ["uv_build>=0.11.21,<0.11.22"]
+requires = ["uv_build>=0.11.22,<0.11.23"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
