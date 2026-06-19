@@ -1,4 +1,12 @@
 <!-- insertion marker -->
+<a name="1.14.0"></a>
+
+## [1.14.0](https://github.com/kschweiger/verve-backend/compare/1.13.0...1.14.0) (2026-06-19)
+
+### Features
+
+- **UserSettings:** add records settings ([5cf32f1](https://github.com/kschweiger/verve-backend/commit/5cf32f1bb5518d26e96851cb08363d04cb083aea))
+
 <a name="1.13.0"></a>
 
 ## [1.13.0](https://github.com/kschweiger/verve-backend/compare/1.12.1...1.13.0) (2026-06-19)
