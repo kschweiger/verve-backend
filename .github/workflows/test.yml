@@ -31,7 +31,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
       redis:
-        image: redis:8.8.0-alpine@sha256:09160599abd229764c0fb44cb6be640294e1d360a54b19985ab4843dcf2d90f1
+        image: redis:8.8.0-alpine@sha256:9d317178eceac8454a2284a9e6df2466b93c745529947f0cd42a0fa9609d7005
         ports:
           - 6379:6379
         options: >-
@@ -97,7 +97,7 @@ jobs:
             mb myminio/verve-testing
 
       - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version-file: "pyproject.toml"
 
