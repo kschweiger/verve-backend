@@ -159,6 +159,22 @@ class LocationActivityLink(SQLModel, table=True):
     )
 
 
+class ActivityCollectionLink(SQLModel, table=True):
+    __tablename__: str = "activity_collection_links"  # type: ignore
+    activity_id: uuid.UUID = Field(
+        foreign_key="activities.id",
+        nullable=False,
+        ondelete="CASCADE",
+        primary_key=True,
+    )
+    collection_id: uuid.UUID = Field(
+        foreign_key="activity_collections.id",
+        nullable=False,
+        ondelete="CASCADE",
+        primary_key=True,
+    )
+
+
 # Shared properties
 class UserBase(SQLModel):
     name: str = Field(unique=True, min_length=6)
@@ -342,6 +358,13 @@ class Activity(ActivityBase, table=True):
     tags: list["ActivityTag"] = Relationship(
         back_populates="activities",
         link_model=ActivityTagLink,
+        sa_relationship_kwargs={
+            "lazy": "select",
+        },
+    )
+    collections: list["ActivityCollection"] = Relationship(
+        back_populates="activities",
+        link_model=ActivityCollectionLink,
         sa_relationship_kwargs={
             "lazy": "select",
         },
@@ -932,3 +955,34 @@ class PasswordResetToken(SQLModel, table=True):
     )
     used_at: datetime | None = Field(default=None)
     created_at: datetime = Field(default_factory=lambda: datetime.now())
+
+
+class ActivityCollectionBase(SQLModel):
+    name: str
+    description: str | None = Field(default=None)
+
+
+class ActivityCollectionCreate(ActivityCollectionBase):
+    activity_ids: list[uuid.UUID] = Field(min_length=1)
+
+
+class ActivityCollectionPublic(ActivityCollectionBase):
+    id: uuid.UUID = Field(default_factory=uuid.uuid7, primary_key=True)
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
+class ActivityCollection(ActivityCollectionPublic, table=True):
+    __tablename__: str = "activity_collections"  # type: ignore
+
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", nullable=False, index=True, ondelete="CASCADE"
+    )
+
+    activities: list[Activity] = Relationship(
+        back_populates="collections",
+        link_model=ActivityCollectionLink,
+        sa_relationship_kwargs={
+            "lazy": "select",
+        },
+    )
+    updated_at: datetime = Field(default_factory=datetime.now)

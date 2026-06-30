@@ -12,6 +12,7 @@ from geo_track_analyzer import FITTrack, GeoJsonTrack, GPXFileTrack, PyTrack, Tr
 from sqlmodel import Session, SQLModel
 
 from verve_backend.models import (
+    Activity,
     ActivitySubType,
     ActivityType,
     LocationSubType,
@@ -662,3 +663,46 @@ def generate_data(session: Session) -> None:
             aggregation=models.GoalAggregation.DURATION,
         ),
     ).unwrap()
+
+
+@pytest.fixture
+def create_activity_with_gpx_track(db: Session):  # noqa: ANN201
+    from verve_backend import (
+        crud,
+        models,
+    )
+
+    def _create(
+        user: User,
+        resource_name: str = "two_segments_100_points.gpx",
+        type_id: int = 1,
+        sub_type_id: int | None = 1,
+        start: datetime = datetime(year=2026, month=1, day=1, hour=13),
+    ) -> Activity:
+        activity = crud.create_activity(
+            session=db,
+            create=models.ActivityCreate(
+                start=start,
+                duration=timedelta(days=0, seconds=60 * 60 * 1),
+                distance=None,
+                type_id=type_id,
+                sub_type_id=sub_type_id,
+                name=None,
+            ),
+            user=user,  # type: ignore
+        ).unwrap()
+
+        resource_files = resources.files("tests.resources")
+        track = GPXFileTrack(resource_files / resource_name)  # type: ignore
+
+        crud.insert_track(
+            session=db,
+            track=track,
+            activity_id=activity.id,
+            user_id=user.id,
+            batch_size=500,
+        )
+
+        return activity
+
+    return _create

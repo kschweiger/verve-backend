@@ -15,6 +15,7 @@ from verve_backend.core.meta_data import LapData, SetData, SwimmingMetaData, Swi
 from verve_backend.models import (
     ActivitiesPublic,
     Activity,
+    ActivityCollection,
     ActivityCreate,
     ActivityHighlight,
     ActivityPublic,
@@ -26,6 +27,7 @@ from verve_backend.models import (
     LocationCreate,
     RawTrackData,
     TrackPoint,
+    User,
     UserPublic,
 )
 
@@ -1229,3 +1231,46 @@ def test_add_and_remove_tags(
     _activity = db.get(Activity, activity_id)
     assert _activity is not None
     assert len(_activity.tags) == 0
+
+
+def test_activity_collection(
+    db: Session,
+    client: TestClient,
+    temp_user_token: str,
+    temp_user_id: UUID,
+    create_activity_with_gpx_track,
+) -> None:
+    user = db.get(User, temp_user_id)
+    assert user is not None
+    activity_1 = create_activity_with_gpx_track(
+        user=user,
+        resource_name="collection_stage_1_100_points.gpx",
+        type_id=1,
+        sub_type_id=1,
+    )
+    activity_2 = create_activity_with_gpx_track(
+        user=user,
+        resource_name="collection_stage_2_100_points.gpx",
+        type_id=1,
+        sub_type_id=1,
+    )
+
+    response = client.post(
+        "/activity/collection",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        json={
+            "name": "Test Collection",
+            "description": "This is a really amazing collection",
+            "activity_ids": [str(activity_1.id), str(activity_2.id)],
+        },
+    )
+    assert response.status_code == 200
+    _response = response.json()
+    collection_id = _response.get("id")
+    assert collection_id is not None
+
+    collection = db.get(ActivityCollection, collection_id)
+
+    assert collection is not None
+    assert collection.name == "Test Collection"
+    assert {a.id for a in collection.activities} == {activity_1.id, activity_2.id}
