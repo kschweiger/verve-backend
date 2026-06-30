@@ -143,16 +143,16 @@ class CollectionUpdate(BaseModel):
 
 
 @router.patch(
-    "/{collection_id}",
+    "/{id}",
     response_model=ActivityCollectionPublic,
     tags=[Tag.COLLECTION],
 )
 def update_collection(
-    *, user_session: UserSession, collection_id: uuid.UUID, data: CollectionUpdate
+    *, user_session: UserSession, id: uuid.UUID, data: CollectionUpdate
 ) -> Any:
     _, session = user_session
 
-    collection = session.get(ActivityCollection, collection_id)
+    collection = session.get(ActivityCollection, id)
     if collection is None:
         raise HTTPException(
             status_code=HTTP_404_NOT_FOUND, detail="Collection not found"
