@@ -38,9 +38,6 @@ from verve_backend.core.config import settings
 from verve_backend.models import (
     ActivitiesPublic,
     Activity,
-    ActivityCollection,
-    ActivityCollectionCreate,
-    ActivityCollectionPublic,
     ActivityCreate,
     ActivityPublic,
     ActivitySubType,
@@ -704,28 +701,3 @@ def import_verve_file(
     process_activity_highlights.delay(activity_id=activity.id, user_id=user_id)  # type: ignore
 
     return activity
-
-
-@router.post("/collection", response_model=ActivityCollectionPublic)
-def create_collection(
-    *, user_session: UserSession, data: ActivityCollectionCreate
-) -> Any:
-    _user_id, session = user_session
-    user_id = uuid.UUID(_user_id)
-
-    _activities = []
-    for _id in data.activity_ids:
-        activity = session.get(Activity, _id)
-        if not activity:
-            raise HTTPException(
-                status_code=HTTP_404_NOT_FOUND, detail="Activity not found"
-            )
-        _activities.append(activity)
-
-    _collection = ActivityCollection.model_validate(data, update={"user_id": user_id})
-    _collection.activities.extend(_activities)
-    session.add(_collection)
-    session.commit()
-    session.refresh(_collection)
-
-    return _collection

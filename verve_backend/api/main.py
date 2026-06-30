@@ -7,6 +7,7 @@ from verve_backend.api.deps import SessionDep
 from verve_backend.api.routes import (
     activity,
     admin,
+    collection,
     equipment,
     goal,
     heatmap,
@@ -26,6 +27,7 @@ api_router = APIRouter()
 
 api_router.include_router(users.router)
 api_router.include_router(admin.router)
+api_router.include_router(collection.router)
 api_router.include_router(login.router)
 api_router.include_router(activity.router)
 api_router.include_router(track.router)

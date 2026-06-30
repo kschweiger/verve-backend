@@ -967,13 +967,16 @@ class ActivityCollectionCreate(ActivityCollectionBase):
 
 
 class ActivityCollectionPublic(ActivityCollectionBase):
-    id: uuid.UUID = Field(default_factory=uuid.uuid7, primary_key=True)
-    created_at: datetime = Field(default_factory=datetime.now)
+    id: uuid.UUID
+    created_at: datetime
+    activity_ids: list[uuid.UUID]
 
 
-class ActivityCollection(ActivityCollectionPublic, table=True):
+class ActivityCollection(ActivityCollectionBase, table=True):
     __tablename__: str = "activity_collections"  # type: ignore
 
+    id: uuid.UUID = Field(default_factory=uuid.uuid7, primary_key=True)
+    created_at: datetime = Field(default_factory=datetime.now)
     user_id: uuid.UUID = Field(
         foreign_key="users.id", nullable=False, index=True, ondelete="CASCADE"
     )

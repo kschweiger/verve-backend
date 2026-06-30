@@ -591,6 +591,112 @@ def generate_data(session: Session) -> None:
     session.add(activity_5)
     session.commit()
 
+    # ------------------------- Collection ----------------------
+    activity_collection_1 = crud.create_activity(
+        session=session,
+        create=models.ActivityCreate(
+            start=datetime(year=2026, month=1, day=1, hour=13),
+            duration=timedelta(days=0, seconds=60 * 60 * 1),
+            distance=None,
+            type_id=1,
+            sub_type_id=1,
+            name=None,
+        ),
+        user=created_users[0],  # type: ignore
+    ).unwrap()
+
+    track = GPXFileTrack(resource_files / "collection_stage_1_100_points.gpx")  # type: ignore
+    crud.insert_track(
+        session=session,
+        track=track,
+        activity_id=activity_collection_1.id,
+        user_id=created_users[0].id,
+        batch_size=500,
+    )
+    crud.update_activity_with_track_data(
+        session=session,
+        activity_id=activity_collection_1.id,
+        track=track,
+    )
+    activity_collection_2 = crud.create_activity(
+        session=session,
+        create=models.ActivityCreate(
+            start=datetime(year=2026, month=1, day=1, hour=13),
+            duration=timedelta(days=0, seconds=60 * 60 * 1),
+            distance=None,
+            type_id=1,
+            sub_type_id=1,
+            name=None,
+        ),
+        user=created_users[0],  # type: ignore
+    ).unwrap()
+
+    track = GPXFileTrack(resource_files / "collection_stage_2_100_points.gpx")  # type: ignore
+    crud.insert_track(
+        session=session,
+        track=track,
+        activity_id=activity_collection_2.id,
+        user_id=created_users[0].id,
+        batch_size=500,
+    )
+    crud.update_activity_with_track_data(
+        session=session,
+        activity_id=activity_collection_2.id,
+        track=track,
+    )
+
+    collection_1 = models.ActivityCollection(
+        user_id=created_users[0].id,
+        name="Collection 1",
+        description="A test collection",
+    )
+    collection_1.activities.extend([activity_collection_1, activity_collection_2])
+    session.add(collection_1)
+    session.commit()
+
+    collection_2 = models.ActivityCollection(
+        user_id=created_users[0].id,
+        name="Collection 2",
+    )
+    collection_2.activities.append(activity_1)
+    session.add(collection_2)
+    session.commit()
+
+    activity_collection_3 = crud.create_activity(
+        session=session,
+        create=models.ActivityCreate(
+            start=datetime(year=2026, month=4, day=1, hour=13),
+            duration=timedelta(days=0, seconds=60 * 60 * 1),
+            moving_duration=timedelta(days=0, seconds=(60 * 60 * 1) - 20),
+            distance=20,
+            type_id=1,
+            sub_type_id=1,
+            name=None,
+        ),
+        user=created_users[0],  # type: ignore
+    ).unwrap()
+
+    activity_collection_4 = crud.create_activity(
+        session=session,
+        create=models.ActivityCreate(
+            start=datetime(year=2026, month=4, day=1, hour=13),
+            duration=timedelta(days=0, seconds=60 * 60 * 1),
+            distance=None,
+            type_id=5,  # Should be Strengh training
+            sub_type_id=18,  # Should be weight training
+            name=None,
+        ),
+        user=created_users[0],  # type: ignore
+    ).unwrap()
+
+    collection_3 = models.ActivityCollection(
+        user_id=created_users[0].id,
+        name="Collection 3",
+        description="A mixed collection",
+    )
+    collection_3.activities.extend([activity_collection_3, activity_collection_4])
+    session.add(collection_3)
+    session.commit()
     # ------------------------------- EQUIPMENT & SETS ---------------------------
     equipment_1 = crud.create_equipment(
         session=session,
@@ -671,10 +777,12 @@ def create_activity_with_gpx_track(db: Session):  # noqa: ANN201
         crud,
         models,
     )
+    from verve_backend.api.common.track import update_activity_with_track
 
     def _create(
         user: User,
         resource_name: str = "two_segments_100_points.gpx",
+        name: str | None = None,
         type_id: int = 1,
         sub_type_id: int | None = 1,
         start: datetime = datetime(year=2026, month=1, day=1, hour=13),
@@ -687,7 +795,7 @@ def create_activity_with_gpx_track(db: Session):  # noqa: ANN201
                 distance=None,
                 type_id=type_id,
                 sub_type_id=sub_type_id,
-                name=None,
+                name=name,
             ),
             user=user,  # type: ignore
         ).unwrap()
@@ -703,6 +811,8 @@ def create_activity_with_gpx_track(db: Session):  # noqa: ANN201
             batch_size=500,
         )
 
+        update_activity_with_track(activity=activity, track=track)
+        db.commit()
         return activity
 
     return _create

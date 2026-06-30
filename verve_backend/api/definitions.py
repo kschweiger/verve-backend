@@ -18,3 +18,4 @@ class Tag(StrEnum):
     ADMIN = auto()
     SEGMENTS = auto()
     STATISTICS = auto()
+    COLLECTION = auto()
