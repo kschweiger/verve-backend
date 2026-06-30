@@ -531,6 +531,13 @@ class TrackPointResponse(BaseModel):
     add_extensions: dict[str, int | float] | None = None
 
 
+class CollectionTrackPointResponse(TrackPointResponse):
+    activity_id: uuid.UUID
+    activity_index: int
+
+    collection_cum_distance: float | None
+
+
 class RawTrackData(SQLModel, table=True):
     __tablename__: str = "raw_track_data"  # type: ignore
 

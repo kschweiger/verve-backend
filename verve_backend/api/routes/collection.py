@@ -13,6 +13,7 @@ from starlette.status import (
     HTTP_404_NOT_FOUND,
 )
 
+from verve_backend.api.common.track import get_track_points_response
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import (
     UserSession,
@@ -23,6 +24,8 @@ from verve_backend.models import (
     ActivityCollectionCreate,
     ActivityCollectionPublic,
     ActivityPublic,
+    CollectionTrackPointResponse,
+    ListResponse,
 )
 
 router = APIRouter(prefix="/collection", tags=[Tag.ACTIVITY, Tag.COLLECTION])
@@ -283,3 +286,41 @@ def get_collection(
         ),
         activities=[ActivityPublic.model_validate(a) for a in activities],
     )
+
+
+@router.get(
+    "/{id}/track",
+    response_model=ListResponse[CollectionTrackPointResponse],
+)
+def get_collection_track(
+    *,
+    user_session: UserSession,
+    id: uuid.UUID,
+) -> Any:
+    _, session = user_session
+
+    collection = session.get(ActivityCollection, id)
+    if collection is None:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND, detail="Collection not found"
+        )
+    points = []
+    collection_cum_distance = 0.0
+
+    for activity_index, activity in enumerate(collection.activities):
+        activity_points = get_track_points_response(session, activity.id)
+
+        for point in activity_points:
+            if point.diff_distance is not None:
+                collection_cum_distance += point.diff_distance
+
+            points.append(
+                CollectionTrackPointResponse(
+                    **point.model_dump(),
+                    activity_id=activity.id,
+                    activity_index=activity_index,
+                    collection_cum_distance=collection_cum_distance,
+                )
+            )
+
+    return ListResponse[CollectionTrackPointResponse](data=points)

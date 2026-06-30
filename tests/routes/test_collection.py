@@ -3,7 +3,7 @@ from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from verve_backend import crud
 from verve_backend.api.routes.collection import CollectionListResponse
@@ -12,6 +12,8 @@ from verve_backend.models import (
     ActivityCollection,
     ActivityCollectionLink,
     ActivityCreate,
+    CollectionTrackPointResponse,
+    ListResponse,
     User,
 )
 
@@ -293,3 +295,25 @@ def test_get_collection(
         headers={"Authorization": f"Bearer {user1_token}"},
     )
     assert response.status_code == 200
+
+
+def test_get_collection_track(
+    db: Session,
+    client: TestClient,
+    user1_id: UUID,
+    user1_token: str,
+) -> None:
+    _collection = db.exec(
+        select(ActivityCollection)
+        .where(ActivityCollection.user_id == user1_id)
+        .order_by(col(ActivityCollection.created_at).asc())
+    ).first()
+    assert _collection is not None
+
+    response = client.get(
+        f"/collection/{_collection.id}/track",
+        headers={"Authorization": f"Bearer {user1_token}"},
+    )
+    assert response.status_code == 200
+    _data = ListResponse[CollectionTrackPointResponse].model_validate(response.json())
+    assert len(_data.data) > 0

@@ -1,4 +1,5 @@
 import datetime
+import importlib.resources
 import uuid
 from io import BytesIO
 from time import perf_counter
@@ -12,7 +13,7 @@ from geo_track_analyzer.exceptions import (
     UnsupportedGeoJsonTypeError,
 )
 from geo_track_analyzer.track import GeoJsonTrack
-from sqlmodel import Session
+from sqlmodel import Session, select, text
 from starlette.status import (
     HTTP_400_BAD_REQUEST,
     HTTP_422_UNPROCESSABLE_CONTENT,
@@ -22,7 +23,7 @@ from starlette.status import (
 from verve_backend import crud
 from verve_backend.api.deps import ObjectStoreClient
 from verve_backend.core.config import settings
-from verve_backend.models import Activity, RawTrackData
+from verve_backend.models import Activity, RawTrackData, TrackPoint, TrackPointResponse
 
 logger = structlog.getLogger(__name__)
 
@@ -158,3 +159,53 @@ def update_activity_with_track(activity: Activity, track: Track) -> None:
     if overview.heartrate:
         activity.avg_heartrate = overview.heartrate.avg
         activity.max_heartrate = overview.heartrate.max
+
+
+def get_track_points_response(
+    session: Session,
+    activity_id: uuid.UUID,
+    min_distance: int = 1,
+) -> list[TrackPointResponse]:
+    check_stmt = (
+        select(
+            TrackPoint.id,
+            TrackPoint.user_id,
+            TrackPoint.activity_id,
+        )
+        .where(TrackPoint.activity_id == activity_id)
+        .limit(1)
+    )
+    if not session.exec(check_stmt).first():
+        return []
+
+    stmt = (
+        importlib.resources.files("verve_backend.queries")
+        .joinpath("select_track_data.sql")
+        .read_text()
+    )
+
+    rows = session.exec(
+        text(stmt),  # type: ignore
+        params={"activity_id": activity_id, "min_distance": min_distance},
+    ).all()
+
+    return [
+        TrackPointResponse(
+            id=row.id,
+            segment_id=row.segment_id,
+            latitude=row.latitude,
+            longitude=row.longitude,
+            time=row.time,
+            elevation=row.elevation,
+            diff_time=row.time_diff_seconds,
+            diff_distance=row.distance_from_previous,
+            cum_distance=0
+            if (i == 0 and row.cumulative_distance_m is None)
+            else row.cumulative_distance_m,
+            speed=row.speed_m_s,
+            heartrate=row.heartrate,
+            cadence=row.cadence,
+            power=row.power,
+        )
+        for i, row in enumerate(rows)
+    ]
