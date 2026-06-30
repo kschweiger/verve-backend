@@ -22,6 +22,7 @@ from verve_backend.models import (
     ActivityCollection,
     ActivityCollectionCreate,
     ActivityCollectionPublic,
+    ActivityPublic,
 )
 
 router = APIRouter(prefix="/collection", tags=[Tag.ACTIVITY, Tag.COLLECTION])
@@ -72,7 +73,7 @@ class CollectionOverview(BaseModel):
     name: str
     description: str | None = None
     count: int = Field(ge=1, description="Number of activities in the collection")
-    distance: float = Field(
+    distance: float | None = Field(
         ge=0, description="Total distance of all activities in the collection"
     )
     moving_duration: datetime.timedelta | None = Field(
@@ -215,3 +216,70 @@ def delete_collection(
 
     session.delete(collection)
     session.commit()
+
+
+class CollectionDetailResponse(BaseModel):
+    id: uuid.UUID
+
+    name: str
+    description: str | None = None
+    activities: list[ActivityPublic]
+
+    total_distance: float | None
+    total_duration: datetime.timedelta
+    total_moving_duration: datetime.timedelta | None
+    total_elevation_change_up: float | None
+    total_elevation_change_down: float | None
+
+
+def sum_optional_float(values: list[float | None]) -> float | None:
+    present = [v for v in values if v is not None]
+    return sum(present) if present else None
+
+
+def sum_optional_timedelta(
+    values: list[datetime.timedelta | None],
+) -> datetime.timedelta | None:
+    present = [v for v in values if v is not None]
+    return sum(present, datetime.timedelta()) if present else None
+
+
+@router.get(
+    "/{id}",
+    response_model=CollectionDetailResponse,
+)
+def get_collection(
+    *,
+    user_session: UserSession,
+    id: uuid.UUID,
+) -> Any:
+    _, session = user_session
+
+    collection = session.get(ActivityCollection, id)
+    if collection is None:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND, detail="Collection not found"
+        )
+
+    activities = sorted(collection.activities, key=lambda a: (a.start, a.id))
+
+    return CollectionDetailResponse(
+        id=collection.id,
+        name=collection.name,
+        description=collection.description,
+        total_distance=sum_optional_float([a.distance for a in activities]),
+        total_duration=sum(
+            (a.duration for a in activities),
+            datetime.timedelta(),
+        ),
+        total_moving_duration=sum_optional_timedelta(
+            [a.moving_duration for a in activities]
+        ),
+        total_elevation_change_up=sum_optional_float(
+            [a.elevation_change_up for a in activities]
+        ),
+        total_elevation_change_down=sum_optional_float(
+            [a.elevation_change_down for a in activities]
+        ),
+        activities=[ActivityPublic.model_validate(a) for a in activities],
+    )

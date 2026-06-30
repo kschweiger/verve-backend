@@ -275,3 +275,21 @@ def test_delete_collection(
     assert db.get(ActivityCollection, collection_id) is None
     assert db.get(Activity, activity_1.id) is not None
     assert db.get(Activity, activity_2.id) is not None
+
+
+def test_get_collection(
+    db: Session,
+    client: TestClient,
+    user1_id: UUID,
+    user1_token: str,
+) -> None:
+    _collection = db.exec(
+        select(ActivityCollection).where(ActivityCollection.user_id == user1_id)
+    ).first()
+    assert _collection is not None
+
+    response = client.get(
+        f"/collection/{_collection.id}",
+        headers={"Authorization": f"Bearer {user1_token}"},
+    )
+    assert response.status_code == 200
