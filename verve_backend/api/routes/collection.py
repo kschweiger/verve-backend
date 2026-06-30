@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlmodel import text
 from starlette.status import (
+    HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST,
     HTTP_404_NOT_FOUND,
 )
@@ -193,3 +194,24 @@ def update_collection(
     session.refresh(collection)
 
     return to_public_collection(collection)
+
+
+@router.delete(
+    "/{id}",
+    status_code=HTTP_204_NO_CONTENT,
+)
+def delete_collection(
+    *,
+    user_session: UserSession,
+    id: uuid.UUID,
+) -> None:
+    _, session = user_session
+
+    collection = session.get(ActivityCollection, id)
+    if collection is None:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND, detail="Collection not found"
+        )
+
+    session.delete(collection)
+    session.commit()

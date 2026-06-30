@@ -8,6 +8,7 @@ from sqlmodel import Session, select
 from verve_backend import crud
 from verve_backend.api.routes.collection import CollectionListResponse
 from verve_backend.models import (
+    Activity,
     ActivityCollection,
     ActivityCollectionLink,
     ActivityCreate,
@@ -218,3 +219,59 @@ def test_update_collection(
 
     assert len(links) == 1
     assert links[0].activity_id == activity_3.id
+
+
+def test_delete_collection(
+    db: Session,
+    client: TestClient,
+    temp_user_token: str,
+    temp_user_id: UUID,
+) -> None:
+    user = db.get(User, temp_user_id)
+    assert user is not None
+
+    # ---------------- Create activities and colleciton ------------------
+    common_data = dict(
+        duration=timedelta(days=0, seconds=60 * 60 * 1),
+        distance=None,
+        type_id=1,
+        sub_type_id=1,
+    )
+    activity_1 = crud.create_activity(
+        session=db,
+        create=ActivityCreate(
+            start=datetime(year=2026, month=4, day=1, hour=13),
+            name="Collection Activity 1",
+            **common_data,  # type: ignore
+        ),
+        user=user,  # type: ignore
+    ).unwrap()
+    activity_2 = crud.create_activity(
+        session=db,
+        create=ActivityCreate(
+            start=datetime(year=2026, month=4, day=2, hour=13),
+            name="Collection Activity 2",
+            **common_data,  # type: ignore
+        ),
+        user=user,  # type: ignore
+    ).unwrap()
+    collection = ActivityCollection(
+        user_id=temp_user_id,
+        name="Collection",
+    )
+    collection.activities.extend([activity_1, activity_2])
+    db.add(collection)
+    db.commit()
+    db.refresh(collection)
+    collection_id = collection.id
+    # -----------------------------------------------------------------
+    response = client.delete(
+        f"/collection/{collection_id}",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+    assert response.status_code == 204
+    db.expire_all()
+
+    assert db.get(ActivityCollection, collection_id) is None
+    assert db.get(Activity, activity_1.id) is not None
+    assert db.get(Activity, activity_2.id) is not None
