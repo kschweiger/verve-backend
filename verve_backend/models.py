@@ -159,6 +159,22 @@ class LocationActivityLink(SQLModel, table=True):
     )
 
 
+class ActivityCollectionLink(SQLModel, table=True):
+    __tablename__: str = "activity_collection_links"  # type: ignore
+    activity_id: uuid.UUID = Field(
+        foreign_key="activities.id",
+        nullable=False,
+        ondelete="CASCADE",
+        primary_key=True,
+    )
+    collection_id: uuid.UUID = Field(
+        foreign_key="activity_collections.id",
+        nullable=False,
+        ondelete="CASCADE",
+        primary_key=True,
+    )
+
+
 # Shared properties
 class UserBase(SQLModel):
     name: str = Field(unique=True, min_length=6)
@@ -346,6 +362,13 @@ class Activity(ActivityBase, table=True):
             "lazy": "select",
         },
     )
+    collections: list["ActivityCollection"] = Relationship(
+        back_populates="activities",
+        link_model=ActivityCollectionLink,
+        sa_relationship_kwargs={
+            "lazy": "select",
+        },
+    )
 
 
 class EquipmentBase(SQLModel):
@@ -506,6 +529,13 @@ class TrackPointResponse(BaseModel):
     power: int | None = Field(description="Power in W")
 
     add_extensions: dict[str, int | float] | None = None
+
+
+class CollectionTrackPointResponse(TrackPointResponse):
+    activity_id: uuid.UUID
+    activity_index: int
+
+    collection_cum_distance: float | None
 
 
 class RawTrackData(SQLModel, table=True):
@@ -932,3 +962,37 @@ class PasswordResetToken(SQLModel, table=True):
     )
     used_at: datetime | None = Field(default=None)
     created_at: datetime = Field(default_factory=lambda: datetime.now())
+
+
+class ActivityCollectionBase(SQLModel):
+    name: str
+    description: str | None = Field(default=None)
+
+
+class ActivityCollectionCreate(ActivityCollectionBase):
+    activity_ids: list[uuid.UUID] = Field(min_length=1)
+
+
+class ActivityCollectionPublic(ActivityCollectionBase):
+    id: uuid.UUID
+    created_at: datetime
+    activity_ids: list[uuid.UUID]
+
+
+class ActivityCollection(ActivityCollectionBase, table=True):
+    __tablename__: str = "activity_collections"  # type: ignore
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid7, primary_key=True)
+    created_at: datetime = Field(default_factory=datetime.now)
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", nullable=False, index=True, ondelete="CASCADE"
+    )
+
+    activities: list[Activity] = Relationship(
+        back_populates="collections",
+        link_model=ActivityCollectionLink,
+        sa_relationship_kwargs={
+            "lazy": "select",
+        },
+    )
+    updated_at: datetime = Field(default_factory=datetime.now)

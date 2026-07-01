@@ -21,10 +21,11 @@ from verve_backend import crud
 from verve_backend.api.common.locale import get_activity_name
 from verve_backend.api.common.location import to_public_location
 from verve_backend.api.common.store_utils import remove_object_from_store
-from verve_backend.api.common.track import add_track, update_activity_with_track
+from verve_backend.api.common.track import add_track
 from verve_backend.api.common.utils import (
     check_and_raise_primary_key,
     check_distance_requirement,
+    update_activity_with_track,
     validate_sub_type_id,
 )
 from verve_backend.api.definitions import Tag

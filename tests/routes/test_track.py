@@ -1,15 +1,11 @@
 import json
 import uuid
-from datetime import datetime, timedelta
 from importlib import resources
-from typing import Literal
 
 import pytest
 from fastapi.testclient import TestClient
-from geo_track_analyzer import GPXFileTrack
 from sqlmodel import Session, col, select
 
-from verve_backend import crud
 from verve_backend.api.routes.track import (
     SegmentMetric,
     SegmentSetPublic,
@@ -18,7 +14,6 @@ from verve_backend.api.routes.track import (
 from verve_backend.models import (
     ActivitiesPublic,
     Activity,
-    ActivityCreate,
     ListResponse,
     SegmentCut,
     SegmentSet,
@@ -107,50 +102,22 @@ def test_get_segment_sets(
     assert len(res_data.data) == len(_sets)
 
 
-def _add_activity(
-    db: Session,
-    user: User,
-    type: Literal["cycling", "running"] = "cycling",
-) -> Activity:
-    activity = crud.create_activity(
-        session=db,
-        create=ActivityCreate(
-            start=datetime(year=2026, month=1, day=1, hour=13),
-            duration=timedelta(days=0, seconds=60 * 60 * 1),
-            distance=None,
-            type_id=1 if type == "cycling" else 2,
-            sub_type_id=1 if type == "cycling" else 8,
-            name=None,
-        ),
-        user=user,  # type: ignore
-    ).unwrap()
-
-    resource_files = resources.files("tests.resources")
-    if type == "cycling":
-        track = GPXFileTrack(resource_files / "two_segments_100_points.gpx")  # type: ignore
-    else:
-        track = GPXFileTrack(resource_files / "running_three_segments.gpx")  # type: ignore
-
-    crud.insert_track(
-        session=db,
-        track=track,
-        activity_id=activity.id,
-        user_id=user.id,
-        batch_size=500,
-    )
-
-    return activity
-
-
 def test_get_segment_stats_running(
     db: Session,
     client: TestClient,
     temp_user_token: str,
     temp_user_id: uuid.UUID,
+    create_activity_with_gpx_track,
 ) -> None:
     user = db.get(User, temp_user_id)
     assert user is not None
-    activity = _add_activity(db, user, "running")
+    activity = create_activity_with_gpx_track(
+        user=user,
+        resource_name="running_three_segments.gpx",
+        type_id=2,
+        sub_type_id=8,
+    )
+
     _sets = db.exec(
         select(SegmentSet)
         .where(SegmentSet.user_id == temp_user_id)
@@ -181,10 +148,17 @@ def test_add_segment(
     client: TestClient,
     temp_user_token: str,
     temp_user_id: uuid.UUID,
+    create_activity_with_gpx_track,
 ) -> None:
     user = db.get(User, temp_user_id)
     assert user is not None
-    activity = _add_activity(db, user)
+    activity = create_activity_with_gpx_track(
+        user=user,
+        resource_name="two_segments_100_points.gpx",
+        type_id=1,
+        sub_type_id=1,
+    )
+
     _sets = db.exec(
         select(SegmentSet)
         .where(SegmentSet.user_id == temp_user_id)
@@ -216,11 +190,16 @@ def test_update_segment_no_update_data(
     client: TestClient,
     temp_user_token: str,
     temp_user_id: uuid.UUID,
+    create_activity_with_gpx_track,
 ) -> None:
     user = db.get(User, temp_user_id)
     assert user is not None
-    activity = _add_activity(db, user)
-
+    activity = create_activity_with_gpx_track(
+        user=user,
+        resource_name="two_segments_100_points.gpx",
+        type_id=1,
+        sub_type_id=1,
+    )
     _set = db.exec(
         select(SegmentSet)
         .where(SegmentSet.user_id == temp_user_id)
@@ -241,10 +220,16 @@ def test_update_segment_name(
     client: TestClient,
     temp_user_token: str,
     temp_user_id: uuid.UUID,
+    create_activity_with_gpx_track,
 ) -> None:
     user = db.get(User, temp_user_id)
     assert user is not None
-    activity = _add_activity(db, user)
+    activity = create_activity_with_gpx_track(
+        user=user,
+        resource_name="two_segments_100_points.gpx",
+        type_id=1,
+        sub_type_id=1,
+    )
 
     _set = db.exec(
         select(SegmentSet)
@@ -276,10 +261,16 @@ def test_update_segment_cuts(
     client: TestClient,
     temp_user_token: str,
     temp_user_id: uuid.UUID,
+    create_activity_with_gpx_track,
 ) -> None:
     user = db.get(User, temp_user_id)
     assert user is not None
-    activity = _add_activity(db, user)
+    activity = create_activity_with_gpx_track(
+        user=user,
+        resource_name="two_segments_100_points.gpx",
+        type_id=1,
+        sub_type_id=1,
+    )
 
     _set = db.exec(
         select(SegmentSet)
@@ -319,10 +310,16 @@ def test_update_segment_cuts_error_states(
     temp_user_token: str,
     temp_user_id: uuid.UUID,
     payload: dict,
+    create_activity_with_gpx_track,
 ) -> None:
     user = db.get(User, temp_user_id)
     assert user is not None
-    activity = _add_activity(db, user)
+    activity = create_activity_with_gpx_track(
+        user=user,
+        resource_name="two_segments_100_points.gpx",
+        type_id=1,
+        sub_type_id=1,
+    )
 
     _set = db.exec(
         select(SegmentSet)
@@ -365,11 +362,16 @@ def test_delete_segment_set(
     client: TestClient,
     temp_user_token: str,
     temp_user_id: uuid.UUID,
+    create_activity_with_gpx_track,
 ) -> None:
     user = db.get(User, temp_user_id)
     assert user is not None
-    activity = _add_activity(db, user)
-
+    activity = create_activity_with_gpx_track(
+        user=user,
+        resource_name="two_segments_100_points.gpx",
+        type_id=1,
+        sub_type_id=1,
+    )
     _set = db.exec(
         select(SegmentSet)
         .where(SegmentSet.user_id == temp_user_id)

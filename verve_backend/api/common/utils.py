@@ -1,7 +1,10 @@
+import datetime
 import uuid
 from typing import Type, TypeVar
 
+import structlog
 from fastapi import HTTPException
+from geo_track_analyzer import Track
 from sqlmodel import Session, SQLModel
 from starlette.status import (
     HTTP_400_BAD_REQUEST,
@@ -9,11 +12,15 @@ from starlette.status import (
 )
 
 from verve_backend.models import (
+    Activity,
     ActivitySubType,
     ActivityType,
     DistanceRequirement,
     LocationSubType,
 )
+
+logger = structlog.getLogger(__name__)
+
 
 T = TypeVar("T", bound=SQLModel)
 
@@ -66,3 +73,27 @@ def check_distance_requirement(
             status_code=HTTP_400_BAD_REQUEST,
             detail="Distance is not applicable for this activity type",
         )
+
+
+def update_activity_with_track(activity: Activity, track: Track) -> None:
+    logger.debug("Getting actuivity infos from track ")
+    overview = track.get_track_overview()
+    first_point_time = track.track.segments[0].points[0].time
+    if first_point_time:
+        activity.start = first_point_time
+    activity.distance = overview.total_distance_km
+    activity.duration = datetime.timedelta(days=0, seconds=overview.total_time_seconds)
+    activity.elevation_change_up = overview.uphill_elevation
+    activity.elevation_change_down = overview.downhill_elevation
+    activity.moving_duration = datetime.timedelta(
+        days=0, seconds=overview.moving_time_seconds
+    )
+    if overview.velocity_kmh:
+        activity.avg_speed = overview.velocity_kmh.avg
+        activity.max_speed = overview.velocity_kmh.max
+    if overview.power:
+        activity.avg_power = overview.power.avg
+        activity.max_power = overview.power.max
+    if overview.heartrate:
+        activity.avg_heartrate = overview.heartrate.avg
+        activity.max_heartrate = overview.heartrate.max

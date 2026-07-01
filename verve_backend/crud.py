@@ -14,7 +14,7 @@ from sqlalchemy.exc import DatabaseError
 from sqlmodel import Session, col, func, insert, select, text
 
 from verve_backend.api.common.locale import get_activity_name, get_tag_name
-from verve_backend.api.common.track import update_activity_with_track
+from verve_backend.api.common.utils import update_activity_with_track
 from verve_backend.api.deps import SupportedLocale
 from verve_backend.core.config import settings
 from verve_backend.core.db import get_search_query

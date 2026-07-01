@@ -1,4 +1,4 @@
-import datetime
+import importlib.resources
 import uuid
 from io import BytesIO
 from time import perf_counter
@@ -12,7 +12,7 @@ from geo_track_analyzer.exceptions import (
     UnsupportedGeoJsonTypeError,
 )
 from geo_track_analyzer.track import GeoJsonTrack
-from sqlmodel import Session
+from sqlmodel import Session, select, text
 from starlette.status import (
     HTTP_400_BAD_REQUEST,
     HTTP_422_UNPROCESSABLE_CONTENT,
@@ -22,7 +22,7 @@ from starlette.status import (
 from verve_backend import crud
 from verve_backend.api.deps import ObjectStoreClient
 from verve_backend.core.config import settings
-from verve_backend.models import Activity, RawTrackData
+from verve_backend.models import Activity, RawTrackData, TrackPoint, TrackPointResponse
 
 logger = structlog.getLogger(__name__)
 
@@ -136,25 +136,51 @@ def add_track(
     return track, n_points
 
 
-def update_activity_with_track(activity: Activity, track: Track) -> None:
-    logger.debug("Getting actuivity infos from track ")
-    overview = track.get_track_overview()
-    first_point_time = track.track.segments[0].points[0].time
-    if first_point_time:
-        activity.start = first_point_time
-    activity.distance = overview.total_distance_km
-    activity.duration = datetime.timedelta(days=0, seconds=overview.total_time_seconds)
-    activity.elevation_change_up = overview.uphill_elevation
-    activity.elevation_change_down = overview.downhill_elevation
-    activity.moving_duration = datetime.timedelta(
-        days=0, seconds=overview.moving_time_seconds
+def get_track_points_response(
+    session: Session,
+    activity_id: uuid.UUID,
+    min_distance: int = 1,
+) -> list[TrackPointResponse]:
+    check_stmt = (
+        select(
+            TrackPoint.id,
+            TrackPoint.user_id,
+            TrackPoint.activity_id,
+        )
+        .where(TrackPoint.activity_id == activity_id)
+        .limit(1)
     )
-    if overview.velocity_kmh:
-        activity.avg_speed = overview.velocity_kmh.avg
-        activity.max_speed = overview.velocity_kmh.max
-    if overview.power:
-        activity.avg_power = overview.power.avg
-        activity.max_power = overview.power.max
-    if overview.heartrate:
-        activity.avg_heartrate = overview.heartrate.avg
-        activity.max_heartrate = overview.heartrate.max
+    if not session.exec(check_stmt).first():
+        return []
+
+    stmt = (
+        importlib.resources.files("verve_backend.queries")
+        .joinpath("select_track_data.sql")
+        .read_text()
+    )
+
+    rows = session.exec(
+        text(stmt),  # type: ignore
+        params={"activity_id": activity_id, "min_distance": min_distance},
+    ).all()
+
+    return [
+        TrackPointResponse(
+            id=row.id,
+            segment_id=row.segment_id,
+            latitude=row.latitude,
+            longitude=row.longitude,
+            time=row.time,
+            elevation=row.elevation,
+            diff_time=row.time_diff_seconds,
+            diff_distance=row.distance_from_previous,
+            cum_distance=0
+            if (i == 0 and row.cumulative_distance_m is None)
+            else row.cumulative_distance_m,
+            speed=row.speed_m_s,
+            heartrate=row.heartrate,
+            cadence=row.cadence,
+            power=row.power,
+        )
+        for i, row in enumerate(rows)
+    ]

@@ -17,7 +17,12 @@ from starlette.status import (
 )
 
 from verve_backend import crud
-from verve_backend.api.common.track import add_track as upload_track
+from verve_backend.api.common.track import (
+    add_track as upload_track,
+)
+from verve_backend.api.common.track import (
+    get_track_points_response,
+)
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import ObjectStoreClient, UserSession
 from verve_backend.models import (
@@ -26,7 +31,6 @@ from verve_backend.models import (
     ListResponse,
     SegmentCut,
     SegmentSet,
-    TrackPoint,
     TrackPointResponse,
 )
 from verve_backend.result import Err, Ok
@@ -483,47 +487,9 @@ def get_track_data(user_session: UserSession, activity_id: uuid.UUID) -> Any:
     if not session.get(Activity, activity_id):
         raise HTTPException(status_code=404, detail="Activity not found")
 
-    check_stmt = (
-        select(
-            TrackPoint.id,
-            TrackPoint.user_id,
-            TrackPoint.activity_id,
+    return ListResponse(
+        data=get_track_points_response(
+            session=session,
+            activity_id=activity_id,
         )
-        .where(TrackPoint.activity_id == activity_id)
-        .limit(1)
     )
-    if not session.exec(check_stmt).first():
-        return ListResponse(data=[])
-
-    stmt = (
-        importlib.resources.files("verve_backend.queries")
-        .joinpath("select_track_data.sql")
-        .read_text()
-    )
-    res = session.exec(
-        text(stmt),  # type: ignore
-        params={"activity_id": activity_id, "min_distance": 1},
-    ).all()
-    track_points = [
-        TrackPointResponse(
-            id=row.id,
-            segment_id=row.segment_id,
-            latitude=row.latitude,
-            longitude=row.longitude,
-            time=row.time,
-            elevation=row.elevation,
-            diff_time=row.time_diff_seconds,
-            diff_distance=row.distance_from_previous,
-            cum_distance=0
-            if (i == 0 and row.cumulative_distance_m is None)
-            else row.cumulative_distance_m,
-            speed=row.speed_m_s,
-            heartrate=row.heartrate,
-            cadence=row.cadence,
-            power=row.power,
-            # add_extensions=row.extensions,
-        )
-        for i, row in enumerate(res)
-    ]
-
-    return ListResponse(data=track_points)

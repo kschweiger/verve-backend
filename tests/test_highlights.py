@@ -28,7 +28,7 @@ def create_dummy_activity(
     name: str | None = None,
 ) -> Activity:
     """Creates a simple activity, saves it to the DB, and returns it."""
-    from verve_backend.api.common.track import update_activity_with_track
+    from verve_backend.api.common.utils import update_activity_with_track
 
     activity = Activity(
         user_id=user_id,
