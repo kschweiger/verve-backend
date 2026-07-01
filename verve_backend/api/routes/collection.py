@@ -34,8 +34,10 @@ logger = structlog.getLogger(__name__)
 
 
 def to_public_collection(collection: ActivityCollection) -> ActivityCollectionPublic:
+    activities = sorted(collection.activities, key=lambda a: (a.start, a.id))
     return ActivityCollectionPublic.model_validate(
-        collection, update={"activity_ids": [a.id for a in collection.activities]}
+        collection,
+        update={"activity_ids": [a.id for a in activities]},
     )
 
 
@@ -49,6 +51,12 @@ def create_collection(
 ) -> Any:
     _user_id, session = user_session
     user_id = uuid.UUID(_user_id)
+
+    if len(set(data.activity_ids)) != len(data.activity_ids):
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail="Duplicate activity IDs are not allowed",
+        )
 
     _activities = []
     for _id in data.activity_ids:
@@ -167,13 +175,20 @@ def update_collection(
         raise HTTPException(
             status_code=HTTP_400_BAD_REQUEST, detail="No data provided for update"
         )
-    _activities = []
+    _activities: list[Activity] = []
     if "activity_ids" in update_data:
         if not update_data["activity_ids"]:
             raise HTTPException(
                 status_code=HTTP_400_BAD_REQUEST,
                 detail="activity_ids cannot be empty if provided",
             )
+
+        if len(set(update_data["activity_ids"])) != len(update_data["activity_ids"]):
+            raise HTTPException(
+                status_code=HTTP_400_BAD_REQUEST,
+                detail="Duplicate activity IDs are not allowed",
+            )
+
         for _id in update_data["activity_ids"]:
             _activity = session.get(Activity, _id)
             if _activity is None:
@@ -191,6 +206,13 @@ def update_collection(
     if _activities:
         if _replace_activities:
             collection.activities.clear()
+        else:
+            existing_ids = {a.id for a in collection.activities}
+            if any(a.id in existing_ids for a in _activities):
+                raise HTTPException(
+                    status_code=HTTP_400_BAD_REQUEST,
+                    detail="Some activities are already in the collection",
+                )
         collection.activities.extend(_activities)
 
     session.add(collection)
@@ -307,7 +329,9 @@ def get_collection_track(
     points = []
     collection_cum_distance = 0.0
 
-    for activity_index, activity in enumerate(collection.activities):
+    for activity_index, activity in enumerate(
+        sorted(collection.activities, key=lambda a: (a.start, a.id))
+    ):
         activity_points = get_track_points_response(session, activity.id)
 
         for point in activity_points:
