@@ -237,6 +237,40 @@ async def create_user_data(user: UserBase) -> None:
             )  # type: ignore
         )
         session.commit()
+        activity_2 = crud.create_activity(
+            session=session,
+            create=models.ActivityCreate(
+                start=datetime.now() - timedelta(days=2),
+                duration=timedelta(days=0, seconds=60 * 60 * 2),
+                distance=10.0,
+                type_id=1,
+                sub_type_id=1,
+                name=None,
+            ),
+            user=user,  # type: ignore
+        ).unwrap()
+        activity_3 = crud.create_activity(
+            session=session,
+            create=models.ActivityCreate(
+                start=datetime.now() - timedelta(days=1),
+                duration=timedelta(days=0, seconds=60 * 60 * 2),
+                distance=10.0,
+                type_id=1,
+                sub_type_id=1,
+                name=None,
+            ),
+            user=user,  # type: ignore
+        ).unwrap()
+
+        collection = models.ActivityCollection(
+            user_id=user_id_str,
+            name="Collection 1",
+            description="A test collection",
+        )
+        collection.activities.extend([activity_2, activity_3])
+        session.add(collection)
+        session.commit()
+
     finally:
         # Close the async generator
         with suppress(StopAsyncIteration):
