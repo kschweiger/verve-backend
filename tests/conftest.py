@@ -242,7 +242,7 @@ def create_dummy_activity(
     name: str | None = None,
 ) -> Any:
     """Creates a simple activity, saves it to the DB, and returns it."""
-    from verve_backend.api.common.track import update_activity_with_track
+    from verve_backend.api.common.utils import update_activity_with_track
     from verve_backend.crud import insert_track
     from verve_backend.models import Activity
 
@@ -777,7 +777,7 @@ def create_activity_with_gpx_track(db: Session):  # noqa: ANN201
         crud,
         models,
     )
-    from verve_backend.api.common.track import update_activity_with_track
+    from verve_backend.api.common.utils import update_activity_with_track
 
     def _create(
         user: User,
