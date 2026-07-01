@@ -1,4 +1,12 @@
 <!-- insertion marker -->
+<a name="1.15.0"></a>
+
+## [1.15.0](https://github.com/kschweiger/verve-backend/compare/1.14.0...1.15.0) (2026-07-01)
+
+### Features
+
+- activity collections (#181) ([8bcd66d](https://github.com/kschweiger/verve-backend/commit/8bcd66dae7e43cd3137a40c5230f325a30965480))
+
 <a name="1.14.0"></a>
 
 ## [1.14.0](https://github.com/kschweiger/verve-backend/compare/1.13.0...1.14.0) (2026-06-19)
