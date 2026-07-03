@@ -1,3 +1,4 @@
+import math
 from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
@@ -176,7 +177,12 @@ def convert_verve_file_to_activity(
         or data.properties.moving_duration is None
     ):
         overview = track.get_track_overview()
-        if data.properties.stats.speed is None and overview.velocity_kmh:
+        is_stationary = math.isclose(overview.total_distance, 0)
+        if (
+            data.properties.stats.speed is None
+            and overview.velocity_kmh
+            and not is_stationary
+        ):
             activity.avg_speed = overview.velocity_kmh.avg
             activity.max_speed = overview.velocity_kmh.max
         if data.properties.stats.power is None and overview.power:
@@ -188,7 +194,7 @@ def convert_verve_file_to_activity(
         if data.properties.elevation_gain is None:
             activity.elevation_change_up = overview.uphill_elevation
             activity.elevation_change_down = overview.downhill_elevation
-        if data.properties.moving_duration is None:
+        if data.properties.moving_duration is None and not is_stationary:
             activity.moving_duration = timedelta(
                 days=0, seconds=overview.moving_time_seconds
             )
