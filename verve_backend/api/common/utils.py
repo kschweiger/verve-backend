@@ -1,4 +1,5 @@
 import datetime
+import math
 import uuid
 from typing import Type, TypeVar
 
@@ -78,17 +79,23 @@ def check_distance_requirement(
 def update_activity_with_track(activity: Activity, track: Track) -> None:
     logger.debug("Getting actuivity infos from track ")
     overview = track.get_track_overview()
+    is_stationary = math.isclose(overview.total_distance, 0)
     first_point_time = track.track.segments[0].points[0].time
     if first_point_time:
         activity.start = first_point_time
-    activity.distance = overview.total_distance_km
+    activity.distance = None if is_stationary else overview.total_distance_km
     activity.duration = datetime.timedelta(days=0, seconds=overview.total_time_seconds)
     activity.elevation_change_up = overview.uphill_elevation
     activity.elevation_change_down = overview.downhill_elevation
-    activity.moving_duration = datetime.timedelta(
-        days=0, seconds=overview.moving_time_seconds
-    )
-    if overview.velocity_kmh:
+    if not is_stationary:
+        activity.moving_duration = datetime.timedelta(
+            days=0, seconds=overview.moving_time_seconds
+        )
+    else:
+        activity.moving_duration = None
+        activity.avg_speed = None
+        activity.max_speed = None
+    if overview.velocity_kmh and not is_stationary:
         activity.avg_speed = overview.velocity_kmh.avg
         activity.max_speed = overview.velocity_kmh.max
     if overview.power:
