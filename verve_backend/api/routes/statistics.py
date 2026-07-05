@@ -209,7 +209,18 @@ def get_year_stats(
     user_session: UserSession,
     year: Annotated[int | None, Query(ge=2000)] = None,
 ) -> Any:
-    _, session = user_session
+    user_id, session = user_session
+
+    stmt = (
+        importlib.resources.files("verve_backend.queries")
+        .joinpath("select_yearly_activity_data.sql")
+        .read_text()
+    )
+
+    data = session.exec(
+        text(stmt),  # type: ignore
+        params={"user_id": user_id, "year": year},
+    ).all()
 
     stmt = select(  # type: ignore
         Activity.type_id,
