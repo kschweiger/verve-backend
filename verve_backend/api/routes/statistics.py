@@ -47,7 +47,7 @@ class MetricSummary(BaseModel, Generic[T]):
 class YearStatsResponse(BaseModel):
     distance: MetricSummary[float]
     duration: MetricSummary[int]
-    moving_duration: MetricSummary[int]
+    effective_duration: MetricSummary[int]
     count: MetricSummary[int]
 
 
@@ -61,7 +61,7 @@ class WeekStatsResponse(BaseModel):
     distance: WeekMetric[float]
     elevation_gain: WeekMetric[float]
     duration: WeekMetric[int]
-    moving_duration: WeekMetric[int]
+    effective_duration: WeekMetric[int]
 
 
 class CalendarResponse(BaseModel):
@@ -228,7 +228,7 @@ def get_year_stats(
     per_type_duration = cast(
         dict[int, dict[int | None, int]], defaultdict(lambda: defaultdict(dict))
     )
-    per_type_moving_duration = cast(
+    per_type_effective_duration = cast(
         dict[int, dict[int | None, int]], defaultdict(lambda: defaultdict(dict))
     )
     per_type_count = cast(
@@ -237,24 +237,31 @@ def get_year_stats(
 
     total_type_distance = defaultdict(float)
     total_type_duration = defaultdict(int)
-    total_type_moving_duration = defaultdict(int)
+    total_type_effective_duration = defaultdict(int)
     total_type_count = defaultdict(int)
     for row in data:
-        _type_id, _sub_type_id, _count, _distance, _duration, _moving_duration = cast(
-            tuple[int, int | None, int, float | None, timedelta, timedelta], row
-        )
+        (
+            _type_id,
+            _sub_type_id,
+            _count,
+            _distance,
+            _duration,
+            _effective_duration,
+        ) = cast(tuple[int, int | None, int, float | None, timedelta, timedelta], row)
         if _distance is not None:
             per_type_distance[_type_id][_sub_type_id] = _distance
         per_type_duration[_type_id][_sub_type_id] = round(_duration.total_seconds())
-        per_type_moving_duration[_type_id][_sub_type_id] = round(
-            _moving_duration.total_seconds()
+        per_type_effective_duration[_type_id][_sub_type_id] = round(
+            _effective_duration.total_seconds()
         )
         per_type_count[_type_id][_sub_type_id] = _count
 
         if _distance is not None:
             total_type_distance[_type_id] += _distance
         total_type_duration[_type_id] += round(_duration.total_seconds())
-        total_type_moving_duration[_type_id] += round(_moving_duration.total_seconds())
+        total_type_effective_duration[_type_id] += round(
+            _effective_duration.total_seconds()
+        )
         total_type_count[_type_id] += _count
 
     resp = YearStatsResponse(
@@ -268,10 +275,10 @@ def get_year_stats(
             per_type=total_type_duration,
             per_sub_type=per_type_duration,
         ),
-        moving_duration=MetricSummary(
-            total=sum(total_type_moving_duration.values()),
-            per_type=total_type_moving_duration,
-            per_sub_type=per_type_moving_duration,
+        effective_duration=MetricSummary(
+            total=sum(total_type_effective_duration.values()),
+            per_type=total_type_effective_duration,
+            per_sub_type=per_type_effective_duration,
         ),
         count=MetricSummary(
             total=sum(total_type_count.values()),
@@ -338,36 +345,36 @@ def get_week_stats(
     duration_per_day: dict[date, int | None] = {
         week_start + timedelta(days=i): None for i in range(7)
     }
-    moving_duration_per_day: dict[date, int | None] = {
+    effective_duration_per_day: dict[date, int | None] = {
         week_start + timedelta(days=i): None for i in range(7)
     }
 
     distance_pie: dict[int | None, float] = defaultdict(float)
     elevation_gain_pie: dict[int | None, float] = defaultdict(float)
     duration_pie: dict[int | None, float] = defaultdict(float)
-    moving_duration_pie: dict[int | None, float] = defaultdict(float)
+    effective_duration_pie: dict[int | None, float] = defaultdict(float)
 
-    for _date, _sub_type_id, _dist, _ele, _ts, _mv_ts in data:
+    for _date, _sub_type_id, _dist, _ele, _ts, _effective_ts in data:
         if _dist is not None:
             distance_per_day[_date] = _dist
         if _ele is not None:
             elevation_gain_per_day[_date] = _ele
         duration_per_day[_date] = round(_ts.total_seconds())
-        moving_duration_per_day[_date] = round(_mv_ts.total_seconds())
+        effective_duration_per_day[_date] = round(_effective_ts.total_seconds())
 
         if _dist is not None:
             distance_pie[_sub_type_id] += _dist
         if _ele is not None:
             elevation_gain_pie[_sub_type_id] += _ele
         duration_pie[_sub_type_id] += _ts.total_seconds()
-        moving_duration_pie[_sub_type_id] += _mv_ts.total_seconds()
+        effective_duration_pie[_sub_type_id] += _effective_ts.total_seconds()
 
     return WeekStatsResponse(
         distance=process_metric_data(distance_per_day, distance_pie),
         elevation_gain=process_metric_data(elevation_gain_per_day, elevation_gain_pie),
         duration=process_metric_data(duration_per_day, duration_pie),
-        moving_duration=process_metric_data(
-            moving_duration_per_day, moving_duration_pie
+        effective_duration=process_metric_data(
+            effective_duration_per_day, effective_duration_pie
         ),
     )
 

@@ -92,6 +92,10 @@ def test_activities_to_calendar_weeks() -> None:
     # Total Duration: 1 + 2 + 5 + 7 + 9 = 24 minutes = 1440 seconds
     assert week.week_summary.distance == pytest.approx(24.0)
     assert week.week_summary.duration == 1440
+    assert week.week_summary.effective_duration == 1440
+    week_summary_dump = week.week_summary.model_dump()
+    assert "effective_duration" in week_summary_dump
+    assert "moving_duration" not in week_summary_dump
     assert week.week_summary.count == 5
 
     # --- 2. Validate Day 1 (Single Activity) ---
@@ -102,6 +106,10 @@ def test_activities_to_calendar_weeks() -> None:
     # Day Totals
     assert day_1.total.distance == pytest.approx(1.0)
     assert day_1.total.duration == 60
+    assert day_1.total.effective_duration == 60
+    item_dump = day_1.items[0].model_dump()
+    assert item_dump["effective_duration"] == 60
+    assert "moving_duration" not in item_dump
 
     # Type 1 Specifics
     assert 1 in day_1.activities

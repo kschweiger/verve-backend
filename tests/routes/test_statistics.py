@@ -7,8 +7,64 @@ from freezegun import freeze_time
 from verve_backend.api.routes.statistics import (
     ActivityGridResponse,
     GridWeek,
+    WeekStatsResponse,
+    YearStatsResponse,
     _find_grid_start_end,
 )
+
+
+def test_duration_stat_responses_use_effective_duration_name() -> None:
+    year = YearStatsResponse.model_validate(
+        {
+            "distance": {
+                "total": 1.0,
+                "per_type": {1: 1.0},
+                "per_sub_type": {1: {1: 1.0}},
+            },
+            "duration": {
+                "total": 120,
+                "per_type": {1: 120},
+                "per_sub_type": {1: {1: 120}},
+            },
+            "effective_duration": {
+                "total": 90,
+                "per_type": {1: 90},
+                "per_sub_type": {1: {1: 90}},
+            },
+            "count": {"total": 1, "per_type": {1: 1}, "per_sub_type": {1: {1: 1}}},
+        }
+    )
+    week = WeekStatsResponse.model_validate(
+        {
+            "distance": {
+                "per_day": {"2024-01-01": 1.0},
+                "pie_data": {1: 1.0},
+                "total": 1.0,
+            },
+            "elevation_gain": {
+                "per_day": {"2024-01-01": None},
+                "pie_data": {},
+                "total": 0.0,
+            },
+            "duration": {
+                "per_day": {"2024-01-01": 120},
+                "pie_data": {1: 120.0},
+                "total": 120,
+            },
+            "effective_duration": {
+                "per_day": {"2024-01-01": 90},
+                "pie_data": {1: 90.0},
+                "total": 90,
+            },
+        }
+    )
+
+    year_dump = year.model_dump()
+    week_dump = week.model_dump()
+    assert "effective_duration" in year_dump
+    assert "moving_duration" not in year_dump
+    assert "effective_duration" in week_dump
+    assert "moving_duration" not in week_dump
 
 
 @pytest.mark.parametrize(

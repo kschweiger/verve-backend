@@ -14,14 +14,14 @@ class StatsMetric(BaseModel):
     count: int = 0
     distance: float = 0.0
     duration: int = 0  # seconds
-    moving_duration: int = 0  # seconds
+    effective_duration: int = 0  # seconds
     elevation_gain: float = 0.0
 
     def add_activity(self, activity: Activity) -> None:
         self.count += 1
         self.distance += activity.distance or 0.0
         self.duration += int(activity.duration.total_seconds())
-        self.moving_duration += (
+        self.effective_duration += (
             int(activity.moving_duration.total_seconds())
             if activity.moving_duration and activity.moving_duration.total_seconds() > 0
             else int(activity.duration.total_seconds())
@@ -45,7 +45,7 @@ class ActivityCalendarItem(BaseModel):
     sub_type_id: int | None = None
     distance: float | None  # Nullable for Yoga/Gym
     duration: int
-    moving_duration: int
+    effective_duration: int
     elevation_gain: float | None
 
 
@@ -113,7 +113,9 @@ def build_calendar_response(
                                 sub_type_id=act.sub_type_id,
                                 distance=act.distance,
                                 duration=int(act.duration.total_seconds()),
-                                moving_duration=int(act.moving_duration.total_seconds())
+                                effective_duration=int(
+                                    act.moving_duration.total_seconds()
+                                )
                                 if act.moving_duration
                                 and act.moving_duration.total_seconds() > 0
                                 else int(act.duration.total_seconds()),
@@ -141,7 +143,7 @@ def build_calendar_response(
                 week_total.count += day_data.total.count
                 week_total.distance += day_data.total.distance
                 week_total.duration += day_data.total.duration
-                week_total.moving_duration += day_data.total.moving_duration
+                week_total.effective_duration += day_data.total.effective_duration
                 week_total.elevation_gain += day_data.total.elevation_gain
 
             week_days_data.append(day_data)
