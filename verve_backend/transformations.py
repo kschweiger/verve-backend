@@ -23,8 +23,8 @@ class StatsMetric(BaseModel):
         self.duration += int(activity.duration.total_seconds())
         self.moving_duration += (
             int(activity.moving_duration.total_seconds())
-            if activity.moving_duration
-            else 0
+            if activity.moving_duration and activity.moving_duration.total_seconds() > 0
+            else int(activity.duration.total_seconds())
         )
         if activity.elevation_change_up:
             self.elevation_gain += activity.elevation_change_up
