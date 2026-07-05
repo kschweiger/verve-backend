@@ -6,7 +6,7 @@ from typing import Annotated, Any, Generic, Literal, Self, TypeVar, cast
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator, model_validator
-from sqlmodel import Session, func, select, text
+from sqlmodel import Session, select, text
 from starlette.status import (
     HTTP_400_BAD_REQUEST,
     HTTP_501_NOT_IMPLEMENTED,
@@ -221,18 +221,6 @@ def get_year_stats(
         text(stmt),  # type: ignore
         params={"user_id": user_id, "year": year},
     ).all()
-
-    stmt = select(  # type: ignore
-        Activity.type_id,
-        Activity.sub_type_id,
-        func.count().label("count"),
-        func.sum(Activity.distance).label("total_distance"),
-        func.sum(Activity.duration).label("total_duration"),
-        func.sum(Activity.moving_duration).label("total_moving_duration"),
-    ).group_by(Activity.type_id, Activity.sub_type_id)
-    if year is not None:
-        stmt = stmt.where(func.extract("year", Activity.start) == year)  # type: ignore
-    data = session.exec(stmt).all()
 
     per_type_distance = cast(
         dict[int, dict[int | None, float]], defaultdict(lambda: defaultdict(dict))
