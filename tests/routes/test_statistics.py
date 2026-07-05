@@ -7,8 +7,64 @@ from freezegun import freeze_time
 from verve_backend.api.routes.statistics import (
     ActivityGridResponse,
     GridWeek,
+    WeekStatsResponse,
+    YearStatsResponse,
     _find_grid_start_end,
 )
+
+
+def test_duration_stat_responses_use_effective_duration_name() -> None:
+    year = YearStatsResponse.model_validate(
+        {
+            "distance": {
+                "total": 1.0,
+                "per_type": {1: 1.0},
+                "per_sub_type": {1: {1: 1.0}},
+            },
+            "duration": {
+                "total": 120,
+                "per_type": {1: 120},
+                "per_sub_type": {1: {1: 120}},
+            },
+            "effective_duration": {
+                "total": 90,
+                "per_type": {1: 90},
+                "per_sub_type": {1: {1: 90}},
+            },
+            "count": {"total": 1, "per_type": {1: 1}, "per_sub_type": {1: {1: 1}}},
+        }
+    )
+    week = WeekStatsResponse.model_validate(
+        {
+            "distance": {
+                "per_day": {"2024-01-01": 1.0},
+                "pie_data": {1: 1.0},
+                "total": 1.0,
+            },
+            "elevation_gain": {
+                "per_day": {"2024-01-01": None},
+                "pie_data": {},
+                "total": 0.0,
+            },
+            "duration": {
+                "per_day": {"2024-01-01": 120},
+                "pie_data": {1: 120.0},
+                "total": 120,
+            },
+            "effective_duration": {
+                "per_day": {"2024-01-01": 90},
+                "pie_data": {1: 90.0},
+                "total": 90,
+            },
+        }
+    )
+
+    year_dump = year.model_dump()
+    week_dump = week.model_dump()
+    assert "effective_duration" in year_dump
+    assert "moving_duration" not in year_dump
+    assert "effective_duration" in week_dump
+    assert "moving_duration" not in week_dump
 
 
 @pytest.mark.parametrize(
@@ -23,6 +79,7 @@ from verve_backend.api.routes.statistics import (
                     "active_days": 0,
                     "activity_count": 0,
                     "duration_seconds": 0,
+                    "effective_duration_seconds": 0,
                 },
             },
             "List should have at least 1 item after validation",
@@ -39,6 +96,7 @@ from verve_backend.api.routes.statistics import (
                                 "date": "2024-01-01",
                                 "activity_count": 1,
                                 "duration_seconds": 60,
+                                "effective_duration_seconds": 60,
                             }
                         ],
                     }
@@ -48,6 +106,7 @@ from verve_backend.api.routes.statistics import (
                     "active_days": 1,
                     "activity_count": 1,
                     "duration_seconds": 60,
+                    "effective_duration_seconds": 60,
                 },
             },
             "List should have at least 7 items after validation",
@@ -64,50 +123,63 @@ from verve_backend.api.routes.statistics import (
                                 "date": "2024-01-01",
                                 "activity_count": 1,
                                 "duration_seconds": 60,
+                                "effective_duration_seconds": 60,
                             },
                             {
                                 "date": "2024-01-02",
                                 "activity_count": 1,
                                 "duration_seconds": 60,
+                                "effective_duration_seconds": 60,
                             },
                             {
                                 "date": "2024-01-03",
                                 "activity_count": 1,
                                 "duration_seconds": 60,
+                                "effective_duration_seconds": 60,
                             },
                             {
                                 "date": "2024-01-04",
                                 "activity_count": 1,
                                 "duration_seconds": 60,
+                                "effective_duration_seconds": 60,
                             },
                             {
                                 "date": "2024-01-05",
                                 "activity_count": 1,
                                 "duration_seconds": 60,
+                                "effective_duration_seconds": 60,
                             },
                             {
                                 "date": "2024-01-06",
                                 "activity_count": 1,
                                 "duration_seconds": 60,
+                                "effective_duration_seconds": 60,
                             },
                             {
                                 "date": "2024-01-07",
                                 "activity_count": 1,
                                 "duration_seconds": 60,
+                                "effective_duration_seconds": 60,
                             },
                             {
                                 "date": "2024-01-08",
                                 "activity_count": 1,
                                 "duration_seconds": 60,
+                                "effective_duration_seconds": 60,
                             },
                         ],
                     }
                 ],
-                "scale_max": {"activity_count": 1, "duration_seconds": 60},
+                "scale_max": {
+                    "activity_count": 1,
+                    "duration_seconds": 60,
+                    "effective_duration_seconds": 60,
+                },
                 "totals": {
                     "active_days": 1,
                     "activity_count": 1,
                     "duration_seconds": 60,
+                    "effective_duration_seconds": 60,
                 },
             },
             "List should have at most 7 items after validation",
@@ -124,6 +196,7 @@ from verve_backend.api.routes.statistics import (
                                 "date": "2024-01-01",
                                 "activity_count": 1,
                                 "duration_seconds": 60,
+                                "effective_duration_seconds": 60,
                             },
                             None,
                             None,
@@ -132,17 +205,23 @@ from verve_backend.api.routes.statistics import (
                                 "date": "2024-01-05",
                                 "activity_count": 1,
                                 "duration_seconds": 60,
+                                "effective_duration_seconds": 60,
                             },
                             None,
                             None,
                         ],
                     }
                 ],
-                "scale_max": {"activity_count": 2, "duration_seconds": 120},
+                "scale_max": {
+                    "activity_count": 2,
+                    "duration_seconds": 120,
+                    "effective_duration_seconds": 120,
+                },
                 "totals": {
                     "active_days": 2,
                     "activity_count": 2,
                     "duration_seconds": 120,
+                    "effective_duration_seconds": 120,
                 },
             },
             "None is only allowed as trailing values in last week",
@@ -159,31 +238,37 @@ from verve_backend.api.routes.statistics import (
                                 "date": "2024-01-01",
                                 "activity_count": 0,
                                 "duration_seconds": 0,
+                                "effective_duration_seconds": 0,
                             },
                             {
                                 "date": "2024-01-02",
                                 "activity_count": 0,
                                 "duration_seconds": 0,
+                                "effective_duration_seconds": 0,
                             },
                             {
                                 "date": "2024-01-03",
                                 "activity_count": 0,
                                 "duration_seconds": 0,
+                                "effective_duration_seconds": 0,
                             },
                             {
                                 "date": "2024-01-04",
                                 "activity_count": 0,
                                 "duration_seconds": 0,
+                                "effective_duration_seconds": 0,
                             },
                             {
                                 "date": "2024-01-05",
                                 "activity_count": 0,
                                 "duration_seconds": 0,
+                                "effective_duration_seconds": 0,
                             },
                             {
                                 "date": "2024-01-06",
                                 "activity_count": 0,
                                 "duration_seconds": 0,
+                                "effective_duration_seconds": 0,
                             },
                         ],
                     },
@@ -195,6 +280,7 @@ from verve_backend.api.routes.statistics import (
                                 "date": "2024-01-08",
                                 "activity_count": 0,
                                 "duration_seconds": 0,
+                                "effective_duration_seconds": 0,
                             },
                             None,
                             None,
@@ -205,11 +291,16 @@ from verve_backend.api.routes.statistics import (
                         ],
                     },
                 ],
-                "scale_max": {"activity_count": 0, "duration_seconds": 0},
+                "scale_max": {
+                    "activity_count": 0,
+                    "duration_seconds": 0,
+                    "effective_duration_seconds": 0,
+                },
                 "totals": {
                     "active_days": 0,
                     "activity_count": 0,
                     "duration_seconds": 0,
+                    "effective_duration_seconds": 0,
                 },
             },
             "List should have at least 7 items after validation",
@@ -226,31 +317,37 @@ from verve_backend.api.routes.statistics import (
                                 "date": "2024-01-01",
                                 "activity_count": 0,
                                 "duration_seconds": 0,
+                                "effective_duration_seconds": 0,
                             },
                             {
                                 "date": "2024-01-02",
                                 "activity_count": 0,
                                 "duration_seconds": 0,
+                                "effective_duration_seconds": 0,
                             },
                             {
                                 "date": "2024-01-03",
                                 "activity_count": 0,
                                 "duration_seconds": 0,
+                                "effective_duration_seconds": 0,
                             },
                             {
                                 "date": "2024-01-04",
                                 "activity_count": 0,
                                 "duration_seconds": 0,
+                                "effective_duration_seconds": 0,
                             },
                             {
                                 "date": "2024-01-05",
                                 "activity_count": 0,
                                 "duration_seconds": 0,
+                                "effective_duration_seconds": 0,
                             },
                             {
                                 "date": "2024-01-06",
                                 "activity_count": 0,
                                 "duration_seconds": 0,
+                                "effective_duration_seconds": 0,
                             },
                             None,
                         ],
@@ -263,6 +360,7 @@ from verve_backend.api.routes.statistics import (
                                 "date": "2024-01-08",
                                 "activity_count": 0,
                                 "duration_seconds": 0,
+                                "effective_duration_seconds": 0,
                             },
                             None,
                             None,
@@ -273,11 +371,16 @@ from verve_backend.api.routes.statistics import (
                         ],
                     },
                 ],
-                "scale_max": {"activity_count": 0, "duration_seconds": 0},
+                "scale_max": {
+                    "activity_count": 0,
+                    "duration_seconds": 0,
+                    "effective_duration_seconds": 0,
+                },
                 "totals": {
                     "active_days": 0,
                     "activity_count": 0,
                     "duration_seconds": 0,
+                    "effective_duration_seconds": 0,
                 },
             },
             "None is only allowed in last week",
@@ -301,6 +404,7 @@ def test_activity_grid_response_validation(model: dict, match_exp: str) -> None:
                         "date": "2024-01-01",
                         "activity_count": 0,
                         "duration_seconds": 0,
+                        "effective_duration_seconds": 0,
                     },
                     None,
                     None,
@@ -322,6 +426,7 @@ def test_activity_grid_response_validation(model: dict, match_exp: str) -> None:
                         "date": "2024-01-01",
                         "activity_count": 1,
                         "duration_seconds": 60,
+                        "effective_duration_seconds": 60,
                     },
                     None,
                     None,
@@ -341,6 +446,7 @@ def test_activity_grid_response_validation(model: dict, match_exp: str) -> None:
                         "date": "2024-01-01",
                         "activity_count": 1,
                         "duration_seconds": 60,
+                        "effective_duration_seconds": 60,
                     },
                     None,
                     None,
