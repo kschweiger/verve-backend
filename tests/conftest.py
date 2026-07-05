@@ -224,6 +224,9 @@ def client() -> Generator[TestClient, None, None]:
 
     assert settings.ENVIRONMENT == "testing"
 
+    # Build FastAPI's response fields before tests freeze datetime globally.
+    app.openapi()
+
     with TestClient(
         app,
         base_url=f"http://testserver{settings.API_V1_STR}",
