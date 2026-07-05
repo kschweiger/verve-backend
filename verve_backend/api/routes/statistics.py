@@ -1,7 +1,7 @@
 import importlib.resources
 from collections import defaultdict
 from datetime import date, datetime, timedelta
-from typing import Annotated, Any, Generic, Self, TypeVar, cast
+from typing import Annotated, Any, Generic, Literal, Self, TypeVar, cast
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -47,6 +47,7 @@ class MetricSummary(BaseModel, Generic[T]):
 class YearStatsResponse(BaseModel):
     distance: MetricSummary[float]
     duration: MetricSummary[int]
+    moving_duration: MetricSummary[int]
     count: MetricSummary[int]
 
 
@@ -60,6 +61,7 @@ class WeekStatsResponse(BaseModel):
     distance: WeekMetric[float]
     elevation_gain: WeekMetric[float]
     duration: WeekMetric[int]
+    moving_duration: WeekMetric[int]
 
 
 class CalendarResponse(BaseModel):
@@ -85,6 +87,7 @@ class GridDay(BaseModel):
     date: date
     activity_count: int
     duration_seconds: int
+    effective_duration_seconds: int
 
 
 class GridWeek(BaseModel):
@@ -128,11 +131,13 @@ class GridWeek(BaseModel):
 class GridMax(BaseModel):
     activity_count: int
     duration_seconds: int
+    effective_duration_seconds: int
 
 
 class GridTotals(BaseModel):
     activity_count: int
     duration_seconds: int
+    effective_duration_seconds: int
     active_days: int
 
 
@@ -212,6 +217,7 @@ def get_year_stats(
         func.count().label("count"),
         func.sum(Activity.distance).label("total_distance"),
         func.sum(Activity.duration).label("total_duration"),
+        func.sum(Activity.moving_duration).label("total_moving_duration"),
     ).group_by(Activity.type_id, Activity.sub_type_id)
     if year is not None:
         stmt = stmt.where(func.extract("year", Activity.start) == year)  # type: ignore
@@ -223,25 +229,33 @@ def get_year_stats(
     per_type_duration = cast(
         dict[int, dict[int | None, int]], defaultdict(lambda: defaultdict(dict))
     )
+    per_type_moving_duration = cast(
+        dict[int, dict[int | None, int]], defaultdict(lambda: defaultdict(dict))
+    )
     per_type_count = cast(
         dict[int, dict[int | None, int]], defaultdict(lambda: defaultdict(dict))
     )
 
     total_type_distance = defaultdict(float)
     total_type_duration = defaultdict(int)
+    total_type_moving_duration = defaultdict(int)
     total_type_count = defaultdict(int)
     for row in data:
-        _type_id, _sub_type_id, _count, _distance, _duration = cast(
-            tuple[int, int | None, int, float | None, timedelta], row
+        _type_id, _sub_type_id, _count, _distance, _duration, _moving_duration = cast(
+            tuple[int, int | None, int, float | None, timedelta, timedelta], row
         )
         if _distance is not None:
             per_type_distance[_type_id][_sub_type_id] = _distance
         per_type_duration[_type_id][_sub_type_id] = round(_duration.total_seconds())
+        per_type_moving_duration[_type_id][_sub_type_id] = round(
+            _moving_duration.total_seconds()
+        )
         per_type_count[_type_id][_sub_type_id] = _count
 
         if _distance is not None:
             total_type_distance[_type_id] += _distance
         total_type_duration[_type_id] += round(_duration.total_seconds())
+        total_type_moving_duration[_type_id] += round(_moving_duration.total_seconds())
         total_type_count[_type_id] += _count
 
     resp = YearStatsResponse(
@@ -254,6 +268,11 @@ def get_year_stats(
             total=sum(total_type_duration.values()),
             per_type=total_type_duration,
             per_sub_type=per_type_duration,
+        ),
+        moving_duration=MetricSummary(
+            total=sum(total_type_moving_duration.values()),
+            per_type=total_type_moving_duration,
+            per_sub_type=per_type_moving_duration,
         ),
         count=MetricSummary(
             total=sum(total_type_count.values()),
@@ -320,28 +339,37 @@ def get_week_stats(
     duration_per_day: dict[date, int | None] = {
         week_start + timedelta(days=i): None for i in range(7)
     }
+    moving_duration_per_day: dict[date, int | None] = {
+        week_start + timedelta(days=i): None for i in range(7)
+    }
 
     distance_pie: dict[int | None, float] = defaultdict(float)
     elevation_gain_pie: dict[int | None, float] = defaultdict(float)
     duration_pie: dict[int | None, float] = defaultdict(float)
+    moving_duration_pie: dict[int | None, float] = defaultdict(float)
 
-    for _date, _sub_type_id, _dist, _ele, _ts in data:
+    for _date, _sub_type_id, _dist, _ele, _ts, _mv_ts in data:
         if _dist is not None:
             distance_per_day[_date] = _dist
         if _ele is not None:
             elevation_gain_per_day[_date] = _ele
         duration_per_day[_date] = round(_ts.total_seconds())
+        moving_duration_per_day[_date] = round(_mv_ts.total_seconds())
 
         if _dist is not None:
             distance_pie[_sub_type_id] += _dist
         if _ele is not None:
             elevation_gain_pie[_sub_type_id] += _ele
         duration_pie[_sub_type_id] += _ts.total_seconds()
+        moving_duration_pie[_sub_type_id] += _mv_ts.total_seconds()
 
     return WeekStatsResponse(
         distance=process_metric_data(distance_per_day, distance_pie),
         elevation_gain=process_metric_data(elevation_gain_per_day, elevation_gain_pie),
         duration=process_metric_data(duration_per_day, duration_pie),
+        moving_duration=process_metric_data(
+            moving_duration_per_day, moving_duration_pie
+        ),
     )
 
 
@@ -389,7 +417,12 @@ def _find_grid_start_end(
     return start_date, end_date
 
 
-def _run_query(session: Session, file_name: str, params: dict) -> tuple:
+def _run_query(
+    session: Session,
+    file_name: str,
+    params: dict,
+    type: Literal["first", "all"] = "first",
+) -> tuple:
     stmt = (
         importlib.resources.files("verve_backend.queries")
         .joinpath(file_name)
@@ -399,7 +432,8 @@ def _run_query(session: Session, file_name: str, params: dict) -> tuple:
     _data = session.exec(
         text(stmt),  # type: ignore
         params=params,
-    ).first()
+    )
+    _data = _data.first() if type == "first" else _data.all()
 
     return _data
 
@@ -412,27 +446,28 @@ def get_activity_grid(
     _user_id, session = user_session
     start_date, end_date = _find_grid_start_end(weeks)
     today = datetime.now().date()
-    stmt = (
-        select(
-            func.date(Activity.start).label("date"),
-            func.count().label("activity_count"),
-            func.sum(Activity.duration).label("total_duration"),
-        )
-        .where(func.date(Activity.start) >= start_date)
-        .where(func.date(Activity.start) <= end_date)
-        .group_by(func.date(Activity.start))
+
+    _raw_data = _run_query(
+        session,
+        "grid_raw_data.sql",
+        {"user_id": _user_id, "start_date": start_date, "end_date": end_date},
+        "all",
     )
-    _raw_data = session.exec(stmt).all()
+
     raw_data = {}
-    for _date, _count, _duration in _raw_data:
+    for _date, _count, _duration, _effective_duration in _raw_data:
         raw_data[_date] = {
             "activity_count": _count,
             "duration_seconds": round(_duration.total_seconds()) if _duration else 0,
+            "effective_duration_seconds": round(_effective_duration.total_seconds())
+            if _effective_duration
+            else 0,
         }
     _date = start_date
     grid_week_days: list[list[GridDay | None]] = []
     total_count, max_count = 0, 0
     total_duration_seconds, max_duration_seconds = 0, 0
+    total_effective_duration_seconds, max_effective_duration_seconds = 0, 0
     activity_days = 0
     while _date <= end_date:
         if _date.isoweekday() == 1:
@@ -440,18 +475,30 @@ def get_activity_grid(
         if _date > today:
             grid_week_days[-1].append(None)
         else:
-            _data = raw_data.get(_date, {"activity_count": 0, "duration_seconds": 0})
+            _data = raw_data.get(
+                _date,
+                {
+                    "activity_count": 0,
+                    "duration_seconds": 0,
+                    "effective_duration_seconds": 0,
+                },
+            )
             total_count += _data["activity_count"]
             total_duration_seconds += _data["duration_seconds"]
+            total_effective_duration_seconds += _data["effective_duration_seconds"]
             max_count = max(max_count, _data["activity_count"])
             if _data["activity_count"] > 0:
                 activity_days += 1
             max_duration_seconds = max(max_duration_seconds, _data["duration_seconds"])
+            max_effective_duration_seconds = max(
+                max_effective_duration_seconds, _data["effective_duration_seconds"]
+            )
             grid_week_days[-1].append(
                 GridDay(
                     date=_date,
                     activity_count=_data["activity_count"],
                     duration_seconds=_data["duration_seconds"],
+                    effective_duration_seconds=_data["effective_duration_seconds"],
                 )
             )
         _date += timedelta(days=1)
@@ -492,10 +539,12 @@ def get_activity_grid(
         scale_max=GridMax(
             activity_count=max_count,
             duration_seconds=max_duration_seconds,
+            effective_duration_seconds=max_effective_duration_seconds,
         ),
         totals=GridTotals(
             activity_count=total_count,
             duration_seconds=total_duration_seconds,
+            effective_duration_seconds=total_effective_duration_seconds,
             active_days=activity_days,
         ),
         summary=GridSummary(

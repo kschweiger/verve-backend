@@ -14,12 +14,18 @@ class StatsMetric(BaseModel):
     count: int = 0
     distance: float = 0.0
     duration: int = 0  # seconds
+    moving_duration: int = 0  # seconds
     elevation_gain: float = 0.0
 
     def add_activity(self, activity: Activity) -> None:
         self.count += 1
         self.distance += activity.distance or 0.0
         self.duration += int(activity.duration.total_seconds())
+        self.moving_duration += (
+            int(activity.moving_duration.total_seconds())
+            if activity.moving_duration
+            else 0
+        )
         if activity.elevation_change_up:
             self.elevation_gain += activity.elevation_change_up
 
@@ -39,6 +45,7 @@ class ActivityCalendarItem(BaseModel):
     sub_type_id: int | None = None
     distance: float | None  # Nullable for Yoga/Gym
     duration: int
+    moving_duration: int
     elevation_gain: float | None
 
 
@@ -68,7 +75,9 @@ def build_calendar_response(
 ) -> list[CalendarWeek]:
     # 1. Pre-process activities into a fast lookup dictionary
     # Structure: date -> type_id -> list[Activity]
-    mapped_activities = defaultdict(lambda: defaultdict(list))
+    mapped_activities: dict[date, dict[int, list[Activity]]] = defaultdict(
+        lambda: defaultdict(list)
+    )
     for act in activities:
         mapped_activities[act.start.date()][act.type_id].append(act)
 
@@ -104,6 +113,10 @@ def build_calendar_response(
                                 sub_type_id=act.sub_type_id,
                                 distance=act.distance,
                                 duration=int(act.duration.total_seconds()),
+                                moving_duration=int(act.moving_duration.total_seconds())
+                                if act.moving_duration
+                                and act.moving_duration.total_seconds() > 0
+                                else int(act.duration.total_seconds()),
                                 elevation_gain=act.elevation_change_up,
                             )
                         )
@@ -128,6 +141,7 @@ def build_calendar_response(
                 week_total.count += day_data.total.count
                 week_total.distance += day_data.total.distance
                 week_total.duration += day_data.total.duration
+                week_total.moving_duration += day_data.total.moving_duration
                 week_total.elevation_gain += day_data.total.elevation_gain
 
             week_days_data.append(day_data)

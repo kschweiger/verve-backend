@@ -3,7 +3,8 @@ SELECT
 	sub_type_id,
 	SUM(distance),
 	SUM(elevation_change_up),
-	SUM(duration)
+	SUM(duration),
+  SUM(COALESCE(NULLIF(moving_duration, interval '0'), duration)) AS total_effective_duration
 FROM
 	activities
 WHERE
