@@ -1,4 +1,16 @@
 <!-- insertion marker -->
+<a name="1.16.0"></a>
+
+## [1.16.0](https://github.com/kschweiger/verve-backend/compare/1.15.0...1.16.0) (2026-07-08)
+
+### Bug Fixes
+
+- resolve issue with moving duration in stationary activities (#187) ([4a88029](https://github.com/kschweiger/verve-backend/commit/4a8802921d0c8a81906d0c72e5fb57a8139343f2))
+
+### Code Refactoring
+
+- Add effective duration to stats responses (#189) ([c4031f8](https://github.com/kschweiger/verve-backend/commit/c4031f899ac215c4531db882b7f7f687e414e362))
+
 <a name="1.15.0"></a>
 
 ## [1.15.0](https://github.com/kschweiger/verve-backend/compare/1.14.0...1.15.0) (2026-07-01)
