@@ -48,8 +48,8 @@ def convert_verve_file_to_activity(
     session: Session,
     user_id: UUID,
     data: VerveFeature,
-    overwrite_type_id: None | int = None,
-    overwrite_sub_type_id: None | int = None,
+    overwrite_type_id: int | None = None,
+    overwrite_sub_type_id: int | None = None,
 ) -> Activity:
     logger.debug("Starting verve file conversion")
     match crud.get_by_name(

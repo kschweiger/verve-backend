@@ -238,7 +238,7 @@ class ActivityType(ActivityTypeBase, table=True):
 
 class ActivitySubTypeBase(SQLModel):
     name: str
-    type_id: None | int = Field(default=None, foreign_key="activity_type.id")
+    type_id: int | None = Field(default=None, foreign_key="activity_type.id")
 
 
 class ActivitySubTypeCreate(ActivitySubTypeBase):
@@ -864,7 +864,7 @@ class ActivityTagCategory(ActivityTagCategoryBase, table=True):
 class ActivityTagBase(SQLModel):
     name: str
 
-    category_id: None | int = Field(
+    category_id: int | None = Field(
         default=None, foreign_key="activity_tag_categories.id"
     )
 

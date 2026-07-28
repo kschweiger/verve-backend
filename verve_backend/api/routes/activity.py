@@ -494,8 +494,8 @@ def _import_verve_file(
     file_name: str,
     file_content: bytes,
     file_content_type: str | None,
-    overwrite_type_id: None | int,
-    overwrite_sub_type_id: None | int,
+    overwrite_type_id: int | None,
+    overwrite_sub_type_id: int | None,
 ) -> Activity:
     if not file_name.endswith(".json"):
         raise HTTPException(
