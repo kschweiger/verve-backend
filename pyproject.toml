@@ -11,7 +11,7 @@ dependencies = [
   "boto3==1.43.58",
   "boto3-stubs[s3]==1.43.58",
   "celery==5.6.3",
-  "fastapi[standard]==0.140.13",
+  "fastapi[standard]==0.141.1",
   "geo-track-analyzer==2.0.1",
   "geoalchemy2==0.20.0",
   "gevent==26.7.0",
@@ -93,7 +93,7 @@ test = [
 package = true
 
 [build-system]
-requires = ["uv_build>=0.11.32,<0.11.33"]
+requires = ["uv_build>=0.12.1,<0.12.2"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
