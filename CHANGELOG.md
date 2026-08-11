@@ -1,4 +1,8 @@
 <!-- insertion marker -->
+<a name="1.16.1"></a>
+
+## [1.16.1](https://github.com/kschweiger/verve-backend/compare/1.16.0...1.16.1) (2026-08-11)
+
 <a name="1.16.0"></a>
 
 ## [1.16.0](https://github.com/kschweiger/verve-backend/compare/1.15.0...1.16.0) (2026-07-08)
