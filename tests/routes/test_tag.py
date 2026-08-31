@@ -321,6 +321,29 @@ def test_tag_search(
     assert len(data.data) > 1
 
 
+def test_tag_search_matches_case_insensitive_short_prefix(
+    db: Session,
+    client: TestClient,
+    temp_user_token: str,
+    temp_user_id: UUID,
+) -> None:
+    tag = ActivityTag(name="Post Workout Sleep Recovery", user_id=temp_user_id)
+    db.add(tag)
+    db.commit()
+
+    response = client.get(
+        "/tag/search",
+        params={"query": "post"},
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+
+    assert response.status_code == 200
+    data = ListResponse[PhraseCandidate[int]].model_validate(response.json())
+    assert "Post Workout Sleep Recovery" in [
+        candidate.phrase for candidate in data.data
+    ]
+
+
 def test_category_search(
     db: Session,
     client: TestClient,
@@ -358,6 +381,31 @@ def test_category_search(
     assert response.status_code == 200
     data = ListResponse[PhraseCandidate[int]].model_validate(response.json())
     assert len(data.data) > 1
+
+
+def test_category_search_matches_case_insensitive_short_prefix(
+    db: Session,
+    client: TestClient,
+    temp_user_token: str,
+    temp_user_id: UUID,
+) -> None:
+    category = ActivityTagCategory(
+        name="Run Training Recovery Programme", user_id=temp_user_id
+    )
+    db.add(category)
+    db.commit()
+
+    response = client.get(
+        "/tag/category/find",
+        params={"query": "run"},
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+
+    assert response.status_code == 200
+    data = ListResponse[PhraseCandidate[int]].model_validate(response.json())
+    assert "Run Training Recovery Programme" in [
+        candidate.phrase for candidate in data.data
+    ]
 
 
 def test_add_tag_to_activity(

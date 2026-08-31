@@ -1,7 +1,8 @@
--- Two-stage fuzzy search on activity_tags.name
+-- Three-stage name search
 --
--- Stage 1 — pg_trgm:          catches typos ("Swiming" → "Swimming")
--- Stage 2 — daitch_mokotoff:  catches phonetics ("Jon" → "John")
+-- Stage 1 — case-insensitive prefix: supports autocomplete ("elys" → "ELYS Boulderloft")
+-- Stage 2 — pg_trgm:                catches typos ("Swiming" → "Swimming")
+-- Stage 3 — daitch_mokotoff:        catches phonetics ("Jon" → "John")
 --
 -- Parameters (SQLAlchemy bindparams):
 --   :query      TEXT   — the raw search string
@@ -22,14 +23,16 @@ FROM (
     SELECT DISTINCT ON (id)
         id,
         name,
-        similarity(name, :query) AS score
+        similarity(name, :query) AS score,
+        name ILIKE :query || '%' AS is_prefix_match
     FROM {__table_name__}, _cfg          -- cross join forces CTE evaluation
     WHERE
         (
-            name % :query
+            name ILIKE :query || '%'
+            OR name % :query
             OR daitch_mokotoff(name) && daitch_mokotoff(:query)
         )
-    ORDER BY id, similarity(name, :query) DESC
+    ORDER BY id, is_prefix_match DESC, similarity(name, :query) DESC
 ) ranked
-ORDER BY score DESC
+ORDER BY is_prefix_match DESC, score DESC
 LIMIT :limit;
