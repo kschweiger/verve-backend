@@ -507,3 +507,30 @@ def test_location_search(
     assert response.status_code == 200
     data = ListResponse[PhraseCandidate[uuid.UUID]].model_validate(response.json())
     assert len(data.data) > 1
+
+
+def test_location_search_matches_case_insensitive_short_prefix(
+    db: Session,
+    client: TestClient,
+    temp_user_token: str,
+    temp_user_id: uuid.UUID,
+) -> None:
+    location = Location(
+        name="ABCD Gym",
+        loc=from_shape(Point(1, 1), srid=4326),
+        user_id=temp_user_id,
+        type_id=1,
+        sub_type_id=1,
+    )
+    db.add(location)
+    db.commit()
+
+    response = client.get(
+        "/location/find",
+        params={"query": "abcd"},
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+
+    assert response.status_code == 200
+    data = ListResponse[PhraseCandidate[uuid.UUID]].model_validate(response.json())
+    assert "ABCD Gym" in [candidate.phrase for candidate in data.data]
