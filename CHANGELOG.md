@@ -1,4 +1,12 @@
 <!-- insertion marker -->
+<a name="1.16.2"></a>
+
+## [1.16.2](https://github.com/kschweiger/verve-backend/compare/1.16.1...1.16.2) (2026-08-31)
+
+### Bug Fixes
+
+- **search:**  Better results for short inputs (#221) ([4e4eef2](https://github.com/kschweiger/verve-backend/commit/4e4eef2c932e9c64c59689ebfe5170e8c19a1971))
+
 <a name="1.16.1"></a>
 
 ## [1.16.1](https://github.com/kschweiger/verve-backend/compare/1.16.0...1.16.1) (2026-08-11)
