@@ -516,7 +516,7 @@ def test_location_search_matches_case_insensitive_short_prefix(
     temp_user_id: uuid.UUID,
 ) -> None:
     location = Location(
-        name="ABCD Gym",
+        name="ABCD Very Long Location Name",
         loc=from_shape(Point(1, 1), srid=4326),
         user_id=temp_user_id,
         type_id=1,
@@ -533,4 +533,6 @@ def test_location_search_matches_case_insensitive_short_prefix(
 
     assert response.status_code == 200
     data = ListResponse[PhraseCandidate[uuid.UUID]].model_validate(response.json())
-    assert "ABCD Gym" in [candidate.phrase for candidate in data.data]
+    assert "ABCD Very Long Location Name" in [
+        candidate.phrase for candidate in data.data
+    ]

@@ -327,7 +327,7 @@ def test_tag_search_matches_case_insensitive_short_prefix(
     temp_user_token: str,
     temp_user_id: UUID,
 ) -> None:
-    tag = ActivityTag(name="Post Sleep", user_id=temp_user_id)
+    tag = ActivityTag(name="Post Workout Sleep Recovery", user_id=temp_user_id)
     db.add(tag)
     db.commit()
 
@@ -339,7 +339,9 @@ def test_tag_search_matches_case_insensitive_short_prefix(
 
     assert response.status_code == 200
     data = ListResponse[PhraseCandidate[int]].model_validate(response.json())
-    assert "Post Sleep" in [candidate.phrase for candidate in data.data]
+    assert "Post Workout Sleep Recovery" in [
+        candidate.phrase for candidate in data.data
+    ]
 
 
 def test_category_search(
@@ -387,7 +389,9 @@ def test_category_search_matches_case_insensitive_short_prefix(
     temp_user_token: str,
     temp_user_id: UUID,
 ) -> None:
-    category = ActivityTagCategory(name="Run Training", user_id=temp_user_id)
+    category = ActivityTagCategory(
+        name="Run Training Recovery Programme", user_id=temp_user_id
+    )
     db.add(category)
     db.commit()
 
@@ -399,7 +403,9 @@ def test_category_search_matches_case_insensitive_short_prefix(
 
     assert response.status_code == 200
     data = ListResponse[PhraseCandidate[int]].model_validate(response.json())
-    assert "Run Training" in [candidate.phrase for candidate in data.data]
+    assert "Run Training Recovery Programme" in [
+        candidate.phrase for candidate in data.data
+    ]
 
 
 def test_add_tag_to_activity(
