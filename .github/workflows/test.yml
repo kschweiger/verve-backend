@@ -79,22 +79,20 @@ jobs:
             ALTER DEFAULT PRIVILEGES IN SCHEMA api GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO verve_user;
             ALTER DEFAULT PRIVILEGES IN SCHEMA api GRANT USAGE ON SEQUENCES TO verve_user;
           "
-      - name: Start MinIO service
+      - name: Start RustFS service
         run: |
-          docker run -d --name minio-container \
+          docker run -d --name rustfs-container \
             -p 9000:9000 \
             -p 9001:9001 \
-            -e "MINIO_ROOT_USER=minioadmin" \
-            -e "MINIO_ROOT_PASSWORD=minioadmin" \
-            minio/minio server /data --console-address ":9001"
+            -e "RUSTFS_ACCESS_KEY=minioadmin" \
+            -e "RUSTFS_SECRET_KEY=minioadmin" \
+            rustfs/rustfs:1.0.0-alpha.82@sha256:eadee1b524ec05cbc1fe08426a95e589bc70e70cd15a4591edf176cabde238a6
 
-      - name: Configure MinIO (Create Bucket)
+      - name: Configure RustFS (Create Bucket)
         run: |
-          sleep 5
-          docker run --rm --network=host minio/mc \
-            alias set myminio http://localhost:9000 minioadmin minioadmin
-          docker run --rm --network=host minio/mc \
-            mb myminio/verve-testing
+          until curl --fail --silent http://localhost:9000/health; do sleep 1; done
+          docker run --rm --network=host --entrypoint /bin/sh rustfs/rc:latest \
+            -c 'rc alias set rustfs http://localhost:9000 minioadmin minioadmin && rc mb rustfs/verve-testing'
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
