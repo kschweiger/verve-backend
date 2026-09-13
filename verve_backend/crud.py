@@ -854,7 +854,7 @@ def clear_track_extension_data(
 ) -> Result[None, tuple[uuid.UUID, str]]:
     template = (
         importlib.resources.files("verve_backend.queries")
-        .joinpath("tracK_clear_extension_data.sql")
+        .joinpath("track_clear_extension_data.sql")
         .read_text()
     )
     stmt = template.replace("{__extension_name__}", extension_name)
