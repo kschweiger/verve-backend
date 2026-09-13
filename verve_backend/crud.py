@@ -847,3 +847,36 @@ def add_reset_token(*, session: Session, user_id: uuid.UUID) -> tuple[str, str]:
     session.commit()
 
     return token, token_hash
+
+
+def clear_track_extension_data(
+    *, session: Session, activity_id: uuid.UUID, user_id: uuid.UUID, extension_name: str
+) -> Result[None, tuple[uuid.UUID, str]]:
+    template = (
+        importlib.resources.files("verve_backend.queries")
+        .joinpath("tracK_clear_extension_data.sql")
+        .read_text()
+    )
+    stmt = template.replace("{__extension_name__}", extension_name)
+    try:
+        session.exec(
+            text(stmt),  # type: ignore
+            params={
+                "user_id": user_id,
+                "activity_id": activity_id,
+            },
+        )
+    except DatabaseError as e:
+        err_id = uuid.uuid4()
+        logger.error(
+            "[%s] Database error while removing tracK extension %s for activity %s",
+            err_id,
+            extension_name,
+            activity_id,
+        )
+        logger.error("[%s] %s", err_id, e)
+        session.rollback()
+        return Err((err_id, "Encountered database error"))
+
+    session.commit()
+    return Ok(None)

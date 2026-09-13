@@ -1,6 +1,6 @@
 import importlib.resources
 import uuid
-from enum import StrEnum
+from enum import StrEnum, auto
 from typing import Any, Literal, Self
 
 import structlog
@@ -478,6 +478,41 @@ def segment_statistics(
         cuts=list(_cuts),
         display_metadata=display_metadata,
     )
+
+
+class SupportedTrackExtension(StrEnum):
+    HEARTRATE = auto()
+    POWER = auto()
+    CADENCE = auto()
+
+
+@router.patch(
+    "/remove-track-extension-data/{activity_id}", status_code=HTTP_204_NO_CONTENT
+)
+def remove_track_extension_data(
+    user_session: UserSession,
+    activity_id: uuid.UUID,
+    extension: SupportedTrackExtension,
+) -> None:
+    """Remove all track extension data for an activity"""
+    _user_id, session = user_session
+    user_id = uuid.UUID(_user_id)
+    if not session.get(Activity, activity_id):
+        raise HTTPException(status_code=404, detail="Activity not found")
+
+    match crud.clear_track_extension_data(
+        session=session,
+        user_id=user_id,
+        activity_id=activity_id,
+        extension_name=extension.value,
+    ):
+        case Ok(_):
+            return
+        case Err((err_id, _)):
+            raise HTTPException(
+                status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed. Error Code: {err_id}",
+            )
 
 
 @router.get("/{activity_id}", response_model=ListResponse[TrackPointResponse])

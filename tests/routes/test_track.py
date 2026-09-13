@@ -17,6 +17,7 @@ from verve_backend.models import (
     ListResponse,
     SegmentCut,
     SegmentSet,
+    TrackPoint,
     User,
 )
 
@@ -449,3 +450,73 @@ def test_get_segment_stats_weight_training_e2e(
     data = SegmentStatisticsResponse.model_validate(response.json())
 
     assert len(data.cuts) == 1
+
+
+@pytest.mark.parametrize(
+    "extension",
+    ["heartrate", "cadence", "power"],
+)
+def test_clear_extension_data(
+    db: Session,
+    client: TestClient,
+    temp_user_token: str,
+    temp_user_id: uuid.UUID,
+    create_activity_with_gpx_track,
+    extension: str,
+) -> None:
+    user = db.get(User, temp_user_id)
+    assert user is not None
+    activity = create_activity_with_gpx_track(
+        user=user,
+        resource_name="collection_stage_1_100_points.gpx",
+        type_id=1,
+        sub_type_id=1,
+    )
+    if extension == "heartrate":
+        stmt = select(TrackPoint.heartrate)
+    elif extension == "cadence":
+        stmt = select(TrackPoint.cadence)
+    elif extension == "power":
+        stmt = select(TrackPoint.power)
+    else:
+        pytest.fail(f"Unknown extension: {extension}")
+
+    values_pre = db.exec(stmt.where(col(TrackPoint.activity_id) == activity.id)).all()
+    assert len(values_pre) > 0
+    assert not any(v is None for v in values_pre)
+
+    response = client.patch(
+        f"/track/remove-track-extension-data/{activity.id}/",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        params={"extension": extension},
+    )
+
+    assert response.status_code == 204
+
+    db.reset()
+    values_post = db.exec(stmt.where(col(TrackPoint.activity_id) == activity.id)).all()
+    assert all(v is None for v in values_post)
+
+
+def test_clear_extension_data_usupported_extenstion(
+    db: Session,
+    client: TestClient,
+    temp_user_token: str,
+    temp_user_id: uuid.UUID,
+    create_activity_with_gpx_track,
+) -> None:
+    user = db.get(User, temp_user_id)
+    assert user is not None
+    activity = create_activity_with_gpx_track(
+        user=user,
+        resource_name="collection_stage_1_100_points.gpx",
+        type_id=1,
+        sub_type_id=1,
+    )
+    response = client.patch(
+        f"/track/remove-track-extension-data/{activity.id}/",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        params={"extension": "blubb"},
+    )
+
+    assert response.status_code == 422
