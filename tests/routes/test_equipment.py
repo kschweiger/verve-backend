@@ -98,6 +98,184 @@ def test_create_equipment(client: TestClient, user1_token: str) -> None:
     EquipmentPublic.model_validate(response.json())
 
 
+def test_update_equipment_all_fields(
+    client: TestClient,
+    db: Session,
+    temp_user_token: str,
+) -> None:
+    create_response = client.post(
+        "/equipment",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        json=EquipmentCreate(
+            name="Original Bike",
+            equipment_type=EquipmentType.BIKE,
+        ).model_dump(exclude_unset=True, mode="json"),
+    )
+    equipment = EquipmentPublic.model_validate(create_response.json())
+
+    response = client.patch(
+        f"/equipment/{equipment.id}",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        json={"name": "Updated Skis", "equipment_type": EquipmentType.SKIS},
+    )
+
+    assert response.status_code == 200
+    updated_equipment = EquipmentPublic.model_validate(response.json())
+    assert updated_equipment.name == "Updated Skis"
+    assert updated_equipment.equipment_type == EquipmentType.SKIS
+
+    db.expire_all()
+    equipment_in_db = db.get(Equipment, equipment.id)
+    assert equipment_in_db is not None
+    assert equipment_in_db.name == "Updated Skis"
+    assert equipment_in_db.equipment_type == EquipmentType.SKIS
+
+
+def test_update_equipment_name(
+    client: TestClient,
+    temp_user_token: str,
+) -> None:
+    create_response = client.post(
+        "/equipment",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        json=EquipmentCreate(
+            name="Original Bike",
+            equipment_type=EquipmentType.BIKE,
+        ).model_dump(exclude_unset=True, mode="json"),
+    )
+    equipment = EquipmentPublic.model_validate(create_response.json())
+
+    response = client.patch(
+        f"/equipment/{equipment.id}",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        json={"name": "Updated Bike"},
+    )
+
+    assert response.status_code == 200
+    updated_equipment = EquipmentPublic.model_validate(response.json())
+    assert updated_equipment.name == "Updated Bike"
+    assert updated_equipment.equipment_type == EquipmentType.BIKE
+
+
+def test_update_equipment_type(
+    client: TestClient,
+    temp_user_token: str,
+) -> None:
+    create_response = client.post(
+        "/equipment",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        json=EquipmentCreate(
+            name="Original Bike",
+            equipment_type=EquipmentType.BIKE,
+        ).model_dump(exclude_unset=True, mode="json"),
+    )
+    equipment = EquipmentPublic.model_validate(create_response.json())
+
+    response = client.patch(
+        f"/equipment/{equipment.id}",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        json={"equipment_type": EquipmentType.SKIS},
+    )
+
+    assert response.status_code == 200
+    updated_equipment = EquipmentPublic.model_validate(response.json())
+    assert updated_equipment.name == "Original Bike"
+    assert updated_equipment.equipment_type == EquipmentType.SKIS
+
+
+@pytest.mark.parametrize("field", ["name", "equipment_type"])
+def test_update_equipment_rejects_none_fields(
+    client: TestClient,
+    temp_user_token: str,
+    field: str,
+) -> None:
+    create_response = client.post(
+        "/equipment",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        json=EquipmentCreate(
+            name="Original Bike",
+            equipment_type=EquipmentType.BIKE,
+        ).model_dump(exclude_unset=True, mode="json"),
+    )
+    equipment = EquipmentPublic.model_validate(create_response.json())
+
+    response = client.patch(
+        f"/equipment/{equipment.id}",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        json={field: None},
+    )
+
+    assert response.status_code == 422
+
+
+def test_delete_equipment_removes_it_from_database(
+    client: TestClient,
+    db: Session,
+    temp_user_token: str,
+) -> None:
+    create_response = client.post(
+        "/equipment",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        json=EquipmentCreate(
+            name="Equipment to Delete",
+            equipment_type=EquipmentType.BIKE,
+        ).model_dump(exclude_unset=True, mode="json"),
+    )
+    equipment = EquipmentPublic.model_validate(create_response.json())
+
+    response = client.delete(
+        f"/equipment/{equipment.id}",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+
+    assert response.status_code == 204
+    db.expire_all()
+    assert db.get(Equipment, equipment.id) is None
+
+
+def test_delete_equipment_keeps_remaining_set_equipment(
+    client: TestClient,
+    temp_user_token: str,
+) -> None:
+    equipment_ids = []
+    for name in ("Equipment to Delete", "Equipment to Keep"):
+        create_response = client.post(
+            "/equipment",
+            headers={"Authorization": f"Bearer {temp_user_token}"},
+            json=EquipmentCreate(
+                name=name,
+                equipment_type=EquipmentType.BIKE,
+            ).model_dump(exclude_unset=True, mode="json"),
+        )
+        equipment_ids.append(EquipmentPublic.model_validate(create_response.json()).id)
+
+    set_response = client.post(
+        "/equipment/set/",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        json=EquipmentSetCreate(
+            name="Set with equipment",
+            equipment_ids=equipment_ids,
+        ).model_dump(exclude_unset=True, mode="json"),
+    )
+    assert set_response.status_code == 200
+    equipment_set = EquipmentSetPublic.model_validate(set_response.json())
+
+    delete_response = client.delete(
+        f"/equipment/{equipment_ids[0]}",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+    assert delete_response.status_code == 204
+
+    get_set_response = client.get(
+        f"/equipment/set/{equipment_set.id}",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+    assert get_set_response.status_code == 200
+    remaining_set = EquipmentSetPublic.model_validate(get_set_response.json())
+    assert equipment_ids[0] not in remaining_set.items
+    assert equipment_ids[1] in remaining_set.items
+
+
 def test_get_equipment_for_activity(
     client: TestClient,
     user1_token: str,
