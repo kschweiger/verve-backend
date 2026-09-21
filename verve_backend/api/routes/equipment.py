@@ -1,11 +1,14 @@
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
+import structlog
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from starlette.status import (
     HTTP_204_NO_CONTENT,
+    HTTP_422_UNPROCESSABLE_CONTENT,
     HTTP_500_INTERNAL_SERVER_ERROR,
 )
 
@@ -25,11 +28,14 @@ from verve_backend.models import (
     EquipmentSet,
     EquipmentSetPublic,
     EquipmentType,
+    EquipmentUpdate,
     ListResponse,
 )
 from verve_backend.result import Err, Ok
 
 router = APIRouter(prefix="/equipment", tags=[Tag.EQUIPMENT])
+
+logger = structlog.getLogger(__name__)
 
 
 class EquipmentSetCreate(BaseModel):
@@ -67,6 +73,70 @@ def get_equipment(*, user_session: UserSession) -> Any:
     all_equipment = session.exec(select(Equipment)).all()
 
     return ListResponse(data=[EquipmentPublic.model_validate(e) for e in all_equipment])
+
+
+@router.patch("/{equipment_id}", response_model=EquipmentPublic)
+def update_equipment(
+    *, user_session: UserSession, equipment_id: UUID, data: EquipmentUpdate
+) -> Any:
+    _, session = user_session
+
+    equipment = session.get(Equipment, equipment_id)
+    if not equipment:
+        raise HTTPException(status_code=404, detail="Equipment not found")
+
+    update_data = data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        if field == "name" and value is None:
+            err_uuid = uuid4()
+            logger.error("[%s] name cannot be set to None", err_uuid)
+            raise HTTPException(
+                status_code=HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Name must be a string. Got %s. Error code: %s"
+                % (type(value), err_uuid),
+            )
+        if field == "equipment_type" and value is None:
+            err_uuid = uuid4()
+            logger.error("[%s] equipment_type cannot be set to None", err_uuid)
+            raise HTTPException(
+                status_code=HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="equipment_type must a valid type.Got %s. Error code: %s"
+                % (type(value), err_uuid),
+            )
+        setattr(equipment, field, value)
+
+    try:
+        session.commit()
+    except IntegrityError as e:
+        raise HTTPException(
+            status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        ) from e
+    session.refresh(equipment)
+    return equipment
+
+
+@router.delete(
+    "/{equipment_id}",
+    status_code=HTTP_204_NO_CONTENT,
+)
+def delete_equipment(
+    *,
+    user_session: UserSession,
+    equipment_id: UUID,
+) -> None:
+    _, session = user_session
+    equipment = session.get(Equipment, equipment_id)
+    if not equipment:
+        raise HTTPException(status_code=404, detail="Equipment not found")
+    try:
+        session.delete(equipment)
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Could not delete activity. Error: {e}",
+        )
+    session.commit()
 
 
 @router.get("/activity/{activity_id}", response_model=ListResponse[EquipmentPublic])

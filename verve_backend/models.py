@@ -384,6 +384,11 @@ class EquipmentCreate(EquipmentBase):
     pass
 
 
+class EquipmentUpdate(EquipmentBase):
+    name: str | None = None  # type: ignore
+    equipment_type: EquipmentType | None = None  # type: ignore
+
+
 class EquipmentPublic(EquipmentBase):
     id: uuid.UUID
 
