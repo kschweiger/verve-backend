@@ -148,29 +148,29 @@ wheels = [
 
 [[package]]
 name = "boto3"
-version = "1.43.98"
+version = "1.43.100"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "botocore" },
     { name = "jmespath" },
     { name = "s3transfer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8d/4d/8164128d7a1d408f15849ada4632da37b13a5953c9bb3993998eb5d43ca1/boto3-1.43.98.tar.gz", hash = "sha256:1ec732e023fb29c12dc8520f925b5bbbed29eeb36b5764b5a5c26052d7c721f7", size = 112658, upload-time = "2026-09-18T20:10:05.921Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ba/98/93754b03cb746202f216bdfa970d56d72c105b27187506336c443e4ffac3/boto3-1.43.100.tar.gz", hash = "sha256:ae8d81e1f14699959eb38757c2e0044f4e3a303a57a0335d0be4cd3c07529763", size = 112649, upload-time = "2026-09-22T19:21:21.906Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bc/46/d29efd46ecac6637065a39418c5fb95500d70ec63e76065b5a72c936172f/boto3-1.43.98-py3-none-any.whl", hash = "sha256:7454f666a9e852a56db0a7fa23be33a899f64e27828930eac43c3edba7b34e17", size = 140033, upload-time = "2026-09-18T20:10:04.513Z" },
+    { url = "https://files.pythonhosted.org/packages/98/37/0ffe0ceb6227381f852f51777c9338115958d24d436bef990c73b6660bf4/boto3-1.43.100-py3-none-any.whl", hash = "sha256:49785c310057c2c650d62ca3ba28e88ad87c3827b490312711e81968a9d21fd8", size = 140042, upload-time = "2026-09-22T19:21:20.41Z" },
 ]
 
 [[package]]
 name = "boto3-stubs"
-version = "1.43.98"
+version = "1.43.99"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "botocore-stubs" },
     { name = "types-s3transfer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0a/6f/523d9dafeabd24376f59eacd4743b71fd0493cc575cf7974b26d42b5596c/boto3_stubs-1.43.98.tar.gz", hash = "sha256:43b3b183b55a2ef17780da65fd7fb66456cb76727181a4edecde104053c06152", size = 104596, upload-time = "2026-09-18T22:36:24.662Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/42/14/73709f75433a492d2148f330f23eccc5b45bac2ae5f8015dd5c6fef45f8f/boto3_stubs-1.43.99.tar.gz", hash = "sha256:d10dee573ebcd4f9b3169311721767f829f9ccb9c42690731e2a97f13a6deaf1", size = 104559, upload-time = "2026-09-21T20:42:34.621Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/41/c3/e276ea9fda323ef883638cadc11d2b682460e7e0ffd095a534e119381345/boto3_stubs-1.43.98-py3-none-any.whl", hash = "sha256:3ba0f125c14c1c0dc37b027ca74e33dfb43c5939c8812baa0124fd62fff29e90", size = 71512, upload-time = "2026-09-18T22:36:19.288Z" },
+    { url = "https://files.pythonhosted.org/packages/57/a5/ef106900937ca011b3af2d98705001b7fd1799f57f0a58c71f9393125c46/boto3_stubs-1.43.99-py3-none-any.whl", hash = "sha256:f91a19e9a16ea60d903aab2eaef72b3fa3bb26867742c1d4c90f73390b739dd7", size = 71511, upload-time = "2026-09-21T20:42:30.776Z" },
 ]
 
 [package.optional-dependencies]
@@ -180,16 +180,16 @@ s3 = [
 
 [[package]]
 name = "botocore"
-version = "1.43.98"
+version = "1.43.100"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jmespath" },
     { name = "python-dateutil" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/36/5e/8d655aeaae195b9856a554e724322092b4cc1b8bb58a29167bea80bf800c/botocore-1.43.98.tar.gz", hash = "sha256:6135dd639ea6d1b3b49381bc253c8a139d61f7d44cb5f7dae8e7cd1791758572", size = 16127750, upload-time = "2026-09-18T20:10:00.892Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/93/b7/6ec11bf6b07c961ab2692cc082662f7279d7860921e2d0ed14f7f6cd6cfe/botocore-1.43.100.tar.gz", hash = "sha256:b6e64e38e3c03663a0c20d3d207afd97a0409dbc27e4e43384ac3f93cb61279f", size = 16166265, upload-time = "2026-09-22T19:21:16.93Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/65/ca/c7617e99c3247f545233ab2181840d142c5f72034e22864172866fb1369a/botocore-1.43.98-py3-none-any.whl", hash = "sha256:84b35b10402c2fc0c265f634fbf86336eecc6489ee23f55074b329924b2cfd6f", size = 15817751, upload-time = "2026-09-18T20:09:57.566Z" },
+    { url = "https://files.pythonhosted.org/packages/c4/f2/93ce07251665ed422d4ae175b65741d3c02495acbc183b84df6ca5a850c8/botocore-1.43.100-py3-none-any.whl", hash = "sha256:34c3232bc0f895091a15249903b3cab1148f5787f12389caa2d54a9175428d51", size = 15860706, upload-time = "2026-09-22T19:21:12.351Z" },
 ]
 
 [[package]]
@@ -1713,16 +1713,16 @@ wheels = [
 
 [[package]]
 name = "sqlmodel"
-version = "0.0.42"
+version = "0.0.46"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "sqlalchemy" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ab/50/27188d8cbccabf9968d74d4095765399dbc4f9fcae95e928fda69aa44a21/sqlmodel-0.0.42.tar.gz", hash = "sha256:9ecec2b6aa4c2aa58da39d2572e7bef4373419dcd6ec52973c07de7be2b1c516", size = 91737, upload-time = "2026-08-28T19:42:01.611Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0c/92/d5eaf0a7ffaac17a23396e854b36a4e1326c5933d7afb18af530f8227e89/sqlmodel-0.0.46.tar.gz", hash = "sha256:a1f962c0b92bc569d21e08d152fe823c61edd37a461e551636f15a153aa66bd5", size = 98115, upload-time = "2026-09-22T09:38:21.047Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/67/37/d7d6b12b9066005c237de3d52b599298a2693ac423bff0e6b97a90b90bf8/sqlmodel-0.0.42-py3-none-any.whl", hash = "sha256:a732dab1a40e5cbd6ac250cf2b12e8d9b1bf1a47edf27c34d612f359e8875c63", size = 29991, upload-time = "2026-08-28T19:42:00.568Z" },
+    { url = "https://files.pythonhosted.org/packages/ed/4a/bbd78ee71a65af4f4e8a54632671b5acb58dad8df86d383cf53a33f9fd6e/sqlmodel-0.0.46-py3-none-any.whl", hash = "sha256:c9c8b6b9642eb82aa6b5db6e6e0eea61a6fcb0b37440db35a9eecd9fc897ea3f", size = 31303, upload-time = "2026-09-22T09:38:19.956Z" },
 ]
 
 [[package]]
@@ -1938,8 +1938,8 @@ test = [
 requires-dist = [
     { name = "alembic", specifier = "==1.20.0" },
     { name = "bcrypt", specifier = "==4.3.0" },
-    { name = "boto3", specifier = "==1.43.98" },
-    { name = "boto3-stubs", extras = ["s3"], specifier = "==1.43.98" },
+    { name = "boto3", specifier = "==1.43.100" },
+    { name = "boto3-stubs", extras = ["s3"], specifier = "==1.43.99" },
     { name = "celery", specifier = "==5.6.3" },
     { name = "fastapi", extras = ["standard"], specifier = "==0.141.1" },
     { name = "geo-track-analyzer", specifier = "==2.0.1" },
@@ -1954,7 +1954,7 @@ requires-dist = [
     { name = "redis", specifier = "==7.4.1" },
     { name = "shapely", specifier = "==2.1.2" },
     { name = "sqlalchemy", specifier = "==2.0.54" },
-    { name = "sqlmodel", specifier = "==0.0.42" },
+    { name = "sqlmodel", specifier = "==0.0.46" },
     { name = "structlog", specifier = "==26.1.0" },
 ]
 
