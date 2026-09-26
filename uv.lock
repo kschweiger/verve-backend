@@ -616,12 +616,6 @@ wheels = [
 ]
 
 [[package]]
-name = "fitparse"
-version = "1.2.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/61/ed/5637fe96c56d55dfa6317ab16745f9a83ef2690d093cee8f0b59f983675f/fitparse-1.2.0.tar.gz", hash = "sha256:2d691022452dea6dabad13cc6e017ca467fe8a3a895cd3ac67a50a7bb716b4a9", size = 65716, upload-time = "2020-09-07T03:27:21.926Z" }
-
-[[package]]
 name = "fonttools"
 version = "4.63.0"
 source = { registry = "https://pypi.org/simple" }
@@ -659,11 +653,20 @@ wheels = [
 ]
 
 [[package]]
+name = "garmin-fit-sdk"
+version = "21.217.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/5b/07/1b21a25bb3fdf4f3d298bed89fab08bb57556c4eb81444589f568fd410be/garmin_fit_sdk-21.217.0.tar.gz", hash = "sha256:df88c37cb0b28cdebbb1b0aeb9c514b078c832a0ab4e4f4ca14d19ccecd27ed2", size = 208182, upload-time = "2026-09-22T17:26:18.431Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b1/d1/a029c6d76246361be4d7126c2f6a209b63bc6f44e4b855978d178f5632eb/garmin_fit_sdk-21.217.0-py3-none-any.whl", hash = "sha256:382bc4cba7cc3e26bd6d65fbf5ad6864cf15feeafcf21dd226e2697df1063e96", size = 229766, upload-time = "2026-09-22T17:26:16.932Z" },
+]
+
+[[package]]
 name = "geo-track-analyzer"
-version = "2.0.1"
+version = "3.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "fitparse" },
+    { name = "garmin-fit-sdk" },
     { name = "gpxpy" },
     { name = "numpy" },
     { name = "pandas" },
@@ -671,9 +674,9 @@ dependencies = [
     { name = "pydantic-numpy" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b4/28/e33b81c8d6ba9362332d1730098348a7468f0c30994867ba96ae42912ba8/geo_track_analyzer-2.0.1.tar.gz", hash = "sha256:e91ee283e2f0bd4c67c384e568073338b83bccd4b16505ccea17e6c125108fa7", size = 55096, upload-time = "2026-02-16T20:07:33.632Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/46/15/331b1c204a3ba40d60fed73282cc26711bec7c7a464b33ce07391c7fe9df/geo_track_analyzer-3.0.0.tar.gz", hash = "sha256:4084e16a04a2d376800a087796b324fdfb2f3463dddc199dc162f3029afe2884", size = 51606, upload-time = "2026-09-26T18:38:48.651Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d2/bd/a1b9b95dd59d7acacc22d81d2216d9cec99dea35a9dd12d89ced432aed1a/geo_track_analyzer-2.0.1-py3-none-any.whl", hash = "sha256:39bcaf615d18353b556254a75b002d1bd12b8efe33dfd74e47c57b95f1276d5d", size = 65026, upload-time = "2026-02-16T20:07:32.236Z" },
+    { url = "https://files.pythonhosted.org/packages/96/96/18f6dfde8f3d50a61929d47b53033a2662579c90a41efc96a35f77ad6970/geo_track_analyzer-3.0.0-py3-none-any.whl", hash = "sha256:47630c28de4c21f51f18b0b53218709f639408a30951698659ba66f56272f0fc", size = 62295, upload-time = "2026-09-26T18:38:47.399Z" },
 ]
 
 [[package]]
@@ -1942,7 +1945,7 @@ requires-dist = [
     { name = "boto3-stubs", extras = ["s3"], specifier = "==1.43.98" },
     { name = "celery", specifier = "==5.6.3" },
     { name = "fastapi", extras = ["standard"], specifier = "==0.141.1" },
-    { name = "geo-track-analyzer", specifier = "==2.0.1" },
+    { name = "geo-track-analyzer", specifier = "==3.0.0" },
     { name = "geoalchemy2", specifier = "==0.20.0" },
     { name = "gevent", specifier = "==26.9.0" },
     { name = "psycopg", specifier = "==3.3.6" },
