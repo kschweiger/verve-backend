@@ -13,6 +13,11 @@ by the frontend.
   timestamps rather than guessing their meaning from the server timezone.
 - Normalize aware external timestamps to UTC before application processing and
   persistence.
+- For user-entered local date/time values, the frontend uses the user's IANA timezone
+  to resolve the selected wall-clock time and sends the resulting offset-aware instant.
+  The backend rejects an unresolved naive value, then normalizes the instant to UTC.
+- Generate audit timestamps such as `created_at`, `updated_at`, and token expiry from
+  the server clock in UTC. These describe instants and do not use the user's timezone.
 - Pass an IANA timezone name in the `timezone` query parameter from the frontend to
   date-bucketed activity views. Validate it as a `ZoneInfo` timezone and return 422
   for invalid names. Use UTC when callers omit it during rollout.
