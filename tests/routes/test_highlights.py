@@ -19,7 +19,7 @@ from verve_backend.models import (
 def valid_activity_id(db: Session, user_id) -> UUID:
     activity = Activity(
         user_id=user_id,
-        start=datetime.now(),
+        start=datetime.now().astimezone(),
         distance=100,
         duration=timedelta(minutes=60),
         type_id=1,

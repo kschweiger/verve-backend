@@ -141,7 +141,7 @@ def test_get_locations(
     response = client.post(
         "/activity",
         json=ActivityCreate(
-            start=datetime(2024, 1, 1, 10),
+            start=datetime(2024, 1, 1, 10).astimezone(),
             duration=timedelta(minutes=30),
             distance=1.0,
             moving_duration=timedelta(minutes=25),

@@ -116,7 +116,7 @@ def test_update_collection(
     activity_1 = crud.create_activity(
         session=db,
         create=ActivityCreate(
-            start=datetime(year=2026, month=4, day=1, hour=13),
+            start=datetime(year=2026, month=4, day=1, hour=13).astimezone(),
             name="Collection Activity 1",
             **common_data,  # type: ignore
         ),
@@ -125,7 +125,7 @@ def test_update_collection(
     activity_2 = crud.create_activity(
         session=db,
         create=ActivityCreate(
-            start=datetime(year=2026, month=4, day=2, hour=13),
+            start=datetime(year=2026, month=4, day=2, hour=13).astimezone(),
             name="Collection Activity 2",
             **common_data,  # type: ignore
         ),
@@ -134,7 +134,7 @@ def test_update_collection(
     activity_3 = crud.create_activity(
         session=db,
         create=ActivityCreate(
-            start=datetime(year=2026, month=4, day=3, hour=13),
+            start=datetime(year=2026, month=4, day=3, hour=13).astimezone(),
             name="Collection Activity 3",
             **common_data,  # type: ignore
         ),
@@ -242,7 +242,7 @@ def test_delete_collection(
     activity_1 = crud.create_activity(
         session=db,
         create=ActivityCreate(
-            start=datetime(year=2026, month=4, day=1, hour=13),
+            start=datetime(year=2026, month=4, day=1, hour=13).astimezone(),
             name="Collection Activity 1",
             **common_data,  # type: ignore
         ),
@@ -251,7 +251,7 @@ def test_delete_collection(
     activity_2 = crud.create_activity(
         session=db,
         create=ActivityCreate(
-            start=datetime(year=2026, month=4, day=2, hour=13),
+            start=datetime(year=2026, month=4, day=2, hour=13).astimezone(),
             name="Collection Activity 2",
             **common_data,  # type: ignore
         ),

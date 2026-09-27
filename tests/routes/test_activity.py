@@ -61,7 +61,7 @@ def test_get_activities_tags(
     db.refresh(tag_1)
     db.refresh(tag_2)
     activity_1 = Activity(
-        start=datetime(2024, 1, 1, 10),
+        start=datetime(2024, 1, 1, 10).astimezone(),
         duration=timedelta(minutes=30),
         distance=1.0,
         moving_duration=timedelta(minutes=25),
@@ -71,7 +71,7 @@ def test_get_activities_tags(
         user_id=temp_user_id,
     )
     activity_2 = Activity(
-        start=datetime(2024, 1, 5, 10),
+        start=datetime(2024, 1, 5, 10).astimezone(),
         duration=timedelta(minutes=30),
         distance=2.0,
         moving_duration=timedelta(minutes=25),
@@ -81,7 +81,7 @@ def test_get_activities_tags(
         user_id=temp_user_id,
     )
     activity_3 = Activity(
-        start=datetime(2024, 1, 8, 10),
+        start=datetime(2024, 1, 8, 10).astimezone(),
         duration=timedelta(minutes=30),
         distance=2.0,
         moving_duration=timedelta(minutes=25),
@@ -158,7 +158,7 @@ def test_create_activity_wo_name(
     exp_name: str,
 ) -> None:
     activity_create = ActivityCreate(
-        start=datetime(2024, 1, 1, 10),
+        start=datetime(2024, 1, 1, 10).astimezone(),
         duration=timedelta(minutes=30),
         distance=1.0,
         moving_duration=timedelta(minutes=25),
@@ -398,7 +398,7 @@ def test_update_activity(
     exp_values: dict,
 ) -> None:
     activity_create = ActivityCreate(
-        start=datetime(2024, 1, 1, 11),
+        start=datetime(2024, 1, 1, 11).astimezone(),
         duration=timedelta(minutes=32),
         moving_duration=timedelta(minutes=30),
         distance=1.0,
@@ -453,7 +453,7 @@ def test_update_activity_errors(
     exp_status: int,
 ) -> None:
     activity_create = ActivityCreate(
-        start=datetime(2024, 1, 1, 12),
+        start=datetime(2024, 1, 1, 12).astimezone(),
         duration=timedelta(minutes=30),
         distance=1.0,
         type_id=1,
@@ -491,10 +491,10 @@ def test_update_activity_errors(
                         index=0,
                         start_time=datetime(
                             year=2025, month=1, day=2, hour=13, minute=10
-                        ),
+                        ).astimezone(),
                         end_time=datetime(
                             year=2025, month=1, day=2, hour=13, minute=12, second=30
-                        ),
+                        ).astimezone(),
                         durations=timedelta(minutes=2),
                         distance_meters=100,
                         style=SwimStyle.FREESTYLE,
@@ -509,10 +509,10 @@ def test_update_activity_errors(
                         index=0,
                         start_time=datetime(
                             year=2025, month=1, day=2, hour=13, minute=10
-                        ),
+                        ).astimezone(),
                         end_time=datetime(
                             year=2025, month=1, day=2, hour=13, minute=11
-                        ),
+                        ).astimezone(),
                         durations=timedelta(minutes=1),
                         distance_meters=50,
                         style=SwimStyle.FREESTYLE,
@@ -523,10 +523,10 @@ def test_update_activity_errors(
                         index=1,
                         start_time=datetime(
                             year=2025, month=1, day=2, hour=13, minute=11, second=30
-                        ),
+                        ).astimezone(),
                         end_time=datetime(
                             year=2025, month=1, day=2, hour=13, minute=12, second=30
-                        ),
+                        ).astimezone(),
                         durations=timedelta(minutes=1),
                         distance_meters=50,
                         style=SwimStyle.FREESTYLE,
@@ -557,7 +557,7 @@ def test_meta_data_validation(
     assert activity_type is not None
     assert activity_type.id is not None
     activity_create = ActivityCreate(
-        start=datetime(2024, 1, 1, 10),
+        start=datetime(2024, 1, 1, 10).astimezone(),
         duration=timedelta(minutes=30),
         distance=1.0,
         moving_duration=timedelta(minutes=25),
@@ -669,7 +669,7 @@ def test_create_activity_with_default_equipment_set(
     assert len(e_set.items) > 0
 
     activity_create = ActivityCreate(
-        start=datetime(2024, 3, 1, 10),
+        start=datetime(2024, 3, 1, 10).astimezone(),
         duration=timedelta(minutes=30),
         distance=1.0,
         moving_duration=timedelta(minutes=25),
@@ -699,7 +699,7 @@ def test_delete_activity_without_track_and_images(
     """Test deleting an activity without track or images."""
     # Create activity
     activity = Activity(
-        start=datetime(2024, 1, 1, 10),
+        start=datetime(2024, 1, 1, 10).astimezone(),
         duration=timedelta(minutes=30),
         distance=1.0,
         type_id=1,
@@ -1126,7 +1126,7 @@ def test_add_and_rm_location_to_activity(
     """Test deleting an activity without track or images."""
     # Create activity
     activity = Activity(
-        start=datetime(2024, 1, 1, 10),
+        start=datetime(2024, 1, 1, 10).astimezone(),
         duration=timedelta(minutes=30),
         distance=1.0,
         type_id=1,
@@ -1188,7 +1188,7 @@ def test_add_and_remove_tags(
     db.commit()
     db.refresh(tag_1)
     activity_1 = Activity(
-        start=datetime(2024, 1, 1, 10),
+        start=datetime(2024, 1, 1, 10).astimezone(),
         duration=timedelta(minutes=30),
         distance=1.0,
         moving_duration=timedelta(minutes=25),

@@ -1,6 +1,6 @@
 import re
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import StrEnum, auto
 from typing import Annotated, Any, Generic, TypeVar
 
@@ -337,7 +337,7 @@ class Activity(ActivityBase, table=True):
     user_id: uuid.UUID = Field(
         foreign_key="users.id", nullable=False, ondelete="CASCADE"
     )
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     equipment: list["Equipment"] = Relationship(
         back_populates="activities",
@@ -601,7 +601,7 @@ class Goal(GoalBase, table=True):
     user_id: uuid.UUID = Field(
         foreign_key="users.id", nullable=False, ondelete="CASCADE"
     )
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class GoalsPublic(SQLModel):
@@ -664,7 +664,7 @@ class Location(LocationBase, table=True):
     user_id: uuid.UUID = Field(
         foreign_key="users.id", nullable=False, ondelete="CASCADE"
     )
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     type_id: PositiveNumber[int] = Field(foreign_key="location_type.id", nullable=False)
     sub_type_id: PositiveNumber[int] = Field(
@@ -988,7 +988,7 @@ class ActivityCollection(ActivityCollectionBase, table=True):
     __tablename__: str = "activity_collections"  # type: ignore
 
     id: uuid.UUID = Field(default_factory=uuid.uuid7, primary_key=True)
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     user_id: uuid.UUID = Field(
         foreign_key="users.id", nullable=False, index=True, ondelete="CASCADE"
     )
@@ -1000,4 +1000,4 @@ class ActivityCollection(ActivityCollectionBase, table=True):
             "lazy": "select",
         },
     )
-    updated_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

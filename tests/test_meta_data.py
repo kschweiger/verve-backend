@@ -30,10 +30,12 @@ def test_activity_meta_data_target() -> None:
             sets=[
                 SetData(
                     index=0,
-                    start_time=datetime(year=2025, month=1, day=2, hour=13, minute=10),
+                    start_time=datetime(
+                        year=2025, month=1, day=2, hour=13, minute=10
+                    ).astimezone(),
                     end_time=datetime(
                         year=2025, month=1, day=2, hour=13, minute=12, second=30
-                    ),
+                    ).astimezone(),
                     durations=timedelta(minutes=2),
                     distance_meters=100,
                     style=SwimStyle.FREESTYLE,
@@ -46,8 +48,12 @@ def test_activity_meta_data_target() -> None:
             laps=[
                 LapData(
                     index=0,
-                    start_time=datetime(year=2025, month=1, day=2, hour=13, minute=10),
-                    end_time=datetime(year=2025, month=1, day=2, hour=13, minute=11),
+                    start_time=datetime(
+                        year=2025, month=1, day=2, hour=13, minute=10
+                    ).astimezone(),
+                    end_time=datetime(
+                        year=2025, month=1, day=2, hour=13, minute=11
+                    ).astimezone(),
                     durations=timedelta(minutes=1),
                     distance_meters=50,
                     style=SwimStyle.FREESTYLE,
@@ -58,10 +64,10 @@ def test_activity_meta_data_target() -> None:
                     index=1,
                     start_time=datetime(
                         year=2025, month=1, day=2, hour=13, minute=11, second=30
-                    ),
+                    ).astimezone(),
                     end_time=datetime(
                         year=2025, month=1, day=2, hour=13, minute=12, second=30
-                    ),
+                    ).astimezone(),
                     durations=timedelta(minutes=1),
                     distance_meters=50,
                     style=SwimStyle.FREESTYLE,

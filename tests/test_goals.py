@@ -115,7 +115,7 @@ def test_type_aggregation_validation(
         (None, None, GoalAggregation.TOTAL_DISTANCE, TemporalType.YEARLY, {}, 100),
         (
             5,
-            datetime(2025, 5, 1, 20),
+            datetime(2025, 5, 1, 20).astimezone(),
             GoalAggregation.TOTAL_DISTANCE,
             TemporalType.MONTHLY,
             {},
@@ -210,45 +210,45 @@ def test_update_activity_goal(
 
     activity_1 = Activity(
         user_id=temp_user_id,
-        start=datetime(2025, 5, 1, 12),
+        start=datetime(2025, 5, 1, 12).astimezone(),
         distance=10,
         duration=timedelta(minutes=10),
         type_id=1,
         sub_type_id=None,
         name="Activity 1",
-        created_at=datetime(2025, 5, 1, 18),
+        created_at=datetime(2025, 5, 1, 18).astimezone(),
         equipment=[equipment_1],
     )
     activity_2 = Activity(
         user_id=temp_user_id,
-        start=datetime(2025, 5, 2, 12),
+        start=datetime(2025, 5, 2, 12).astimezone(),
         distance=20,
         duration=timedelta(minutes=20),
         type_id=1,
         sub_type_id=1,
         name="Activity 2",
-        created_at=datetime(2025, 5, 2, 18),
+        created_at=datetime(2025, 5, 2, 18).astimezone(),
     )
     activity_3 = Activity(
         user_id=temp_user_id,
-        start=datetime(2025, 5, 3, 12),
+        start=datetime(2025, 5, 3, 12).astimezone(),
         distance=30,
         duration=timedelta(minutes=30),
         type_id=1,
         sub_type_id=1,
         name="Activity 3",
-        created_at=datetime(2025, 5, 3, 18),
+        created_at=datetime(2025, 5, 3, 18).astimezone(),
         equipment=[equipment_1, equipment_2],
     )
     activity_4 = Activity(
         user_id=temp_user_id,
-        start=datetime(2025, 6, 1, 12),
+        start=datetime(2025, 6, 1, 12).astimezone(),
         distance=40,
         duration=timedelta(minutes=40),
         type_id=2,
         sub_type_id=None,
         name="Activity 3",
-        created_at=datetime(2025, 6, 1, 18),
+        created_at=datetime(2025, 6, 1, 18).astimezone(),
     )
     goal = Goal(
         user_id=temp_user_id,
@@ -454,7 +454,12 @@ def test_temporal_validation_weekly(
         (1, None, GoalAggregation.TOTAL_DISTANCE, 50),
         (1, None, GoalAggregation.COUNT, 2),
         # Incremental update: only count activities created after current_updated
-        (3, datetime(2025, 1, 14, 20), GoalAggregation.TOTAL_DISTANCE, 30),
+        (
+            3,
+            datetime(2025, 1, 14, 20).astimezone(),
+            GoalAggregation.TOTAL_DISTANCE,
+            30,
+        ),
         # Week 52 (no activities): should return 0
         (52, None, GoalAggregation.COUNT, 0),
     ],
@@ -471,57 +476,57 @@ def test_update_weekly_activity_goal(
     # Week 3 activities: Jan 13-19, 2025 (Mon-Sun)
     activity_week3_1 = Activity(
         user_id=temp_user_id,
-        start=datetime(2025, 1, 14, 12),  # Tuesday, week 3
+        start=datetime(2025, 1, 14, 12).astimezone(),  # Tuesday, week 3
         distance=10,
         duration=timedelta(minutes=30),
         type_id=1,
         sub_type_id=None,
         name="Activity Week 3 - 1",
-        created_at=datetime(2025, 1, 14, 18),
+        created_at=datetime(2025, 1, 14, 18).astimezone(),
     )
     activity_week3_2 = Activity(
         user_id=temp_user_id,
-        start=datetime(2025, 1, 15, 12),  # Wednesday, week 3
+        start=datetime(2025, 1, 15, 12).astimezone(),  # Wednesday, week 3
         distance=30,
         duration=timedelta(minutes=30),
         type_id=1,
         sub_type_id=None,
         name="Activity Week 3 - 2",
-        created_at=datetime(2025, 1, 15, 18),
+        created_at=datetime(2025, 1, 15, 18).astimezone(),
     )
 
     # Week 1 activities: Dec 30, 2024 - Jan 5, 2025 (includes Dec 30-31, 2024)
     activity_week1_1 = Activity(
         user_id=temp_user_id,
-        start=datetime(2025, 1, 2, 12),  # Thursday, week 1
+        start=datetime(2025, 1, 2, 12).astimezone(),  # Thursday, week 1
         distance=20,
         duration=timedelta(minutes=20),
         type_id=1,
         sub_type_id=None,
         name="Activity Week 1 - 1",
-        created_at=datetime(2025, 1, 2, 18),
+        created_at=datetime(2025, 1, 2, 18).astimezone(),
     )
     activity_week1_2 = Activity(
         user_id=temp_user_id,
-        start=datetime(2025, 1, 3, 12),  # Friday, week 1
+        start=datetime(2025, 1, 3, 12).astimezone(),  # Friday, week 1
         distance=30,
         duration=timedelta(minutes=30),
         type_id=1,
         sub_type_id=None,
         name="Activity Week 1 - 2",
-        created_at=datetime(2025, 1, 3, 18),
+        created_at=datetime(2025, 1, 3, 18).astimezone(),
     )
 
     # Activity in week 4 (should not be counted for weeks 1 or 3)
     activity_week4 = Activity(
         user_id=temp_user_id,
-        start=datetime(2025, 1, 21, 12),  # Tuesday, week 4
+        start=datetime(2025, 1, 21, 12).astimezone(),  # Tuesday, week 4
         distance=25,
         duration=timedelta(minutes=25),
         type_id=1,
         sub_type_id=None,
         name="Activity Week 4",
-        created_at=datetime(2025, 1, 21, 18),
+        created_at=datetime(2025, 1, 21, 18).astimezone(),
     )
 
     goal = Goal(
@@ -570,37 +575,37 @@ def test_weekly_goal_year_boundary(
     # Activity on Dec 30, 2024 (ISO week 1 of 2025)
     activity_dec30 = Activity(
         user_id=temp_user_id,
-        start=datetime(2024, 12, 30, 12),
+        start=datetime(2024, 12, 30, 12).astimezone(),
         distance=10,
         duration=timedelta(minutes=30),
         type_id=1,
         sub_type_id=None,
         name="Activity on Dec 30",
-        created_at=datetime(2024, 12, 30, 18),
+        created_at=datetime(2024, 12, 30, 18).astimezone(),
     )
 
     # Activity on Dec 31, 2024 (ISO week 1 of 2025)
     activity_dec31 = Activity(
         user_id=temp_user_id,
-        start=datetime(2024, 12, 31, 12),
+        start=datetime(2024, 12, 31, 12).astimezone(),
         distance=15,
         duration=timedelta(minutes=30),
         type_id=1,
         sub_type_id=None,
         name="Activity on Dec 31",
-        created_at=datetime(2024, 12, 31, 18),
+        created_at=datetime(2024, 12, 31, 18).astimezone(),
     )
 
     # Activity on Jan 1, 2025 (ISO week 1 of 2025)
     activity_jan1 = Activity(
         user_id=temp_user_id,
-        start=datetime(2025, 1, 1, 12),
+        start=datetime(2025, 1, 1, 12).astimezone(),
         distance=20,
         duration=timedelta(minutes=30),
         type_id=1,
         sub_type_id=None,
         name="Activity on Jan 1",
-        created_at=datetime(2025, 1, 1, 18),
+        created_at=datetime(2025, 1, 1, 18).astimezone(),
     )
 
     # Goal for week 1 of 2025
@@ -641,37 +646,37 @@ def test_weekly_goal_incremental_update(
     # First activity created at 2025-01-14 18:00
     activity_1 = Activity(
         user_id=temp_user_id,
-        start=datetime(2025, 1, 14, 12),
+        start=datetime(2025, 1, 14, 12).astimezone(),
         distance=20,
         duration=timedelta(minutes=30),
         type_id=1,
         sub_type_id=None,
         name="Activity 1",
-        created_at=datetime(2025, 1, 14, 18),
+        created_at=datetime(2025, 1, 14, 18).astimezone(),
     )
 
     # Second activity created at 2025-01-16 18:00 (after current_updated)
     activity_2 = Activity(
         user_id=temp_user_id,
-        start=datetime(2025, 1, 15, 12),
+        start=datetime(2025, 1, 15, 12).astimezone(),
         distance=30,
         duration=timedelta(minutes=30),
         type_id=1,
         sub_type_id=None,
         name="Activity 2",
-        created_at=datetime(2025, 1, 16, 18),
+        created_at=datetime(2025, 1, 16, 18).astimezone(),
     )
 
     # Third activity created at 2025-01-20 18:00 (after current_updated)
     activity_3 = Activity(
         user_id=temp_user_id,
-        start=datetime(2025, 1, 17, 12),
+        start=datetime(2025, 1, 17, 12).astimezone(),
         distance=25,
         duration=timedelta(minutes=30),
         type_id=1,
         sub_type_id=None,
         name="Activity 3",
-        created_at=datetime(2025, 1, 20, 18),
+        created_at=datetime(2025, 1, 20, 18).astimezone(),
     )
 
     # Goal with current_updated = 2025-01-15 19:00
@@ -687,7 +692,7 @@ def test_weekly_goal_incremental_update(
         type=GoalType.ACTIVITY,
         aggregation=GoalAggregation.TOTAL_DISTANCE,
         current=0,
-        current_updated=datetime(2025, 1, 15, 19),
+        current_updated=datetime(2025, 1, 15, 19).astimezone(),
         constraints={},
     )
 
