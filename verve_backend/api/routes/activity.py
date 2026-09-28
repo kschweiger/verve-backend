@@ -605,8 +605,8 @@ def create_auto_activity(
         _sub_type_id = settings.defautl_sub_type_id if type_id is None else sub_type_id
         activity = Activity(
             user_id=user_id,
-            start=datetime.datetime.now(),
-            created_at=datetime.datetime.now(),
+            start=datetime.datetime.now(datetime.UTC),
+            created_at=datetime.datetime.now(datetime.UTC),
             duration=datetime.timedelta(seconds=1),
             distance=1,
             type_id=_type_id,

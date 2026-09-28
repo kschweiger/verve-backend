@@ -90,6 +90,7 @@ def test_get_segment_sets(
     _sets = db.exec(select(SegmentSet).where(SegmentSet.user_id == user1_id)).all()
     assert len(_sets) > 0
     activity_id = _sets[0].activity_id
+    _activity_sets = [s for s in _sets if s.activity_id == activity_id]
 
     response = client.get(
         f"/track/segments/sets/{activity_id}",
@@ -100,7 +101,7 @@ def test_get_segment_sets(
     res_data = ListResponse[uuid.UUID].model_validate(response.json())
 
     assert len(res_data.data) > 0
-    assert len(res_data.data) == len(_sets)
+    assert len(res_data.data) == len(_activity_sets)
 
 
 def test_get_segment_stats_running(

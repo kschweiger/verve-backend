@@ -3,7 +3,7 @@ import logging
 import sys
 import uuid
 from contextlib import contextmanager, suppress
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from geo_track_analyzer import PyTrack
 from rich.console import Console
@@ -92,7 +92,7 @@ async def create_user_data(user: UserBase) -> None:
         activity_1 = crud.create_activity(
             session=session,
             create=models.ActivityCreate(
-                start=datetime.now(),
+                start=datetime.now(UTC),
                 duration=timedelta(days=0, seconds=60 * 60 * 2),
                 distance=10.0,
                 type_id=1,
@@ -102,7 +102,7 @@ async def create_user_data(user: UserBase) -> None:
             user=user,  # type: ignore
         ).unwrap()
 
-        now = datetime.now()
+        now = datetime.now(UTC)
         track = PyTrack(
             points=[(1, 1), (1.0001, 1.0001), (1.0002, 1.0002), (1.0003, 1.0003)],
             elevations=[100, 105, 110, 110],
@@ -240,7 +240,7 @@ async def create_user_data(user: UserBase) -> None:
         activity_2 = crud.create_activity(
             session=session,
             create=models.ActivityCreate(
-                start=datetime.now() - timedelta(days=2),
+                start=datetime.now(UTC) - timedelta(days=2),
                 duration=timedelta(days=0, seconds=60 * 60 * 2),
                 distance=10.0,
                 type_id=1,
@@ -252,7 +252,7 @@ async def create_user_data(user: UserBase) -> None:
         activity_3 = crud.create_activity(
             session=session,
             create=models.ActivityCreate(
-                start=datetime.now() - timedelta(days=1),
+                start=datetime.now(UTC) - timedelta(days=1),
                 duration=timedelta(days=0, seconds=60 * 60 * 2),
                 distance=10.0,
                 type_id=1,

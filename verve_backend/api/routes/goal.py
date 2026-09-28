@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query
@@ -41,7 +41,9 @@ def get_public_goal(goal: Goal) -> GoalPublic:
 @router.get("/", response_model=GoalsPublic)
 def get_goals(
     user_session: UserSession,
-    year: Annotated[int, Query(ge=2000, default_factory=lambda: datetime.now().year)],
+    year: Annotated[
+        int, Query(ge=2000, default_factory=lambda: datetime.now(UTC).year)
+    ],
     month: Annotated[int | None, Query(ge=1, lt=13)] = None,
     week: Annotated[int | None, Query(ge=1, lt=54)] = None,
 ) -> Any:

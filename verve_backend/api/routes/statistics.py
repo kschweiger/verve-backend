@@ -1,6 +1,6 @@
 import importlib.resources
 from collections import defaultdict
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Annotated, Any, Generic, Literal, Self, TypeVar, cast
 
 import structlog
@@ -33,7 +33,7 @@ router = APIRouter(prefix="/statistics", tags=[Tag.STATISTICS])
 
 class StatsParam(BaseModel):
     top_n: int
-    year: int = Field(default=datetime.now().year)
+    year: int = Field(default=datetime.now(UTC).year)
     activity_type_id: int | None = None
     activity_sub_type_id: int | None = None
 
@@ -308,7 +308,7 @@ def get_week_stats(
     check_and_raise_primary_key(session, ActivityType, _activity_type_id)
 
     if year is None and week is None:
-        iso_cal = datetime.now().isocalendar()
+        iso_cal = datetime.now(UTC).isocalendar()
         week = iso_cal.week
         year = iso_cal.year
         logger.debug("Current week/year used: %d/%d", week, year)
@@ -387,7 +387,7 @@ def get_calendar(
 ) -> Any:
     _, session = user_session
 
-    today = datetime.now()
+    today = datetime.now(UTC)
     if year is None:
         year = today.year
     if month is None:
@@ -398,10 +398,12 @@ def get_calendar(
     first_date = month_date_grid[0][0]
     last_date = month_date_grid[-1][-1]
 
+    first_at = datetime.combine(first_date, time.min, UTC)
+    after_last_at = datetime.combine(last_date + timedelta(days=1), time.min, UTC)
     stmt = (
         select(Activity)
-        .where(Activity.start >= first_date)
-        .where(Activity.start <= last_date)
+        .where(Activity.start >= first_at)
+        .where(Activity.start < after_last_at)
     )
     activities = session.exec(stmt).all()
     weeks = build_calendar_response(activities, month_date_grid, month)
@@ -415,7 +417,7 @@ def _find_grid_start_end(
     """Calculate the start and end date for the activity grid based on the number of
     weeks."""
     start_date = iso_week_date_weeks_ago_berlin(weeks_back=weeks)
-    today = datetime.now().date()
+    today = datetime.now(UTC).date()
     end_date = datetime.fromisocalendar(
         year=today.year, week=today.isocalendar().week, day=7
     ).date()
@@ -451,7 +453,7 @@ def get_activity_grid(
 ) -> Any:
     _user_id, session = user_session
     start_date, end_date = _find_grid_start_end(weeks)
-    today = datetime.now().date()
+    today = datetime.now(UTC).date()
 
     _raw_data = _run_query(
         session,
@@ -533,7 +535,7 @@ def get_activity_grid(
             )
         )
 
-    _query_params = {"user_id": _user_id, "as_of_date": datetime.now().date()}
+    _query_params = {"user_id": _user_id, "as_of_date": datetime.now(UTC).date()}
     _week_streak = _run_query(session, "activity_streak_weeks.sql", _query_params)[0]
     _activities_this_month = _run_query(
         session, "activities_this_month.sql", _query_params

@@ -39,7 +39,7 @@ def add_track(
     empty_spatial_flag = False
 
     if file_name.endswith(".fit"):
-        track = FITTrack(BytesIO(file_content), max_speed_percentile=99)  # type: ignore
+        track = FITTrack(file_content, max_speed_percentile=99)
         orig_file_type = "fit"
     elif file_name.endswith(".gpx"):
         track = ByteTrack(BytesIO(file_content), max_speed_percentile=99)  # type: ignore

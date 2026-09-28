@@ -692,7 +692,7 @@ wheels = [
 
 [[package]]
 name = "geo-track-analyzer"
-version = "3.0.0"
+version = "3.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "garmin-fit-sdk" },
@@ -703,9 +703,9 @@ dependencies = [
     { name = "pydantic-numpy" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/46/15/331b1c204a3ba40d60fed73282cc26711bec7c7a464b33ce07391c7fe9df/geo_track_analyzer-3.0.0.tar.gz", hash = "sha256:4084e16a04a2d376800a087796b324fdfb2f3463dddc199dc162f3029afe2884", size = 51606, upload-time = "2026-09-26T18:38:48.651Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6c/1a/f8db00b8ab4d67b98ff6ca7addec42c17203fd8e80eec460cdd8717fb042/geo_track_analyzer-3.1.0.tar.gz", hash = "sha256:a8ec1ab1773d69d04e948bd84cb7a536fb52070aec5c16af83777bec55c7a15b", size = 51883, upload-time = "2026-09-28T10:36:57.314Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/96/96/18f6dfde8f3d50a61929d47b53033a2662579c90a41efc96a35f77ad6970/geo_track_analyzer-3.0.0-py3-none-any.whl", hash = "sha256:47630c28de4c21f51f18b0b53218709f639408a30951698659ba66f56272f0fc", size = 62295, upload-time = "2026-09-26T18:38:47.399Z" },
+    { url = "https://files.pythonhosted.org/packages/6e/49/077280dffef090fce3998f07f06c9fe32d64e061b16ecda6a2165b382e2b/geo_track_analyzer-3.1.0-py3-none-any.whl", hash = "sha256:257902924f76a833a6762694257c11fbe560951bb1ff3201da1e493717f56c03", size = 62544, upload-time = "2026-09-28T10:36:56.216Z" },
 ]
 
 [[package]]
@@ -1969,7 +1969,7 @@ requires-dist = [
     { name = "boto3-stubs", extras = ["s3"], specifier = "==1.43.99" },
     { name = "celery", specifier = "==5.6.3" },
     { name = "fastapi", extras = ["standard"], specifier = "==0.141.1" },
-    { name = "geo-track-analyzer", specifier = "==3.0.0" },
+    { name = "geo-track-analyzer", specifier = "==3.1.0" },
     { name = "geoalchemy2", specifier = "==0.20.0" },
     { name = "gevent", specifier = "==26.9.0" },
     { name = "psycopg", specifier = "==3.3.6" },

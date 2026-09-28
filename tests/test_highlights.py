@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from geo_track_analyzer import PyTrack, Track
@@ -70,7 +70,7 @@ def test_update_highlights_first_entry(db: Session, temp_user_id: UUID) -> None:
     user = db.get(User, temp_user_id)
     assert user is not None
     activity1 = create_dummy_activity(
-        db, user.id, datetime(2024, 1, 1).astimezone(), 100.0
+        db, user.id, datetime(2024, 1, 1, tzinfo=UTC), 100.0
     )
 
     # ACT: Run the highlight update function
@@ -114,16 +114,16 @@ def test_update_highlights_ranking_logic(db: Session, temp_user_id: UUID) -> Non
     assert user is not None
 
     act1 = create_dummy_activity(
-        db, user.id, datetime(2024, 1, 1).astimezone(), 50.0
+        db, user.id, datetime(2024, 1, 1, tzinfo=UTC), 50.0
     )  # 3rd place
     act2 = create_dummy_activity(
-        db, user.id, datetime(2024, 1, 2).astimezone(), 200.0
+        db, user.id, datetime(2024, 1, 2, tzinfo=UTC), 200.0
     )  # 1st place
     act3 = create_dummy_activity(
-        db, user.id, datetime(2024, 1, 3).astimezone(), 20.0
+        db, user.id, datetime(2024, 1, 3, tzinfo=UTC), 20.0
     )  # Should not rank
     act4 = create_dummy_activity(
-        db, user.id, datetime(2024, 1, 4).astimezone(), 100.0
+        db, user.id, datetime(2024, 1, 4, tzinfo=UTC), 100.0
     )  # 2nd place
 
     # ACT: Process all activities
@@ -175,13 +175,13 @@ def test_update_highlights_across_different_years(
     assert user is not None
 
     act2023_best = create_dummy_activity(
-        db, user.id, datetime(2023, 1, 1).astimezone(), 500.0
+        db, user.id, datetime(2023, 1, 1, tzinfo=UTC), 500.0
     )  # Best of all time
     act2024_best = create_dummy_activity(
-        db, user.id, datetime(2024, 1, 1).astimezone(), 200.0
+        db, user.id, datetime(2024, 1, 1, tzinfo=UTC), 200.0
     )  # Best of 2024
     act2024_second = create_dummy_activity(
-        db, user.id, datetime(2024, 2, 1).astimezone(), 100.0
+        db, user.id, datetime(2024, 2, 1, tzinfo=UTC), 100.0
     )  # Second best of 2024
 
     # ACT: Process all activities
@@ -235,7 +235,7 @@ def test_process_activity_highlights_task(
     activity = create_dummy_activity(
         db,
         temp_user_id,
-        datetime(2024, 1, 1).astimezone(),
+        datetime(2024, 1, 1, tzinfo=UTC),
         500.0,
         track=dummy_track,
         name="Pytrack activity",
@@ -266,7 +266,7 @@ def test_process_activity_highlights_no_movement(
     heartrates = []
     powers = []
     for i in range(100):
-        times.append(datetime(2024, 1, 1).astimezone() + timedelta(seconds=i * 10))
+        times.append(datetime(2024, 1, 1, tzinfo=UTC) + timedelta(seconds=i * 10))
         heartrates.append(100 + i % 5)
         powers.append(150 + i % 10)
 
@@ -283,7 +283,7 @@ def test_process_activity_highlights_no_movement(
     activity = create_dummy_activity(
         db,
         user2_id,
-        datetime(2024, 1, 1).astimezone(),
+        datetime(2024, 1, 1, tzinfo=UTC),
         500.0,
         track=track,
         name="Stationary activity",
@@ -310,7 +310,7 @@ def test_power_of_time_only_valid_durations(
     times = []
     powers = []
     for i in range(21):
-        times.append(datetime(2024, 1, 1).astimezone() + timedelta(seconds=i * 60))
+        times.append(datetime(2024, 1, 1, tzinfo=UTC) + timedelta(seconds=i * 60))
         powers.append(150 + i % 10)
 
     track = PyTrack(
@@ -324,7 +324,7 @@ def test_power_of_time_only_valid_durations(
     activity = create_dummy_activity(
         db,
         temp_user_id,
-        datetime(2024, 1, 1).astimezone(),
+        datetime(2024, 1, 1, tzinfo=UTC),
         500.0,
         track=track,
         name="Stationary activity",

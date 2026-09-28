@@ -1,5 +1,5 @@
 import math
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -94,7 +94,7 @@ def convert_verve_file_to_activity(
 
     activity = Activity(
         user_id=user_id,
-        created_at=datetime.now(),
+        created_at=datetime.now(UTC),
         name=data.properties.name,
         type_id=_type_id,
         sub_type_id=_sub_type_id,

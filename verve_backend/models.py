@@ -574,7 +574,7 @@ class GoalBase(SQLModel):
     active: bool = Field(default=True)
 
     temporal_type: TemporalType = Field(default=TemporalType.YEARLY)
-    year: int = Field(default=datetime.now().year)
+    year: int = Field(default=datetime.now(timezone.utc).year)
     month: int | None = Field(default=None)
     week: int | None = Field(default=None)
 
@@ -729,7 +729,7 @@ class ZoneInterval(ZoneIntervalBase, table=True):
     user_id: uuid.UUID = Field(
         foreign_key="users.id", nullable=False, ondelete="CASCADE"
     )
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class UserSettingsBase(SQLModel):
@@ -963,10 +963,10 @@ class PasswordResetToken(SQLModel, table=True):
     )
     token_hash: str = Field(index=True)
     expires_at: datetime = Field(
-        default_factory=lambda: datetime.now() + timedelta(hours=1)
+        default_factory=lambda: datetime.now(timezone.utc) + timedelta(hours=1)
     )
     used_at: datetime | None = Field(default=None)
-    created_at: datetime = Field(default_factory=lambda: datetime.now())
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class ActivityCollectionBase(SQLModel):

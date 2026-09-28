@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime, time
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -212,8 +212,10 @@ def _build_activity_stmt(
         )
     elif week is not None:
         start_date, end_date = get_week_date_range(year, week)
-        stmt = stmt.where(col(Activity.start) >= start_date).where(
-            col(Activity.start) < end_date
+        start_at = datetime.combine(start_date, time.min, UTC)
+        end_at = datetime.combine(end_date, time.min, UTC)
+        stmt = stmt.where(col(Activity.start) >= start_at).where(
+            col(Activity.start) < end_at
         )
     else:
         stmt = stmt.where(func.extract("year", col(Activity.start)) == year)
@@ -330,7 +332,7 @@ def update_goal_state(*, session: Session, user_id: UUID, goal: Goal) -> Goal:
         else:
             raise NotImplementedError(f"Aggregation {goal.aggregation} not implemented")
 
-    goal.current_updated = datetime.now()
+    goal.current_updated = datetime.now(UTC)
     session.add(goal)
     session.commit()
     session.refresh(goal)
