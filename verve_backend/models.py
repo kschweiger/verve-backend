@@ -11,6 +11,7 @@ from pydantic import (
     BaseModel,
     EmailStr,
 )
+from pydantic_extra_types.timezone_name import TimeZoneName
 from sqlalchemy import JSON, Column
 from sqlmodel import (
     Field,
@@ -745,6 +746,9 @@ class UserSettingsBase(SQLModel):
     records_settings: RecordsSettings = Field(
         sa_column=Column(PydanticJSON(RecordsSettings)),
         default_factory=lambda: RecordsSettings().model_dump(mode="json"),
+    )
+    timezone: TimeZoneName = Field(
+        default="Europe/Berlin", description="IANA timezone name"
     )
 
 
