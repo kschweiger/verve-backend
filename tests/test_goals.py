@@ -1,6 +1,7 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import pytest
 from geoalchemy2.shape import from_shape
@@ -10,6 +11,7 @@ from sqlmodel import Session, select
 from verve_backend.enums import GoalAggregation, GoalType, TemporalType
 from verve_backend.goal import (
     GoalContraints,
+    _build_activity_stmt,
     _validate_temporal_setup,
     _validate_type_aggregation_combination,
     update_goal_state,
@@ -267,7 +269,9 @@ def test_update_activity_goal(
     db.commit()
     db.refresh(goal)
 
-    update_goal_state(session=db, user_id=temp_user_id, goal=goal)
+    update_goal_state(
+        session=db, user_id=temp_user_id, goal=goal, timezone=ZoneInfo("Europe/Berlin")
+    )
 
     updated_goal = db.get(Goal, goal.id)
     assert updated_goal is not None
@@ -297,13 +301,17 @@ def test_update_location_goal(
     db.commit()
     db.refresh(goal)
 
-    update_goal_state(session=db, user_id=user2_id, goal=goal)
+    update_goal_state(
+        session=db, user_id=user2_id, goal=goal, timezone=ZoneInfo("Europe/Berlin")
+    )
 
     updated_goal = db.get(Goal, goal.id)
     assert updated_goal is not None
     assert updated_goal.current == 1
 
-    update_goal_state(session=db, user_id=user2_id, goal=goal)
+    update_goal_state(
+        session=db, user_id=user2_id, goal=goal, timezone=ZoneInfo("Europe/Berlin")
+    )
 
     updated_goal = db.get(Goal, goal.id)
     assert updated_goal is not None
@@ -557,7 +565,9 @@ def test_update_weekly_activity_goal(
     db.commit()
     db.refresh(goal)
 
-    update_goal_state(session=db, user_id=temp_user_id, goal=goal)
+    update_goal_state(
+        session=db, user_id=temp_user_id, goal=goal, timezone=ZoneInfo("Europe/Berlin")
+    )
 
     updated_goal = db.get(Goal, goal.id)
     assert updated_goal is not None
@@ -627,7 +637,9 @@ def test_weekly_goal_year_boundary(
     db.commit()
     db.refresh(goal)
 
-    update_goal_state(session=db, user_id=temp_user_id, goal=goal)
+    update_goal_state(
+        session=db, user_id=temp_user_id, goal=goal, timezone=ZoneInfo("Europe/Berlin")
+    )
 
     updated_goal = db.get(Goal, goal.id)
     assert updated_goal is not None
@@ -700,10 +712,88 @@ def test_weekly_goal_incremental_update(
     db.commit()
     db.refresh(goal)
 
-    update_goal_state(session=db, user_id=temp_user_id, goal=goal)
+    update_goal_state(
+        session=db, user_id=temp_user_id, goal=goal, timezone=ZoneInfo("Europe/Berlin")
+    )
 
     updated_goal = db.get(Goal, goal.id)
     assert updated_goal is not None
     # Only activity_2 and activity_3 should be counted: 30 + 25 = 55
     # activity_1 was created at 18:00 which is before current_updated (19:00)
     assert updated_goal.current == 55
+
+
+@pytest.mark.parametrize(
+    ("month", "week", "timezone_name", "start_utc", "end_utc"),
+    [
+        pytest.param(
+            None,
+            None,
+            "America/Los_Angeles",
+            datetime(2025, 1, 1, 8, tzinfo=UTC),
+            datetime(2026, 1, 1, 8, tzinfo=UTC),
+            id="year",
+        ),
+        pytest.param(
+            3,
+            None,
+            "America/New_York",
+            datetime(2025, 3, 1, 5, tzinfo=UTC),
+            datetime(2025, 4, 1, 4, tzinfo=UTC),
+            id="month-across-dst",
+        ),
+        pytest.param(
+            None,
+            14,
+            "Europe/Berlin",
+            datetime(2025, 3, 30, 22, tzinfo=UTC),
+            datetime(2025, 4, 6, 22, tzinfo=UTC),
+            id="iso-week",
+        ),
+    ],
+)
+def test_activity_goal_period_uses_user_timezone(
+    db: Session,
+    temp_user_id: UUID,
+    month: int | None,
+    week: int | None,
+    timezone_name: str,
+    start_utc: datetime,
+    end_utc: datetime,
+) -> None:
+    activities = [
+        Activity(
+            user_id=temp_user_id,
+            start=start,
+            duration=timedelta(minutes=30),
+            distance=1,
+            type_id=1,
+            name=name,
+            sub_type_id=None,
+        )
+        for name, start in (
+            ("before start", start_utc - timedelta(seconds=1)),
+            ("at start", start_utc),
+            ("before end", end_utc - timedelta(seconds=1)),
+            ("at end", end_utc),
+        )
+    ]
+    db.add_all(activities)
+    db.commit()
+
+    stmt = _build_activity_stmt(
+        user_id=temp_user_id,
+        contraints=GoalContraints(),
+        year=2025,
+        month=month,
+        week=week,
+        last_updated=None,
+        possible_activity_ids=None,
+        filter_distance=False,
+        timezone=ZoneInfo(timezone_name),
+    )
+
+    assert {activity.name for activity in db.exec(stmt).all()} == {
+        "at start",
+        "before end",
+    }

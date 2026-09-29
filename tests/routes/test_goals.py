@@ -3,6 +3,7 @@ from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
+from freezegun import freeze_time
 from sqlmodel import Session
 
 from verve_backend import crud
@@ -71,6 +72,40 @@ def test_add_goal(
     assert response.status_code == 200
     added_goals = ListResponse[GoalPublic].model_validate(response.json())
     assert len(added_goals.data) == 1
+
+
+@pytest.mark.parametrize(
+    ("requested_year", "expected_year"), [(None, 2025), (2023, 2023)]
+)
+@freeze_time("2024-12-31 23:30:00")
+def test_add_goal_year_uses_user_timezone(
+    client: TestClient,
+    temp_user_token: str,
+    requested_year: int | None,
+    expected_year: int,
+) -> None:
+    headers = {"Authorization": f"Bearer {temp_user_token}"}
+    response = client.patch(
+        "/users/me/timezone",
+        headers=headers,
+        params={"timezone_name": "Europe/Berlin"},
+    )
+    assert response.status_code == 200
+
+    goal_data = {
+        "name": "New Goal",
+        "target": 15,
+        "type": GoalType.ACTIVITY,
+        "aggregation": GoalAggregation.DURATION,
+    }
+    if requested_year is not None:
+        goal_data["year"] = requested_year
+
+    response = client.put("/goal", headers=headers, json=goal_data)
+
+    assert response.status_code == 200
+    added_goals = ListResponse[GoalPublic].model_validate(response.json())
+    assert added_goals.data[0].year == expected_year
 
 
 def test_add_multiple_goals_month(

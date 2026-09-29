@@ -586,7 +586,7 @@ class GoalBase(SQLModel):
 
 
 class GoalCreate(GoalBase):
-    pass
+    year: int | None = None  # type: ignore
 
 
 class GoalPublic(GoalBase):

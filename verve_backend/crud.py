@@ -1,6 +1,7 @@
 import importlib.resources
 import uuid
 from collections import defaultdict
+from datetime import UTC, datetime
 from typing import Generator, Type, TypeVar
 
 import structlog
@@ -374,6 +375,9 @@ def update_activity_with_track_data(
 def create_goal(
     *, session: Session, goal: GoalCreate, user_id: uuid.UUID | str
 ) -> TypedResult[Goal, str]:
+    if goal.year is None:
+        goal.year = datetime.now(UTC).year
+
     # Basic validation for base attributes
     validation_result = validate_goal_creation(goal)
     if validation_result is not None:
