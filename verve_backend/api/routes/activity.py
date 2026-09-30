@@ -25,6 +25,7 @@ from verve_backend.api.common.track import add_track
 from verve_backend.api.common.utils import (
     check_and_raise_primary_key,
     check_distance_requirement,
+    get_user_timezone,
     update_activity_with_track,
     validate_sub_type_id,
 )
@@ -368,7 +369,7 @@ def get_activities(
     tag_id: int | None = None,
     category_id: int | None = None,
 ) -> Any:
-    _, session = user_session
+    user_id, session = user_session
 
     if type_id is None and sub_type_id is not None:
         raise HTTPException(
@@ -393,9 +394,19 @@ def get_activities(
     if offset is not None:
         stmt = stmt.offset(offset)
     if year is not None:
-        stmt = stmt.where(func.extract("year", Activity.start) == year)  # type: ignore
-        if month is not None:
-            stmt = stmt.where(func.extract("month", Activity.start) == month)  # type: ignore
+        timezone = get_user_timezone(session, uuid.UUID(user_id))
+        start_month = month if month is not None else 1
+        start_at = datetime.datetime(year, start_month, 1, tzinfo=timezone).astimezone(
+            datetime.UTC
+        )
+        if month is None or month == 12:
+            end_year, end_month = year + 1, 1
+        else:
+            end_year, end_month = year, month + 1
+        end_at = datetime.datetime(end_year, end_month, 1, tzinfo=timezone).astimezone(
+            datetime.UTC
+        )
+        stmt = stmt.where(col(Activity.start) >= start_at, col(Activity.start) < end_at)
 
     if type_id is not None:
         stmt = stmt.where(Activity.type_id == type_id)

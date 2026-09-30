@@ -1,6 +1,6 @@
 import io
 import json
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from importlib import resources
 from uuid import UUID
 
@@ -45,6 +45,50 @@ def test_get_activities(client: TestClient, user1_token: str) -> None:
         headers={"Authorization": f"Bearer {user1_token}"},
     )
     assert response.status_code == 200
+
+
+def test_get_activities_filters_by_user_local_period(
+    db: Session, client: TestClient, temp_user_token: str, temp_user_id: UUID
+) -> None:
+    headers = {"Authorization": f"Bearer {temp_user_token}"}
+    response = client.patch(
+        "/users/me/timezone",
+        headers=headers,
+        params={"timezone_name": "America/Los_Angeles"},
+    )
+    assert response.status_code == 200
+
+    starts = {
+        "previous_year": datetime(2025, 1, 1, 7, 30, tzinfo=UTC),
+        "new_year": datetime(2025, 1, 1, 8, 30, tzinfo=UTC),
+        "march_start": datetime(2025, 3, 1, 8, 30, tzinfo=UTC),
+        "march_end": datetime(2025, 4, 1, 6, 30, tzinfo=UTC),
+        "april_start": datetime(2025, 4, 1, 7, 30, tzinfo=UTC),
+    }
+    db.add_all(
+        Activity(
+            start=start,
+            duration=timedelta(minutes=30),
+            distance=1.0,
+            moving_duration=timedelta(minutes=30),
+            type_id=1,
+            name=name,
+            sub_type_id=None,
+            user_id=temp_user_id,
+        )
+        for name, start in starts.items()
+    )
+    db.commit()
+
+    for params, expected_names in [
+        ({"year": 2024}, {"previous_year"}),
+        ({"year": 2025, "month": 3}, {"march_start", "march_end"}),
+        ({"year": 2025, "month": 4}, {"april_start"}),
+    ]:
+        response = client.get("/activity", headers=headers, params=params)
+        assert response.status_code == 200
+        activities = ActivitiesPublic.model_validate(response.json())
+        assert {activity.name for activity in activities.data} == expected_names
 
 
 def test_get_activities_tags(
