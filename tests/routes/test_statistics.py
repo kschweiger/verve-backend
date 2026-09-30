@@ -1,8 +1,10 @@
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
 from freezegun import freeze_time
+from sqlmodel import Session
 
 from verve_backend.api.routes.statistics import (
     ActivityGridResponse,
@@ -11,6 +13,48 @@ from verve_backend.api.routes.statistics import (
     YearStatsResponse,
     _find_grid_start_end,
 )
+from verve_backend.models import Activity
+
+
+def test_year_stats_filters_by_user_local_year(
+    db: Session, client: TestClient, temp_user_token: str, temp_user_id: UUID
+) -> None:
+    headers = {"Authorization": f"Bearer {temp_user_token}"}
+    response = client.patch(
+        "/users/me/timezone",
+        headers=headers,
+        params={"timezone_name": "America/Los_Angeles"},
+    )
+    assert response.status_code == 200
+
+    db.add_all(
+        Activity(
+            start=start,
+            duration=timedelta(minutes=30),
+            distance=1.0,
+            moving_duration=timedelta(minutes=30),
+            type_id=1,
+            sub_type_id=1,
+            name="Year boundary",
+            user_id=temp_user_id,
+        )
+        for start in (
+            datetime(2025, 1, 1, 7, 30, tzinfo=UTC),
+            datetime(2025, 1, 1, 8, 30, tzinfo=UTC),
+        )
+    )
+    db.commit()
+
+    for params, expected_count in [
+        ({"year": 2024}, 1),
+        ({"year": 2025}, 1),
+        ({}, 2),
+    ]:
+        response = client.get("/statistics/year", headers=headers, params=params)
+        assert response.status_code == 200
+        stats = YearStatsResponse.model_validate(response.json())
+        assert stats.count.total == expected_count
+        assert stats.count.per_sub_type[1][1] == expected_count
 
 
 def test_duration_stat_responses_use_effective_duration_name() -> None:

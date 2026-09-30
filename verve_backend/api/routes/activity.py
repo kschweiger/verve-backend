@@ -37,6 +37,7 @@ from verve_backend.api.deps import (
 )
 from verve_backend.api.routes.media import delete_image
 from verve_backend.core.config import settings
+from verve_backend.core.date_utils import get_local_period_utc_bounds
 from verve_backend.models import (
     ActivitiesPublic,
     Activity,
@@ -394,17 +395,8 @@ def get_activities(
     if offset is not None:
         stmt = stmt.offset(offset)
     if year is not None:
-        timezone = get_user_timezone(session, uuid.UUID(user_id))
-        start_month = month if month is not None else 1
-        start_at = datetime.datetime(year, start_month, 1, tzinfo=timezone).astimezone(
-            datetime.UTC
-        )
-        if month is None or month == 12:
-            end_year, end_month = year + 1, 1
-        else:
-            end_year, end_month = year, month + 1
-        end_at = datetime.datetime(end_year, end_month, 1, tzinfo=timezone).astimezone(
-            datetime.UTC
+        start_at, end_at = get_local_period_utc_bounds(
+            year, month, get_user_timezone(session, uuid.UUID(user_id))
         )
         stmt = stmt.where(col(Activity.start) >= start_at, col(Activity.start) < end_at)
 

@@ -1,5 +1,19 @@
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
+
+
+def get_local_period_utc_bounds(
+    year: int, month: int | None, timezone: ZoneInfo
+) -> tuple[datetime, datetime]:
+    """Return UTC bounds for a year or month in the user's timezone."""
+    start_month = month if month is not None else 1
+    start = datetime(year, start_month, 1, tzinfo=timezone)
+    if month is None or month == 12:
+        end_year, end_month = year + 1, 1
+    else:
+        end_year, end_month = year, month + 1
+    end = datetime(end_year, end_month, 1, tzinfo=timezone)
+    return start.astimezone(UTC), end.astimezone(UTC)
 
 
 def get_week_date_range(year: int, week: int) -> tuple[date, date]:

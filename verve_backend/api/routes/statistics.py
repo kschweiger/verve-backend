@@ -2,6 +2,7 @@ import importlib.resources
 from collections import defaultdict
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Annotated, Any, Generic, Literal, Self, TypeVar, cast
+from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -12,10 +13,14 @@ from starlette.status import (
     HTTP_501_NOT_IMPLEMENTED,
 )
 
-from verve_backend.api.common.utils import check_and_raise_primary_key
+from verve_backend.api.common.utils import (
+    check_and_raise_primary_key,
+    get_user_timezone,
+)
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import UserSession
 from verve_backend.core.date_utils import (
+    get_local_period_utc_bounds,
     get_month_grid,
     get_week_date_range,
     iso_week_date_weeks_ago_berlin,
@@ -210,6 +215,11 @@ def get_year_stats(
     year: Annotated[int | None, Query(ge=2000)] = None,
 ) -> Any:
     user_id, session = user_session
+    start_at = end_at = None
+    if year is not None:
+        start_at, end_at = get_local_period_utc_bounds(
+            year, None, get_user_timezone(session, UUID(user_id))
+        )
 
     stmt = (
         importlib.resources.files("verve_backend.queries")
@@ -219,7 +229,7 @@ def get_year_stats(
 
     data = session.exec(
         text(stmt),  # type: ignore
-        params={"user_id": user_id, "year": year},
+        params={"user_id": user_id, "start_at": start_at, "end_at": end_at},
     ).all()
 
     per_type_distance = cast(

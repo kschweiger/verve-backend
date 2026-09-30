@@ -14,10 +14,12 @@ from starlette.status import (
 )
 
 from verve_backend.api.common.track import get_track_points_response
+from verve_backend.api.common.utils import get_user_timezone
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import (
     UserSession,
 )
+from verve_backend.core.date_utils import get_local_period_utc_bounds
 from verve_backend.models import (
     Activity,
     ActivityCollection,
@@ -120,7 +122,7 @@ def get_collections(
     year: Annotated[int | None, Query(ge=2000)] = None,
     month: Annotated[int | None, Query(ge=1, lt=13)] = None,
 ) -> Any:
-    _, session = user_session
+    user_id, session = user_session
 
     if year is None and month is not None:
         raise HTTPException(
@@ -132,12 +134,17 @@ def get_collections(
         .joinpath("select_collections.sql")
         .read_text()
     )
+    start_at = end_at = None
+    if year is not None:
+        start_at, end_at = get_local_period_utc_bounds(
+            year, month, get_user_timezone(session, uuid.UUID(user_id))
+        )
 
     rows = session.exec(
         text(stmt),  # type: ignore
         params={
-            "year": year,
-            "month": month,
+            "start_at": start_at,
+            "end_at": end_at,
             "limit": limit,
             "offset": offset or 0,
         },

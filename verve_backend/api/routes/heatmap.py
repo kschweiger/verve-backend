@@ -4,14 +4,18 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from sqlmodel import col, func, select, text, tuple_
+from sqlmodel import col, select, text, tuple_
 from starlette.status import (
     HTTP_400_BAD_REQUEST,
 )
 
-from verve_backend.api.common.utils import check_and_raise_primary_key
+from verve_backend.api.common.utils import (
+    check_and_raise_primary_key,
+    get_user_timezone,
+)
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import UserSession
+from verve_backend.core.date_utils import get_local_period_utc_bounds
 from verve_backend.models import Activity, ActivitySubType, ActivityType, UserSettings
 
 
@@ -63,9 +67,12 @@ def get_heatmap(
         if activity_sub_type_id:
             query = query.where(Activity.sub_type_id == activity_sub_type_id)
         if year is not None:
-            query = query.where(func.extract("year", Activity.start) == year)  # type: ignore
-            if month is not None:
-                query = query.where(func.extract("month", Activity.start) == month)  # type: ignore
+            start_at, end_at = get_local_period_utc_bounds(
+                year, month, get_user_timezone(session, user_id)
+            )
+            query = query.where(
+                col(Activity.start) >= start_at, col(Activity.start) < end_at
+            )
 
         if exclude_types:
             query = query.where(

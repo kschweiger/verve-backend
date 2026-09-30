@@ -1,6 +1,7 @@
 -- Params:
 --   :user_id   UUID
---   :year      INTEGER | NULL
+--   :start_at  TIMESTAMPTZ | NULL, inclusive UTC start of the user's local year
+--   :end_at    TIMESTAMPTZ | NULL, exclusive UTC end of the user's local year
 --
 SELECT
     a.type_id,
@@ -11,9 +12,7 @@ SELECT
     sum(coalesce(nullif(a.moving_duration, interval '0'), a.duration)) AS total_effective_duration
 FROM activities a
 WHERE a.user_id = :user_id
-  AND (
-      CAST(:year AS integer) IS NULL
-      OR extract(YEAR FROM a.start)::integer = CAST(:year AS integer)
-  )
+  AND (CAST(:start_at AS TIMESTAMPTZ) IS NULL OR a.start >= CAST(:start_at AS TIMESTAMPTZ))
+  AND (CAST(:end_at AS TIMESTAMPTZ) IS NULL OR a.start < CAST(:end_at AS TIMESTAMPTZ))
 GROUP BY a.type_id, a.sub_type_id
 ORDER BY a.type_id, a.sub_type_id;

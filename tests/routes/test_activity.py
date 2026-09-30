@@ -72,8 +72,8 @@ def test_get_activities_filters_by_user_local_period(
             distance=1.0,
             moving_duration=timedelta(minutes=30),
             type_id=1,
-            name=name,
             sub_type_id=None,
+            name=name,
             user_id=temp_user_id,
         )
         for name, start in starts.items()
