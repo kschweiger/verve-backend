@@ -1,8 +1,9 @@
 import importlib.resources
 from collections import defaultdict
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Any, Generic, Literal, Self, TypeVar, cast
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -20,10 +21,11 @@ from verve_backend.api.common.utils import (
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import UserSession
 from verve_backend.core.date_utils import (
+    get_local_date_range_utc_bounds,
     get_local_period_utc_bounds,
     get_month_grid,
     get_week_date_range,
-    iso_week_date_weeks_ago_berlin,
+    iso_week_date_weeks_ago,
 )
 from verve_backend.models import Activity, ActivityType, UserSettings
 from verve_backend.transformations import CalendarWeek, build_calendar_response
@@ -308,6 +310,7 @@ def get_week_stats(
     activity_type_id: int | None = None,
 ) -> Any:
     user_id, session = user_session
+    timezone = get_user_timezone(session, UUID(user_id))
 
     settings = session.get(UserSettings, user_id)
     assert settings
@@ -318,7 +321,7 @@ def get_week_stats(
     check_and_raise_primary_key(session, ActivityType, _activity_type_id)
 
     if year is None and week is None:
-        iso_cal = datetime.now(UTC).isocalendar()
+        iso_cal = datetime.now(timezone).isocalendar()
         week = iso_cal.week
         year = iso_cal.year
         logger.debug("Current week/year used: %d/%d", week, year)
@@ -329,6 +332,9 @@ def get_week_stats(
             detail="Both year and week must be set.",
         )
 
+    week_start, week_end = get_week_date_range(year, week)
+    start_at, end_at = get_local_date_range_utc_bounds(week_start, week_end, timezone)
+
     stmt = (
         importlib.resources.files("verve_backend.queries")
         .joinpath("select_weekly_activity_data.sql")
@@ -338,13 +344,13 @@ def get_week_stats(
     data = session.exec(
         text(stmt),  # type: ignore
         params={
-            "week": week,
-            "year": year,
+            "user_id": user_id,
+            "start_at": start_at,
+            "end_at": end_at,
+            "timezone_name": timezone.key,
             "activity_type_id": _activity_type_id,
         },
     ).all()
-
-    week_start, _ = get_week_date_range(year, week)
 
     distance_per_day: dict[date, float | None] = {
         week_start + timedelta(days=i): None for i in range(7)
@@ -395,9 +401,10 @@ def get_calendar(
     month: Annotated[int | None, Query(ge=1, le=12)] = None,
     year: Annotated[int | None, Query(ge=2000)] = None,
 ) -> Any:
-    _, session = user_session
+    user_id, session = user_session
+    timezone = get_user_timezone(session, UUID(user_id))
 
-    today = datetime.now(UTC)
+    today = datetime.now(timezone)
     if year is None:
         year = today.year
     if month is None:
@@ -408,26 +415,28 @@ def get_calendar(
     first_date = month_date_grid[0][0]
     last_date = month_date_grid[-1][-1]
 
-    first_at = datetime.combine(first_date, time.min, UTC)
-    after_last_at = datetime.combine(last_date + timedelta(days=1), time.min, UTC)
+    first_at, after_last_at = get_local_date_range_utc_bounds(
+        first_date, last_date + timedelta(days=1), timezone
+    )
     stmt = (
         select(Activity)
         .where(Activity.start >= first_at)
         .where(Activity.start < after_last_at)
     )
     activities = session.exec(stmt).all()
-    weeks = build_calendar_response(activities, month_date_grid, month)
+    weeks = build_calendar_response(activities, month_date_grid, month, timezone)
 
     return CalendarResponse(year=year, month=month, weeks=weeks)
 
 
 def _find_grid_start_end(
     weeks: int,
+    timezone: ZoneInfo,
 ) -> tuple[date, date]:
     """Calculate the start and end date for the activity grid based on the number of
     weeks."""
-    start_date = iso_week_date_weeks_ago_berlin(weeks_back=weeks)
-    today = datetime.now(UTC).date()
+    start_date = iso_week_date_weeks_ago(weeks_back=weeks, timezone=timezone)
+    today = datetime.now(timezone).date()
     end_date = datetime.fromisocalendar(
         year=today.year, week=today.isocalendar().week, day=7
     ).date()
@@ -462,13 +471,22 @@ def get_activity_grid(
     weeks: int = 52,
 ) -> Any:
     _user_id, session = user_session
-    start_date, end_date = _find_grid_start_end(weeks)
-    today = datetime.now(UTC).date()
+    timezone = get_user_timezone(session, UUID(_user_id))
+    start_date, end_date = _find_grid_start_end(weeks, timezone)
+    today = datetime.now(timezone).date()
+    start_at, end_at = get_local_date_range_utc_bounds(
+        start_date, end_date + timedelta(days=1), timezone
+    )
 
     _raw_data = _run_query(
         session,
         "grid_raw_data.sql",
-        {"user_id": _user_id, "start_date": start_date, "end_date": end_date},
+        {
+            "user_id": _user_id,
+            "start_at": start_at,
+            "end_at": end_at,
+            "timezone_name": timezone.key,
+        },
         "all",
     )
 
@@ -545,12 +563,44 @@ def get_activity_grid(
             )
         )
 
-    _query_params = {"user_id": _user_id, "as_of_date": datetime.now(UTC).date()}
-    _week_streak = _run_query(session, "activity_streak_weeks.sql", _query_params)[0]
-    _activities_this_month = _run_query(
-        session, "activities_this_month.sql", _query_params
+    current_week = today - timedelta(days=today.weekday())
+    _, after_week_at = get_local_date_range_utc_bounds(
+        current_week, current_week + timedelta(days=7), timezone
+    )
+    month_start_at, month_end_at = get_local_period_utc_bounds(
+        today.year, today.month, timezone
+    )
+    _, after_today_at = get_local_date_range_utc_bounds(
+        today, today + timedelta(days=1), timezone
+    )
+    _week_streak = _run_query(
+        session,
+        "activity_streak_weeks.sql",
+        {
+            "user_id": _user_id,
+            "current_week": current_week,
+            "after_week_at": after_week_at,
+            "timezone_name": timezone.key,
+        },
     )[0]
-    _last_active_day = _run_query(session, "last_activity_date.sql", _query_params)[0]
+    _activities_this_month = _run_query(
+        session,
+        "activities_this_month.sql",
+        {
+            "user_id": _user_id,
+            "start_at": month_start_at,
+            "end_at": month_end_at,
+        },
+    )[0]
+    _last_active_day = _run_query(
+        session,
+        "last_activity_date.sql",
+        {
+            "user_id": _user_id,
+            "after_today_at": after_today_at,
+            "timezone_name": timezone.key,
+        },
+    )[0]
 
     return ActivityGridResponse(
         weeks=grid_weeks,

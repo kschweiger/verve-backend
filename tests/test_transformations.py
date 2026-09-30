@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -81,7 +82,9 @@ def test_activities_to_calendar_weeks() -> None:
         ),
     ]
 
-    activity_weeks = build_calendar_response(activities, grid, 11)
+    activity_weeks = build_calendar_response(
+        activities, grid, 11, ZoneInfo("Europe/Berlin")
+    )
     assert len(activity_weeks) == 1
 
     week = activity_weeks[0]
