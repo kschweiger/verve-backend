@@ -3,6 +3,7 @@ import uuid
 from collections import defaultdict
 from datetime import UTC, datetime
 from typing import Generator, Type, TypeVar
+from zoneinfo import ZoneInfo
 
 import structlog
 from geo_track_analyzer import Track
@@ -18,6 +19,7 @@ from verve_backend.api.common.locale import get_activity_name, get_tag_name
 from verve_backend.api.common.utils import update_activity_with_track
 from verve_backend.api.deps import SupportedLocale
 from verve_backend.core.config import settings
+from verve_backend.core.date_utils import to_utc_with_default_timezone
 from verve_backend.core.db import get_search_query
 from verve_backend.core.meta_data import ActivityMetaData, validate_meta_data
 from verve_backend.core.security import (
@@ -135,6 +137,7 @@ def create_activity(
     create: ActivityCreate,
     user: UserPublic,
     locale: SupportedLocale = SupportedLocale.DE,
+    timezone: ZoneInfo | None = None,
 ) -> Result[Activity, uuid.UUID]:
     activity_type = session.get(ActivityType, create.type_id)
     assert activity_type is not None
@@ -156,7 +159,14 @@ def create_activity(
             return Err(validation_result)
         create.meta_data = validation_result.model_dump(mode="json")
 
-    db_obj = Activity.model_validate(create, update={"user_id": user.id, "name": name})
+    start = (
+        to_utc_with_default_timezone(create.start, timezone)
+        if timezone is not None
+        else create.start
+    )
+    db_obj = Activity.model_validate(
+        create, update={"user_id": user.id, "name": name, "start": start}
+    )
     session.add(db_obj)
     session.commit()
     session.refresh(db_obj)

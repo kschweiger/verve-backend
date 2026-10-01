@@ -2,6 +2,13 @@ from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 
+def to_utc_with_default_timezone(value: datetime, timezone: ZoneInfo) -> datetime:
+    """Interpret offsetless input in the user's timezone and return UTC."""
+    if value.utcoffset() is None:
+        value = value.replace(tzinfo=timezone)
+    return value.astimezone(UTC)
+
+
 def get_local_date_range_utc_bounds(
     start_date: date, end_date: date, timezone: ZoneInfo
 ) -> tuple[datetime, datetime]:

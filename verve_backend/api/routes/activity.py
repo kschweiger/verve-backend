@@ -3,10 +3,12 @@ import json
 import uuid
 from io import BytesIO
 from typing import Annotated, Any
+from zoneinfo import ZoneInfo
 
 import structlog
 from fastapi import APIRouter, HTTPException, Query, UploadFile
 from pydantic import BaseModel
+from pydantic_extra_types.timezone_name import TimeZoneName
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, delete, func, select
 from starlette.status import (
@@ -437,6 +439,7 @@ def create_activity(
     locale: LocaleQuery | None = None,
     data: ActivityCreate,
     add_default_equipment: bool = False,
+    timezone_name: TimeZoneName | None = None,
 ) -> Any:
     user_id, session = user_session
     user = session.get(User, user_id)
@@ -449,12 +452,18 @@ def create_activity(
     check_distance_requirement(
         session=session, type_id=data.type_id, distance=data.distance
     )
+    timezone = (
+        ZoneInfo(timezone_name)
+        if timezone_name is not None
+        else get_user_timezone(session, user.id)
+    )
 
     result = crud.create_activity(
         session=session,
         create=data,
         user=user,  # type: ignore
         locale=locale,
+        timezone=timezone,
     )
     match result:
         case Ok(_activity):
@@ -499,6 +508,7 @@ def _import_verve_file(
     file_content_type: str | None,
     overwrite_type_id: int | None,
     overwrite_sub_type_id: int | None,
+    timezone: ZoneInfo,
 ) -> Activity:
     if not file_name.endswith(".json"):
         raise HTTPException(
@@ -521,6 +531,7 @@ def _import_verve_file(
         session=session,
         user_id=user_id,
         data=data,
+        timezone=timezone,
         overwrite_type_id=overwrite_type_id,
         overwrite_sub_type_id=overwrite_sub_type_id,
     )
@@ -563,12 +574,14 @@ def create_auto_activity(
     sub_type_id: int | None = None,
     locale: LocaleQuery | None = None,
     add_default_equipment: bool = False,
+    timezone_name: TimeZoneName | None = None,
 ) -> Any:
     _user_id, session = user_session
     user_id = uuid.UUID(_user_id)
 
     settings = session.get(UserSettings, user_id)
     assert settings
+    timezone = ZoneInfo(timezone_name or settings.timezone)
 
     file_name = file.filename
     assert file_name is not None
@@ -598,6 +611,7 @@ def create_auto_activity(
             file_content_type=file_content_type,
             overwrite_type_id=type_id,
             overwrite_sub_type_id=sub_type_id,
+            timezone=timezone,
         )
     else:
         logger.info("Identified standalone track data")
@@ -654,6 +668,7 @@ def create_auto_activity(
             file_name=file_name,
             file_content=file_content,
             file_content_type=file_content_type,
+            timezone=timezone,
         )
 
         update_activity_with_track(activity=activity, track=track)
@@ -682,9 +697,15 @@ def import_verve_file(
     user_session: UserSession,
     obj_store_client: ObjectStoreClient,
     file: UploadFile,
+    timezone_name: TimeZoneName | None = None,
 ) -> Any:
     _user_id, session = user_session
     user_id = uuid.UUID(_user_id)
+    timezone = (
+        ZoneInfo(timezone_name)
+        if timezone_name is not None
+        else get_user_timezone(session, user_id)
+    )
 
     file_name = file.filename
     assert file_name is not None
@@ -700,6 +721,7 @@ def import_verve_file(
         file_content_type=file_content_type,
         overwrite_type_id=None,
         overwrite_sub_type_id=None,
+        timezone=timezone,
     )
 
     process_activity_highlights.delay(activity_id=activity.id, user_id=user_id)  # type: ignore

@@ -47,6 +47,198 @@ def test_get_activities(client: TestClient, user1_token: str) -> None:
     assert response.status_code == 200
 
 
+@pytest.mark.parametrize(
+    ("start_text", "timezone_name", "expected_start"),
+    [
+        ("2025-01-01T00:30:00", None, datetime(2025, 1, 1, 8, 30, tzinfo=UTC)),
+        (
+            "2025-01-01T00:30:00",
+            "Europe/Berlin",
+            datetime(2024, 12, 31, 23, 30, tzinfo=UTC),
+        ),
+        (
+            "2025-01-01T00:30:00+02:00",
+            None,
+            datetime(2024, 12, 31, 22, 30, tzinfo=UTC),
+        ),
+    ],
+)
+def test_create_activity_resolves_start_to_utc(
+    client: TestClient,
+    temp_user_token: str,
+    start_text: str,
+    timezone_name: str | None,
+    expected_start: datetime,
+) -> None:
+    headers = {"Authorization": f"Bearer {temp_user_token}"}
+    response = client.patch(
+        "/users/me/timezone",
+        headers=headers,
+        params={"timezone_name": "America/Los_Angeles"},
+    )
+    assert response.status_code == 200
+
+    response = client.post(
+        "/activity",
+        headers=headers,
+        params={"timezone_name": timezone_name} if timezone_name else None,
+        json={
+            "start": start_text,
+            "duration": 1800,
+            "distance": 1.0,
+            "type_id": 1,
+            "sub_type_id": None,
+            "name": "Timezone test",
+        },
+    )
+    assert response.status_code == 200
+    activity = ActivityPublic.model_validate(response.json())
+    assert activity.start == expected_start
+
+
+@pytest.mark.parametrize(
+    ("timestamp", "timezone_name", "expected_start"),
+    [
+        ("2025-01-01T00:30:00", None, datetime(2025, 1, 1, 8, 30, tzinfo=UTC)),
+        ("2025-01-01T00:30:00Z", None, datetime(2025, 1, 1, 0, 30, tzinfo=UTC)),
+        (
+            "2025-01-01T00:30:00",
+            "Europe/Berlin",
+            datetime(2024, 12, 31, 23, 30, tzinfo=UTC),
+        ),
+    ],
+)
+def test_auto_gpx_resolves_track_times_to_utc(
+    client: TestClient,
+    db: Session,
+    temp_user_token: str,
+    timestamp: str,
+    timezone_name: str | None,
+    expected_start: datetime,
+    celery_eager: None,
+) -> None:
+    headers = {"Authorization": f"Bearer {temp_user_token}"}
+    response = client.patch(
+        "/users/me/timezone",
+        headers=headers,
+        params={"timezone_name": "America/Los_Angeles"},
+    )
+    assert response.status_code == 200
+
+    later_timestamp = (
+        "2025-01-01T00:40:00Z" if timestamp.endswith("Z") else "2025-01-01T00:40:00"
+    )
+    gpx = (
+        '<gpx version="1.1" creator="test"><trk><trkseg>'
+        f'<trkpt lat="48.0" lon="11.0"><time>{timestamp}</time></trkpt>'
+        f'<trkpt lat="48.001" lon="11.001"><time>{later_timestamp}</time></trkpt>'
+        "</trkseg></trk></gpx>"
+    ).encode()
+    response = client.post(
+        "/activity/auto/",
+        headers=headers,
+        params={"timezone_name": timezone_name} if timezone_name else None,
+        files={"file": ("timezone.gpx", gpx, "application/gpx+xml")},
+    )
+    assert response.status_code == 200
+    activity = ActivityPublic.model_validate(response.json())
+    assert activity.start == expected_start
+    first_point = db.exec(
+        select(TrackPoint).where(TrackPoint.activity_id == activity.id)
+    ).first()
+    assert first_point is not None
+    assert first_point.time == expected_start
+
+
+@pytest.mark.parametrize(
+    ("timezone_name", "expected_start", "expected_point"),
+    [
+        (
+            None,
+            datetime(2026, 1, 13, 23, 21, 56, tzinfo=UTC),
+            datetime(2026, 1, 13, 23, 22, 2, tzinfo=UTC),
+        ),
+        (
+            "Europe/Berlin",
+            datetime(2026, 1, 13, 14, 21, 56, tzinfo=UTC),
+            datetime(2026, 1, 13, 14, 22, 2, tzinfo=UTC),
+        ),
+    ],
+)
+def test_import_verve_resolves_offsetless_times(
+    client: TestClient,
+    db: Session,
+    temp_user_token: str,
+    timezone_name: str | None,
+    expected_start: datetime,
+    expected_point: datetime,
+    celery_eager: None,
+) -> None:
+    headers = {"Authorization": f"Bearer {temp_user_token}"}
+    response = client.patch(
+        "/users/me/timezone",
+        headers=headers,
+        params={"timezone_name": "America/Los_Angeles"},
+    )
+    assert response.status_code == 200
+
+    data = json.loads(
+        resources.files("tests.resources").joinpath("processed_Walk.json").read_text()
+    )
+    data["properties"]["startTime"] = data["properties"]["startTime"].removesuffix("Z")
+    for feature in data["features"]:
+        feature["properties"]["coordTimes"] = [
+            value.removesuffix("Z") for value in feature["properties"]["coordTimes"]
+        ]
+
+    response = client.post(
+        "/activity/import/",
+        headers=headers,
+        params={"timezone_name": timezone_name} if timezone_name else None,
+        files={"file": ("Walk.json", json.dumps(data), "application/json")},
+    )
+    assert response.status_code == 200
+    activity = ActivityPublic.model_validate(response.json())
+    assert activity.start == expected_start
+    first_point = db.exec(
+        select(TrackPoint).where(TrackPoint.activity_id == activity.id)
+    ).first()
+    assert first_point is not None
+    assert first_point.time == expected_point
+
+
+def test_auto_geojson_resolves_offsetless_track_times(
+    client: TestClient,
+    db: Session,
+    temp_user_token: str,
+    celery_eager: None,
+) -> None:
+    data = json.loads(
+        resources.files("tests.resources").joinpath("processed_Walk.json").read_text()
+    )
+    data["properties"] = None
+    for feature in data["features"]:
+        feature["properties"]["coordTimes"] = [
+            value.removesuffix("Z") for value in feature["properties"]["coordTimes"]
+        ]
+
+    response = client.post(
+        "/activity/auto/",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        params={"type_id": 2, "sub_type_id": 7, "timezone_name": "Europe/Berlin"},
+        files={"file": ("Walk.json", json.dumps(data), "application/json")},
+    )
+    assert response.status_code == 200
+    activity = ActivityPublic.model_validate(response.json())
+    expected = datetime(2026, 1, 13, 14, 22, 2, tzinfo=UTC)
+    assert activity.start == expected
+    first_point = db.exec(
+        select(TrackPoint).where(TrackPoint.activity_id == activity.id)
+    ).first()
+    assert first_point is not None
+    assert first_point.time == expected
+
+
 def test_get_activities_filters_by_user_local_period(
     db: Session, client: TestClient, temp_user_token: str, temp_user_id: UUID
 ) -> None:
