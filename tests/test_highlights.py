@@ -4,6 +4,7 @@ from uuid import UUID
 from geo_track_analyzer import PyTrack, Track
 from sqlmodel import Session, select
 
+from verve_backend.api.common.utils import get_user_timezone
 from verve_backend.crud import insert_track
 from verve_backend.highlights.crud import update_top_n_highlights
 from verve_backend.highlights.registry import registry
@@ -78,6 +79,7 @@ def test_update_highlights_first_entry(db: Session, temp_user_id: UUID) -> None:
         session=db,
         user_id=user.id,
         activity=activity1,
+        timezone=get_user_timezone(db, user.id),
         metric=HighlightMetric.DISTANCE,
         value=100.0,
     )
@@ -133,6 +135,7 @@ def test_update_highlights_ranking_logic(db: Session, temp_user_id: UUID) -> Non
             session=db,
             user_id=user.id,
             activity=act,
+            timezone=get_user_timezone(db, user.id),
             metric=HighlightMetric.DISTANCE,
             value=act.distance,
         )
@@ -190,6 +193,7 @@ def test_update_highlights_across_different_years(
             session=db,
             user_id=user.id,
             activity=act,
+            timezone=get_user_timezone(db, user.id),
             metric=HighlightMetric.DISTANCE,
             value=act.distance,
         )
