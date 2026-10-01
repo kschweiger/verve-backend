@@ -21,7 +21,12 @@ from verve_backend.api.deps import SupportedLocale
 from verve_backend.core.config import settings
 from verve_backend.core.date_utils import to_utc_with_default_timezone
 from verve_backend.core.db import get_search_query
-from verve_backend.core.meta_data import ActivityMetaData, validate_meta_data
+from verve_backend.core.meta_data import (
+    ActivityMetaData,
+    SwimmingMetaData,
+    normalize_swimming_times_to_utc,
+    validate_meta_data,
+)
 from verve_backend.core.security import (
     generate_reset_token,
     get_password_hash,
@@ -142,11 +147,16 @@ def create_activity(
     activity_type = session.get(ActivityType, create.type_id)
     assert activity_type is not None
 
+    start = (
+        to_utc_with_default_timezone(create.start, timezone)
+        if timezone is not None
+        else create.start
+    )
     name = create.name
     if name is None:
         name = get_activity_name(
             activity_type.name.lower().replace(" ", "_"),
-            create.start,
+            start.astimezone(timezone) if timezone is not None else start,
             locale,
         )
     if create.meta_data:
@@ -157,13 +167,10 @@ def create_activity(
         )
         if not isinstance(validation_result, ActivityMetaData):
             return Err(validation_result)
+        if timezone is not None and isinstance(validation_result, SwimmingMetaData):
+            normalize_swimming_times_to_utc(validation_result, timezone)
         create.meta_data = validation_result.model_dump(mode="json")
 
-    start = (
-        to_utc_with_default_timezone(create.start, timezone)
-        if timezone is not None
-        else create.start
-    )
     db_obj = Activity.model_validate(
         create, update={"user_id": user.id, "name": name, "start": start}
     )

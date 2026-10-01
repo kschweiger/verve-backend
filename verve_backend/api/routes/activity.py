@@ -677,7 +677,7 @@ def create_auto_activity(
         assert first_point_time is not None
         activity.name = get_activity_name(
             activity_type.name.lower().replace(" ", "_"),
-            first_point_time,
+            first_point_time.astimezone(timezone),
             locale or settings.locale,
         )
         session.add(activity)

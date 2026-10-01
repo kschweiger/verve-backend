@@ -93,7 +93,7 @@ def convert_verve_file_to_activity(
 
     meta_data = data.properties.metadata
     if isinstance(meta_data, KnownMetaDataEnvelope):
-        meta_data = meta_data.to_core_meta_data().model_dump(mode="json")
+        meta_data = meta_data.to_core_meta_data(timezone).model_dump(mode="json")
 
     activity = Activity(
         user_id=user_id,

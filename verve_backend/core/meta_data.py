@@ -2,10 +2,12 @@ from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import Any, Self
 from uuid import UUID, uuid4
+from zoneinfo import ZoneInfo
 
 import structlog
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
+from verve_backend.core.date_utils import to_utc_with_default_timezone
 from verve_backend.models import ActivitySubType, ActivityType
 
 logger = structlog.getLogger(__name__)
@@ -102,6 +104,21 @@ class SwimmingMetaData(ActivityMetaData):
             )
 
         return self
+
+
+def normalize_swimming_times_to_utc(
+    metadata: SwimmingMetaData, timezone: ZoneInfo
+) -> None:
+    for records in (metadata.laps, metadata.sets):
+        for record in records or []:
+            if record.start_time is not None:
+                record.start_time = to_utc_with_default_timezone(
+                    record.start_time, timezone
+                )
+            if record.end_time is not None:
+                record.end_time = to_utc_with_default_timezone(
+                    record.end_time, timezone
+                )
 
 
 def validate_meta_data(

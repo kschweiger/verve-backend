@@ -97,14 +97,63 @@ def test_create_activity_resolves_start_to_utc(
 
 
 @pytest.mark.parametrize(
-    ("timestamp", "timezone_name", "expected_start"),
+    ("timezone_name", "expected_name"),
+    [(None, "Afternoon Ride"), ("Europe/Berlin", "Night Ride")],
+)
+def test_create_activity_names_in_effective_timezone(
+    client: TestClient,
+    temp_user_token: str,
+    timezone_name: str | None,
+    expected_name: str,
+) -> None:
+    headers = {"Authorization": f"Bearer {temp_user_token}"}
+    response = client.patch(
+        "/users/me/timezone",
+        headers=headers,
+        params={"timezone_name": "America/Los_Angeles"},
+    )
+    assert response.status_code == 200
+
+    params = {"locale": "en"}
+    if timezone_name is not None:
+        params["timezone_name"] = timezone_name
+    response = client.post(
+        "/activity",
+        headers=headers,
+        params=params,
+        json={
+            "start": "2025-01-01T00:30:00Z",
+            "duration": 1800,
+            "distance": 1.0,
+            "type_id": 1,
+            "sub_type_id": None,
+            "name": None,
+        },
+    )
+    assert response.status_code == 200
+    assert ActivityPublic.model_validate(response.json()).name == expected_name
+
+
+@pytest.mark.parametrize(
+    ("timestamp", "timezone_name", "expected_start", "expected_name"),
     [
-        ("2025-01-01T00:30:00", None, datetime(2025, 1, 1, 8, 30, tzinfo=UTC)),
-        ("2025-01-01T00:30:00Z", None, datetime(2025, 1, 1, 0, 30, tzinfo=UTC)),
+        (
+            "2025-01-01T00:30:00",
+            None,
+            datetime(2025, 1, 1, 8, 30, tzinfo=UTC),
+            "Night Ride",
+        ),
+        (
+            "2025-01-01T00:30:00Z",
+            None,
+            datetime(2025, 1, 1, 0, 30, tzinfo=UTC),
+            "Afternoon Ride",
+        ),
         (
             "2025-01-01T00:30:00",
             "Europe/Berlin",
             datetime(2024, 12, 31, 23, 30, tzinfo=UTC),
+            "Night Ride",
         ),
     ],
 )
@@ -115,6 +164,7 @@ def test_auto_gpx_resolves_track_times_to_utc(
     timestamp: str,
     timezone_name: str | None,
     expected_start: datetime,
+    expected_name: str,
     celery_eager: None,
 ) -> None:
     headers = {"Authorization": f"Bearer {temp_user_token}"}
@@ -137,12 +187,17 @@ def test_auto_gpx_resolves_track_times_to_utc(
     response = client.post(
         "/activity/auto/",
         headers=headers,
-        params={"timezone_name": timezone_name} if timezone_name else None,
+        params={
+            "type_id": 1,
+            "locale": "en",
+            **({"timezone_name": timezone_name} if timezone_name else {}),
+        },
         files={"file": ("timezone.gpx", gpx, "application/gpx+xml")},
     )
     assert response.status_code == 200
     activity = ActivityPublic.model_validate(response.json())
     assert activity.start == expected_start
+    assert activity.name == expected_name
     first_point = db.exec(
         select(TrackPoint).where(TrackPoint.activity_id == activity.id)
     ).first()
@@ -745,7 +800,7 @@ def test_update_activity_errors(
                         index=0,
                         start_time=datetime(
                             year=2025, month=1, day=2, hour=13, minute=10
-                        ).astimezone(),
+                        ),
                         end_time=datetime(
                             year=2025, month=1, day=2, hour=13, minute=11
                         ).astimezone(),
@@ -808,12 +863,15 @@ def test_meta_data_validation(
         "/activity",
         json=activity_create.model_dump(exclude_unset=True, mode="json"),
         headers={"Authorization": f"Bearer {user1_token}"},
+        params={"timezone_name": "Europe/Berlin"},
     )
 
     assert response.status_code == exp_status
     if exp_status == 200:
         _create_activity = ActivityPublic.model_validate(response.json())
-        assert True
+        assert datetime.fromisoformat(
+            _create_activity.meta_data["laps"][0]["start_time"].replace("Z", "+00:00")
+        ) == datetime(2025, 1, 2, 12, 10, tzinfo=UTC)
 
 
 def test_create_with_default_equipment_set(
@@ -1284,11 +1342,16 @@ def test_import_activity_swimming_verve_file_stores_core_metadata(
         .open("rb") as f
     ):
         json_content = f.read()
+    data = json.loads(json_content)
+    swim_data = data["properties"]["metadata"]["data"]
+    swim_data["laps"][0]["startTime"] = "2026-05-31T14:11:33"
+    swim_data["sets"][0]["endTime"] = "2026-05-31T14:13:30+02:00"
 
     response = client.post(
         "/activity/import/",
         headers={"Authorization": f"Bearer {user2_token}"},
-        files={"file": ("Swim.json", json_content, "application/octet-stream")},
+        params={"timezone_name": "America/Los_Angeles"},
+        files={"file": ("Swim.json", json.dumps(data), "application/octet-stream")},
     )
     assert response.status_code == 200
 
@@ -1312,6 +1375,12 @@ def test_import_activity_swimming_verve_file_stores_core_metadata(
     assert len(imported_activity.meta_data["sets"]) == 10
     assert imported_activity.meta_data["laps"][0]["style"] == "breaststroke"
     assert imported_activity.meta_data["sets"][0]["avg_swofl"] == 83.65062963962555
+    assert datetime.fromisoformat(
+        imported_activity.meta_data["laps"][0]["start_time"].replace("Z", "+00:00")
+    ) == datetime(2026, 5, 31, 21, 11, 33, tzinfo=UTC)
+    assert datetime.fromisoformat(
+        imported_activity.meta_data["sets"][0]["end_time"].replace("Z", "+00:00")
+    ) == datetime(2026, 5, 31, 12, 13, 30, tzinfo=UTC)
 
 
 def test_import_invalid_json_file(
