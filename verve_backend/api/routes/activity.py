@@ -39,7 +39,10 @@ from verve_backend.api.deps import (
 )
 from verve_backend.api.routes.media import delete_image
 from verve_backend.core.config import settings
-from verve_backend.core.date_utils import get_local_period_utc_bounds
+from verve_backend.core.date_utils import (
+    get_local_period_utc_bounds,
+    to_utc_with_default_timezone,
+)
 from verve_backend.models import (
     ActivitiesPublic,
     Activity,
@@ -99,8 +102,9 @@ def update_activity(
     user_session: UserSession,
     id: uuid.UUID,
     data: ActivityUpdate,
+    timezone_name: TimeZoneName | None = None,
 ) -> Any:
-    _, session = user_session
+    user_id, session = user_session
 
     activity = session.get(Activity, id)
     if not activity:
@@ -146,6 +150,38 @@ def update_activity(
         raise HTTPException(
             status_code=HTTP_400_BAD_REQUEST, detail="meta_data cannot be set to null"
         )
+    metadata = update_data.get("meta_data")
+    if metadata is not None and metadata.get("target") == "SwimmingMetaData":
+        timezone = (
+            ZoneInfo(timezone_name)
+            if timezone_name is not None
+            else get_user_timezone(session, uuid.UUID(user_id))
+        )
+        for key in ("laps", "sets"):
+            records = metadata.get(key)
+            if not isinstance(records, list):
+                continue
+            for record in records:
+                if not isinstance(record, dict):
+                    continue
+                for field in ("start_time", "end_time"):
+                    value = record.get(field)
+                    if value is None:
+                        continue
+                    try:
+                        timestamp = (
+                            value
+                            if isinstance(value, datetime.datetime)
+                            else datetime.datetime.fromisoformat(value)
+                        )
+                    except (TypeError, ValueError) as e:
+                        raise HTTPException(
+                            status_code=HTTP_422_UNPROCESSABLE_CONTENT,
+                            detail=f"Invalid {field} in swimming metadata",
+                        ) from e
+                    record[field] = to_utc_with_default_timezone(
+                        timestamp, timezone
+                    ).isoformat()
     if "duration" in update_data and update_data["duration"] is None:
         raise HTTPException(
             status_code=HTTP_400_BAD_REQUEST, detail="duration cannot be set to null"

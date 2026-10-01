@@ -768,6 +768,59 @@ def test_update_activity_errors(
     assert response.status_code == exp_status
 
 
+def test_update_swimming_metadata_resolves_times_and_preserves_other_fields(
+    client: TestClient,
+    db: Session,
+    temp_user_id: UUID,
+    temp_user_token: str,
+) -> None:
+    swimming = db.exec(
+        select(ActivityType).where(ActivityType.name == "Swimming")
+    ).one()
+    activity = Activity(
+        start=datetime(2025, 1, 1, tzinfo=UTC),
+        duration=timedelta(minutes=30),
+        distance=1.0,
+        type_id=swimming.id,
+        sub_type_id=None,
+        name="Swim",
+        user_id=temp_user_id,
+    )
+    db.add(activity)
+    db.commit()
+
+    response = client.patch(
+        f"/activity/{activity.id}",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        params={"timezone_name": "Europe/Berlin"},
+        json={
+            "meta_data": {
+                "target": "SwimmingMetaData",
+                "lap_count": 1,
+                "custom": "keep me",
+                "laps": [
+                    {
+                        "index": 0,
+                        "start_time": "2025-01-01T00:30:00",
+                        "end_time": "2025-01-01T00:40:00+02:00",
+                        "custom": "keep this too",
+                    }
+                ],
+            }
+        },
+    )
+    assert response.status_code == 200
+    metadata = ActivityPublic.model_validate(response.json()).meta_data
+    assert metadata["custom"] == "keep me"
+    assert metadata["laps"][0]["custom"] == "keep this too"
+    assert datetime.fromisoformat(metadata["laps"][0]["start_time"]) == datetime(
+        2024, 12, 31, 23, 30, tzinfo=UTC
+    )
+    assert datetime.fromisoformat(metadata["laps"][0]["end_time"]) == datetime(
+        2024, 12, 31, 22, 40, tzinfo=UTC
+    )
+
+
 @pytest.mark.parametrize(
     ("activity_type_name", "meta_data", "exp_status"),
     [
