@@ -1,4 +1,5 @@
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from sqlmodel import Session, delete, select
 
@@ -15,6 +16,7 @@ def update_top_n_highlights(
     user_id: UUID,
     *,
     activity: Activity,
+    timezone: ZoneInfo,
     metric: HighlightMetric,
     value: float | int,
     track_id: int | None = None,
@@ -25,7 +27,11 @@ def update_top_n_highlights(
     YEARLY and LIFETIME scopes.
     """
     for scope in [HighlightTimeScope.YEARLY, HighlightTimeScope.LIFETIME]:
-        year = activity.start.year if scope == HighlightTimeScope.YEARLY else None
+        year = (
+            activity.start.astimezone(timezone).year
+            if scope == HighlightTimeScope.YEARLY
+            else None
+        )
 
         # 1. Get current highlights
         stmt = select(ActivityHighlight).where(

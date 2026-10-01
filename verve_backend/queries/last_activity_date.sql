@@ -1,7 +1,9 @@
 -- Params:
 --   :user_id         UUID
---   :as_of_date       DATE
+--   :after_today_at   TIMESTAMPTZ exclusive UTC bound
+--   :timezone_name    TEXT IANA timezone
 --
-SELECT max(a.start)::date AS last_activity_date
+SELECT max((a.start AT TIME ZONE :timezone_name)::date) AS last_activity_date
 FROM activities a
-WHERE a.user_id = :user_id AND CAST(a.start AS date) <= CAST(:as_of_date AS date)
+WHERE a.user_id = :user_id
+  AND a.start < CAST(:after_today_at AS TIMESTAMPTZ)

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from sqlmodel import Session, select, text
 
@@ -21,7 +21,7 @@ def test_activity_equipment_relationship(db: Session) -> None:
     activity = crud.create_activity(
         session=db,
         create=ActivityCreate(
-            start=datetime(year=2025, month=2, day=1, hour=12),
+            start=datetime(year=2025, month=2, day=1, hour=12).astimezone(),
             duration=timedelta(days=0, seconds=60 * 60 * 2),
             distance=10.0,
             type_id=1,
@@ -36,7 +36,7 @@ def test_activity_equipment_relationship(db: Session) -> None:
         equipment_type=EquipmentType.BIKE,
         brand="Trek",
         model="Domane SL 7",
-        purchase_date=datetime(2023, 2, 1),
+        purchase_date=date(2023, 2, 1),
         user_id=user.id,
     )
 

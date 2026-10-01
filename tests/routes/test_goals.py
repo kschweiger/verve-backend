@@ -3,6 +3,7 @@ from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
+from freezegun import freeze_time
 from sqlmodel import Session
 
 from verve_backend import crud
@@ -50,6 +51,42 @@ def test_get_goals(
     assert goals.count == exp_count
 
 
+@freeze_time("2024-12-31 23:30:00")
+def test_get_goals_defaults_to_user_local_year(
+    client: TestClient, temp_user_token: str
+) -> None:
+    headers = {"Authorization": f"Bearer {temp_user_token}"}
+    response = client.patch(
+        "/users/me/timezone",
+        headers=headers,
+        params={"timezone_name": "Europe/Berlin"},
+    )
+    assert response.status_code == 200
+
+    response = client.put(
+        "/goal",
+        headers=headers,
+        json={
+            "name": "New year goal",
+            "year": 2025,
+            "target": 1,
+            "type": GoalType.ACTIVITY,
+            "aggregation": GoalAggregation.COUNT,
+        },
+    )
+    assert response.status_code == 200
+
+    response = client.get("/goal", headers=headers)
+    assert response.status_code == 200
+    goals = GoalsPublic.model_validate(response.json())
+    assert goals.count == 1
+    assert goals.data[0].year == 2025
+
+    response = client.get("/goal", headers=headers, params={"year": 2024})
+    assert response.status_code == 200
+    assert GoalsPublic.model_validate(response.json()).count == 0
+
+
 def test_add_goal(
     client: TestClient,
     temp_user_token: str,
@@ -71,6 +108,40 @@ def test_add_goal(
     assert response.status_code == 200
     added_goals = ListResponse[GoalPublic].model_validate(response.json())
     assert len(added_goals.data) == 1
+
+
+@pytest.mark.parametrize(
+    ("requested_year", "expected_year"), [(None, 2025), (2023, 2023)]
+)
+@freeze_time("2024-12-31 23:30:00")
+def test_add_goal_year_uses_user_timezone(
+    client: TestClient,
+    temp_user_token: str,
+    requested_year: int | None,
+    expected_year: int,
+) -> None:
+    headers = {"Authorization": f"Bearer {temp_user_token}"}
+    response = client.patch(
+        "/users/me/timezone",
+        headers=headers,
+        params={"timezone_name": "Europe/Berlin"},
+    )
+    assert response.status_code == 200
+
+    goal_data = {
+        "name": "New Goal",
+        "target": 15,
+        "type": GoalType.ACTIVITY,
+        "aggregation": GoalAggregation.DURATION,
+    }
+    if requested_year is not None:
+        goal_data["year"] = requested_year
+
+    response = client.put("/goal", headers=headers, json=goal_data)
+
+    assert response.status_code == 200
+    added_goals = ListResponse[GoalPublic].model_validate(response.json())
+    assert added_goals.data[0].year == expected_year
 
 
 def test_add_multiple_goals_month(

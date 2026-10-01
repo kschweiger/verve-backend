@@ -1,8 +1,11 @@
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
+from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient
 from freezegun import freeze_time
+from sqlmodel import Session
 
 from verve_backend.api.routes.statistics import (
     ActivityGridResponse,
@@ -11,6 +14,187 @@ from verve_backend.api.routes.statistics import (
     YearStatsResponse,
     _find_grid_start_end,
 )
+from verve_backend.models import Activity
+
+
+def test_year_stats_filters_by_user_local_year(
+    db: Session, client: TestClient, temp_user_token: str, temp_user_id: UUID
+) -> None:
+    headers = {"Authorization": f"Bearer {temp_user_token}"}
+    response = client.patch(
+        "/users/me/timezone",
+        headers=headers,
+        params={"timezone_name": "America/Los_Angeles"},
+    )
+    assert response.status_code == 200
+
+    db.add_all(
+        Activity(
+            start=start,
+            duration=timedelta(minutes=30),
+            distance=1.0,
+            moving_duration=timedelta(minutes=30),
+            type_id=1,
+            sub_type_id=1,
+            name="Year boundary",
+            user_id=temp_user_id,
+        )
+        for start in (
+            datetime(2025, 1, 1, 7, 30, tzinfo=UTC),
+            datetime(2025, 1, 1, 8, 30, tzinfo=UTC),
+        )
+    )
+    db.commit()
+
+    for params, expected_count in [
+        ({"year": 2024}, 1),
+        ({"year": 2025}, 1),
+        ({}, 2),
+    ]:
+        response = client.get("/statistics/year", headers=headers, params=params)
+        assert response.status_code == 200
+        stats = YearStatsResponse.model_validate(response.json())
+        assert stats.count.total == expected_count
+        assert stats.count.per_sub_type[1][1] == expected_count
+
+
+def test_week_stats_uses_user_local_week_and_dates(
+    db: Session, client: TestClient, temp_user_token: str, temp_user_id: UUID
+) -> None:
+    headers = {"Authorization": f"Bearer {temp_user_token}"}
+    response = client.patch(
+        "/users/me/timezone",
+        headers=headers,
+        params={"timezone_name": "America/Los_Angeles"},
+    )
+    assert response.status_code == 200
+
+    db.add_all(
+        Activity(
+            start=start,
+            duration=timedelta(minutes=30),
+            distance=1.0,
+            moving_duration=timedelta(minutes=30),
+            type_id=1,
+            sub_type_id=1,
+            name="Week boundary",
+            user_id=temp_user_id,
+        )
+        for start in (
+            datetime(2025, 1, 6, 7, 30, tzinfo=UTC),
+            datetime(2025, 1, 6, 8, 30, tzinfo=UTC),
+        )
+    )
+    db.commit()
+
+    with freeze_time("2025-01-06 01:00:00"):
+        response = client.get(
+            "/statistics/week", headers=headers, params={"activity_type_id": 1}
+        )
+    assert response.status_code == 200
+    week = WeekStatsResponse.model_validate(response.json())
+    assert week.distance.total == 1.0
+    assert week.distance.per_day[date(2025, 1, 5)] == 1.0
+
+    response = client.get(
+        "/statistics/week",
+        headers=headers,
+        params={"year": 2025, "week": 2, "activity_type_id": 1},
+    )
+    assert response.status_code == 200
+    week = WeekStatsResponse.model_validate(response.json())
+    assert week.distance.total == 1.0
+    assert week.distance.per_day[date(2025, 1, 6)] == 1.0
+
+
+def test_calendar_uses_user_local_month_and_dates(
+    db: Session, client: TestClient, temp_user_token: str, temp_user_id: UUID
+) -> None:
+    headers = {"Authorization": f"Bearer {temp_user_token}"}
+    response = client.patch(
+        "/users/me/timezone",
+        headers=headers,
+        params={"timezone_name": "America/Los_Angeles"},
+    )
+    assert response.status_code == 200
+
+    db.add_all(
+        Activity(
+            start=start,
+            duration=timedelta(minutes=30),
+            distance=1.0,
+            moving_duration=timedelta(minutes=30),
+            type_id=1,
+            sub_type_id=1,
+            name=name,
+            user_id=temp_user_id,
+        )
+        for name, start in (
+            ("December", datetime(2025, 1, 1, 7, 30, tzinfo=UTC)),
+            ("January", datetime(2025, 1, 1, 8, 30, tzinfo=UTC)),
+        )
+    )
+    db.commit()
+
+    with freeze_time("2025-01-01 01:00:00"):
+        response = client.get("/statistics/calender", headers=headers)
+    assert response.status_code == 200
+    calendar = response.json()
+    assert (calendar["year"], calendar["month"]) == (2024, 12)
+
+    response = client.get(
+        "/statistics/calender", headers=headers, params={"year": 2025, "month": 1}
+    )
+    assert response.status_code == 200
+    days = {
+        day["date"]: day for week in response.json()["weeks"] for day in week["days"]
+    }
+    assert [item["name"] for item in days["2024-12-31"]["items"]] == ["December"]
+    assert [item["name"] for item in days["2025-01-01"]["items"]] == ["January"]
+
+
+def test_activity_grid_uses_user_local_dates(
+    db: Session, client: TestClient, temp_user_token: str, temp_user_id: UUID
+) -> None:
+    headers = {"Authorization": f"Bearer {temp_user_token}"}
+    response = client.patch(
+        "/users/me/timezone",
+        headers=headers,
+        params={"timezone_name": "America/Los_Angeles"},
+    )
+    assert response.status_code == 200
+
+    db.add_all(
+        Activity(
+            start=start,
+            duration=timedelta(minutes=30),
+            distance=1.0,
+            moving_duration=timedelta(minutes=30),
+            type_id=1,
+            sub_type_id=1,
+            name=name,
+            user_id=temp_user_id,
+        )
+        for name, start in (
+            ("Previous week", datetime(2025, 1, 27, 7, 30, tzinfo=UTC)),
+            ("Current week", datetime(2025, 2, 1, 0, 30, tzinfo=UTC)),
+        )
+    )
+    db.commit()
+
+    with freeze_time("2025-02-01 01:00:00"):
+        response = client.get(
+            "/statistics/activity-grid", headers=headers, params={"weeks": 1}
+        )
+    assert response.status_code == 200
+    grid = ActivityGridResponse.model_validate(response.json())
+    days = {day.date: day for week in grid.weeks for day in week.days if day}
+    assert days[date(2025, 1, 26)].activity_count == 1
+    assert days[date(2025, 1, 31)].activity_count == 1
+    assert grid.totals.activity_count == 2
+    assert grid.summary.activities_this_month == 2
+    assert grid.summary.week_activity_streak == 2
+    assert grid.summary.last_active_day == date(2025, 1, 31)
 
 
 def test_duration_stat_responses_use_effective_duration_name() -> None:
@@ -477,7 +661,7 @@ def test_find_grid_start_end(
     today: str, weeks: int, exp_start: date, exp_end: date
 ) -> None:
     with freeze_time(today):
-        start, end = _find_grid_start_end(weeks)
+        start, end = _find_grid_start_end(weeks, ZoneInfo("Europe/Berlin"))
 
     assert start == exp_start
     assert end == exp_end

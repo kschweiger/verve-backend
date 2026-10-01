@@ -445,7 +445,7 @@ def test_get_activities_with_tag(
     db.refresh(tag)
 
     activity_1 = Activity(
-        start=datetime(2024, 1, 1, 10),
+        start=datetime(2024, 1, 1, 10).astimezone(),
         duration=timedelta(minutes=30),
         distance=1.0,
         moving_duration=timedelta(minutes=25),
@@ -455,7 +455,7 @@ def test_get_activities_with_tag(
         user_id=temp_user_id,
     )
     activity_2 = Activity(
-        start=datetime(2024, 1, 5, 10),
+        start=datetime(2024, 1, 5, 10).astimezone(),
         duration=timedelta(minutes=30),
         distance=2.0,
         moving_duration=timedelta(minutes=25),

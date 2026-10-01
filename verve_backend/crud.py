@@ -1,7 +1,9 @@
 import importlib.resources
 import uuid
 from collections import defaultdict
+from datetime import UTC, datetime
 from typing import Generator, Type, TypeVar
+from zoneinfo import ZoneInfo
 
 import structlog
 from geo_track_analyzer import Track
@@ -17,8 +19,14 @@ from verve_backend.api.common.locale import get_activity_name, get_tag_name
 from verve_backend.api.common.utils import update_activity_with_track
 from verve_backend.api.deps import SupportedLocale
 from verve_backend.core.config import settings
+from verve_backend.core.date_utils import to_utc_with_default_timezone
 from verve_backend.core.db import get_search_query
-from verve_backend.core.meta_data import ActivityMetaData, validate_meta_data
+from verve_backend.core.meta_data import (
+    ActivityMetaData,
+    SwimmingMetaData,
+    normalize_swimming_times_to_utc,
+    validate_meta_data,
+)
 from verve_backend.core.security import (
     generate_reset_token,
     get_password_hash,
@@ -134,15 +142,21 @@ def create_activity(
     create: ActivityCreate,
     user: UserPublic,
     locale: SupportedLocale = SupportedLocale.DE,
+    timezone: ZoneInfo | None = None,
 ) -> Result[Activity, uuid.UUID]:
     activity_type = session.get(ActivityType, create.type_id)
     assert activity_type is not None
 
+    start = (
+        to_utc_with_default_timezone(create.start, timezone)
+        if timezone is not None
+        else create.start
+    )
     name = create.name
     if name is None:
         name = get_activity_name(
             activity_type.name.lower().replace(" ", "_"),
-            create.start,
+            start.astimezone(timezone) if timezone is not None else start,
             locale,
         )
     if create.meta_data:
@@ -153,9 +167,13 @@ def create_activity(
         )
         if not isinstance(validation_result, ActivityMetaData):
             return Err(validation_result)
+        if timezone is not None and isinstance(validation_result, SwimmingMetaData):
+            normalize_swimming_times_to_utc(validation_result, timezone)
         create.meta_data = validation_result.model_dump(mode="json")
 
-    db_obj = Activity.model_validate(create, update={"user_id": user.id, "name": name})
+    db_obj = Activity.model_validate(
+        create, update={"user_id": user.id, "name": name, "start": start}
+    )
     session.add(db_obj)
     session.commit()
     session.refresh(db_obj)
@@ -374,6 +392,9 @@ def update_activity_with_track_data(
 def create_goal(
     *, session: Session, goal: GoalCreate, user_id: uuid.UUID | str
 ) -> TypedResult[Goal, str]:
+    if goal.year is None:
+        goal.year = datetime.now(UTC).year
+
     # Basic validation for base attributes
     validation_result = validate_goal_creation(goal)
     if validation_result is not None:

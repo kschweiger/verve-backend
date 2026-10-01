@@ -1,7 +1,8 @@
 import math
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import structlog
 from geo_track_analyzer import GeoJsonTrack
@@ -9,6 +10,7 @@ from geo_track_analyzer.exceptions import GeoJsonWithoutGeometryError
 from sqlmodel import Session, select
 
 from verve_backend import crud
+from verve_backend.core.date_utils import to_utc_with_default_timezone
 from verve_backend.exceptions import VerveImportError
 from verve_backend.models import (
     Activity,
@@ -48,6 +50,7 @@ def convert_verve_file_to_activity(
     session: Session,
     user_id: UUID,
     data: VerveFeature,
+    timezone: ZoneInfo,
     overwrite_type_id: int | None = None,
     overwrite_sub_type_id: int | None = None,
 ) -> Activity:
@@ -90,15 +93,15 @@ def convert_verve_file_to_activity(
 
     meta_data = data.properties.metadata
     if isinstance(meta_data, KnownMetaDataEnvelope):
-        meta_data = meta_data.to_core_meta_data().model_dump(mode="json")
+        meta_data = meta_data.to_core_meta_data(timezone).model_dump(mode="json")
 
     activity = Activity(
         user_id=user_id,
-        created_at=datetime.now(),
+        created_at=datetime.now(UTC),
         name=data.properties.name,
         type_id=_type_id,
         sub_type_id=_sub_type_id,
-        start=data.properties.start_time,
+        start=to_utc_with_default_timezone(data.properties.start_time, timezone),
         duration=timedelta(seconds=data.properties.duration),
         distance=None
         if data.properties.distance is None
@@ -148,10 +151,13 @@ def convert_verve_file_to_activity(
 
     empty_spatial_flag = False
     try:
-        track = GeoJsonTrack(source=_data, max_speed_percentile=99)
+        track = GeoJsonTrack(source=_data, max_speed_percentile=99, timezone=timezone)
     except GeoJsonWithoutGeometryError:
         track = GeoJsonTrack(
-            source=_data, allow_empty_spatial=True, max_speed_percentile=99
+            source=_data,
+            allow_empty_spatial=True,
+            max_speed_percentile=99,
+            timezone=timezone,
         )
         empty_spatial_flag = True
     except Exception as e:

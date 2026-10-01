@@ -1,6 +1,7 @@
-from datetime import datetime
+from datetime import UTC, date, datetime, time
 from typing import Any
 from uuid import UUID, uuid4
+from zoneinfo import ZoneInfo
 
 import structlog
 from pydantic import BaseModel
@@ -198,6 +199,7 @@ def _build_activity_stmt(
     last_updated: datetime | None,
     possible_activity_ids: list[UUID] | None,
     filter_distance: bool,
+    timezone: ZoneInfo,
 ):
     stmt = select(Activity).where(Activity.user_id == user_id)
 
@@ -207,16 +209,19 @@ def _build_activity_stmt(
         stmt = stmt.where(Activity.sub_type_id == contraints.sub_type_id)
 
     if month is not None:
-        stmt = stmt.where(func.extract("year", col(Activity.start)) == year).where(
-            func.extract("month", col(Activity.start)) == month
-        )
+        start_date = date(year, month, 1)
+        end_date = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
     elif week is not None:
         start_date, end_date = get_week_date_range(year, week)
-        stmt = stmt.where(col(Activity.start) >= start_date).where(
-            col(Activity.start) < end_date
-        )
     else:
-        stmt = stmt.where(func.extract("year", col(Activity.start)) == year)
+        start_date = date(year, 1, 1)
+        end_date = date(year + 1, 1, 1)
+
+    start_at = datetime.combine(start_date, time.min, timezone).astimezone(UTC)
+    end_at = datetime.combine(end_date, time.min, timezone).astimezone(UTC)
+    stmt = stmt.where(col(Activity.start) >= start_at).where(
+        col(Activity.start) < end_at
+    )
 
     if contraints.equipment_ids:
         stmt = (
@@ -244,7 +249,9 @@ def _build_activity_stmt(
 
 
 @log_timing
-def update_goal_state(*, session: Session, user_id: UUID, goal: Goal) -> Goal:
+def update_goal_state(
+    *, session: Session, user_id: UUID, goal: Goal, timezone: ZoneInfo
+) -> Goal:
     from verve_backend import crud
 
     contraints = GoalContraints.model_validate(goal.constraints)
@@ -272,6 +279,7 @@ def update_goal_state(*, session: Session, user_id: UUID, goal: Goal) -> Goal:
                 match_distance=settings.LOCATION_MATCH_RADIUS_METERS,
             ),
             filter_distance=False,
+            timezone=timezone,
         )
 
         activities = session.exec(stmt).all()
@@ -303,6 +311,7 @@ def update_goal_state(*, session: Session, user_id: UUID, goal: Goal) -> Goal:
             else None,
             possible_activity_ids=None,
             filter_distance=goal.aggregation in distance_aggregations,
+            timezone=timezone,
         )
 
         activities = session.exec(stmt).all()
@@ -330,7 +339,7 @@ def update_goal_state(*, session: Session, user_id: UUID, goal: Goal) -> Goal:
         else:
             raise NotImplementedError(f"Aggregation {goal.aggregation} not implemented")
 
-    goal.current_updated = datetime.now()
+    goal.current_updated = datetime.now(UTC)
     session.add(goal)
     session.commit()
     session.refresh(goal)

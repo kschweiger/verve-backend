@@ -2,6 +2,7 @@ from collections import defaultdict
 from datetime import date
 from typing import Annotated, Sequence
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, Field
 
@@ -71,7 +72,10 @@ class CalendarWeek(BaseModel):
 
 
 def build_calendar_response(
-    activities: Sequence[Activity], month_grid: list[list[date]], target_month: int
+    activities: Sequence[Activity],
+    month_grid: list[list[date]],
+    target_month: int,
+    timezone: ZoneInfo,
 ) -> list[CalendarWeek]:
     # 1. Pre-process activities into a fast lookup dictionary
     # Structure: date -> type_id -> list[Activity]
@@ -79,7 +83,9 @@ def build_calendar_response(
         lambda: defaultdict(list)
     )
     for act in activities:
-        mapped_activities[act.start.date()][act.type_id].append(act)
+        mapped_activities[act.start.astimezone(timezone).date()][act.type_id].append(
+            act
+        )
 
     weeks_data = []
 

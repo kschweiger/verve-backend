@@ -1,15 +1,17 @@
 -- Params:
 --   :user_id         UUID
---   :as_of_date       DATE
+--   :current_week     DATE local Monday
+--   :after_week_at    TIMESTAMPTZ exclusive UTC bound
+--   :timezone_name    TEXT IANA timezone
 --
 WITH params AS (
-  SELECT date_trunc('week', CAST(:as_of_date AS date))::date AS current_week
+  SELECT CAST(:current_week AS date) AS current_week
 ),
 active_weeks AS (
-  SELECT DISTINCT date_trunc('week', a.start)::date AS week_start
+  SELECT DISTINCT date_trunc('week', a.start AT TIME ZONE :timezone_name)::date AS week_start
   FROM activities a
   WHERE a.user_id = :user_id
-    AND a.start < (SELECT current_week + interval '1 week' FROM params)
+    AND a.start < CAST(:after_week_at AS TIMESTAMPTZ)
 ),
 week_series AS (
   SELECT generate_series(

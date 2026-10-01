@@ -2,6 +2,7 @@ import importlib.resources
 import uuid
 from io import BytesIO
 from time import perf_counter
+from zoneinfo import ZoneInfo
 
 import structlog
 from fastapi import HTTPException
@@ -35,19 +36,26 @@ def add_track(
     file_name: str,
     file_content: bytes,
     file_content_type: str | None,
+    timezone: ZoneInfo,
 ) -> tuple[Track, int]:
     empty_spatial_flag = False
 
     if file_name.endswith(".fit"):
-        track = FITTrack(BytesIO(file_content), max_speed_percentile=99)  # type: ignore
+        track = FITTrack(file_content, max_speed_percentile=99, timezone=timezone)
         orig_file_type = "fit"
     elif file_name.endswith(".gpx"):
-        track = ByteTrack(BytesIO(file_content), max_speed_percentile=99)  # type: ignore
+        track = ByteTrack(
+            BytesIO(file_content),  # type: ignore
+            max_speed_percentile=99,
+            timezone=timezone,
+        )
         orig_file_type = "gpx"
     elif file_name.endswith(".json"):
         file_bytes = BytesIO(file_content).read()
         try:
-            track = GeoJsonTrack(file_bytes, max_speed_percentile=99)  # type: ignore
+            track = GeoJsonTrack(  # type: ignore
+                file_bytes, max_speed_percentile=99, timezone=timezone
+            )
         except UnsupportedGeoJsonTypeError:
             logger.error("geojson file type not supported")
             raise HTTPException(
@@ -67,6 +75,7 @@ def add_track(
                 file_bytes,
                 max_speed_percentile=99,
                 allow_empty_spatial=True,
+                timezone=timezone,
                 # TODO: Set default lat/long?
             )  # type: ignore
             empty_spatial_flag = True

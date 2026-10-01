@@ -1,5 +1,6 @@
 import json
 import uuid
+from datetime import UTC, datetime, timedelta
 from importlib import resources
 
 import pytest
@@ -20,6 +21,50 @@ from verve_backend.models import (
     TrackPoint,
     User,
 )
+
+
+def test_upload_track_uses_request_timezone_for_offsetless_times(
+    db: Session,
+    client: TestClient,
+    temp_user_id: uuid.UUID,
+    temp_user_token: str,
+    celery_eager: None,
+) -> None:
+    activity = Activity(
+        start=datetime(2025, 1, 1, tzinfo=UTC),
+        duration=timedelta(minutes=10),
+        distance=1.0,
+        type_id=1,
+        sub_type_id=None,
+        name="Track timezone test",
+        user_id=temp_user_id,
+    )
+    db.add(activity)
+    db.commit()
+    db.refresh(activity)
+
+    gpx = (
+        '<gpx version="1.1" creator="test"><trk><trkseg>'
+        '<trkpt lat="48.0" lon="11.0"><time>2025-01-01T00:30:00</time></trkpt>'
+        '<trkpt lat="48.001" lon="11.001"><time>2025-01-01T00:40:00</time></trkpt>'
+        "</trkseg></trk></gpx>"
+    ).encode()
+    response = client.put(
+        "/track/",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        params={"activity_id": str(activity.id), "timezone_name": "Europe/Berlin"},
+        files={"file": ("timezone.gpx", gpx, "application/gpx+xml")},
+    )
+    assert response.status_code == 201
+
+    db.refresh(activity)
+    expected = datetime(2024, 12, 31, 23, 30, tzinfo=UTC)
+    assert activity.start == expected
+    first_point = db.exec(
+        select(TrackPoint).where(TrackPoint.activity_id == activity.id)
+    ).first()
+    assert first_point is not None
+    assert first_point.time == expected
 
 
 def test_get_track_data(client: TestClient, user1_token: str) -> None:
@@ -90,6 +135,7 @@ def test_get_segment_sets(
     _sets = db.exec(select(SegmentSet).where(SegmentSet.user_id == user1_id)).all()
     assert len(_sets) > 0
     activity_id = _sets[0].activity_id
+    _activity_sets = [s for s in _sets if s.activity_id == activity_id]
 
     response = client.get(
         f"/track/segments/sets/{activity_id}",
@@ -100,7 +146,7 @@ def test_get_segment_sets(
     res_data = ListResponse[uuid.UUID].model_validate(response.json())
 
     assert len(res_data.data) > 0
-    assert len(res_data.data) == len(_sets)
+    assert len(res_data.data) == len(_activity_sets)
 
 
 def test_get_segment_stats_running(

@@ -5,6 +5,7 @@ import redis
 import structlog
 from sqlmodel import Session
 
+from verve_backend.api.common.utils import get_user_timezone
 from verve_backend.celery_app import celery
 from verve_backend.core.config import settings
 from verve_backend.core.db import get_engine
@@ -52,6 +53,8 @@ def process_activity_highlights(*, activity_id: UUID, user_id: UUID) -> None:
                 )
                 return
 
+            timezone = get_user_timezone(session, user_id)
+
             for metric, result in registry.run_all(
                 activity_id, user_id, session
             ).items():
@@ -60,6 +63,7 @@ def process_activity_highlights(*, activity_id: UUID, user_id: UUID) -> None:
                         session=session,
                         user_id=user_id,
                         activity=activity,
+                        timezone=timezone,
                         metric=metric,
                         value=result.value,
                         track_id=result.track_id,

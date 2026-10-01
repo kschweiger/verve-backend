@@ -163,3 +163,44 @@ def test_replace_records_settings(
 
     assert settings_post.records_settings.default_activity_type == 2
     assert settings_post.records_settings != settings_pre.records_settings
+
+
+def test_update_timezone(
+    client: TestClient,
+    temp_user_token: UUID,
+) -> None:
+    new_tz = "America/Los_Angeles"
+    response = client.get(
+        "/users/me/settings",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+    assert response.status_code == 200
+    settings_pre = UserSettingsPublic.model_validate(response.json()["settings"])
+
+    assert settings_pre.timezone != new_tz
+
+    response = client.patch(
+        "/users/me/timezone",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        params={"timezone_name": new_tz},
+    )
+    assert response.status_code == 200
+    response = client.get(
+        "/users/me/settings",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+    assert response.status_code == 200
+    settings_post = UserSettingsPublic.model_validate(response.json()["settings"])
+    assert settings_post.timezone == new_tz
+
+
+def test_update_timezone_invalid_name(
+    client: TestClient,
+    user1_token: str,
+) -> None:
+    response = client.patch(
+        "/users/me/timezone",
+        headers={"Authorization": f"Bearer {user1_token}"},
+        params={"timezone_name": "something/random"},
+    )
+    assert response.status_code == 422
