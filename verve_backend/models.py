@@ -1,6 +1,6 @@
 import re
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from enum import StrEnum, auto
 from typing import Annotated, Any, Generic, TypeVar
 
@@ -378,7 +378,7 @@ class EquipmentBase(SQLModel):
     brand: str | None = None
     model: str | None = None
     description: str | None = None
-    purchase_date: datetime | None = None
+    purchase_date: date | None = None
 
 
 class EquipmentCreate(EquipmentBase):

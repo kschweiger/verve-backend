@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from sqlmodel import Session, select, text
 
@@ -36,7 +36,7 @@ def test_activity_equipment_relationship(db: Session) -> None:
         equipment_type=EquipmentType.BIKE,
         brand="Trek",
         model="Domane SL 7",
-        purchase_date=datetime(2023, 2, 1).astimezone(),
+        purchase_date=date(2023, 2, 1),
         user_id=user.id,
     )
 

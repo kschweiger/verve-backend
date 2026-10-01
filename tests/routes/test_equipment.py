@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Generator
 from uuid import UUID
 
@@ -43,7 +43,7 @@ def activity_with_equipment(
         equipment_type=EquipmentType.BIKE,
         brand="Specialized",
         model="Allez",
-        purchase_date=datetime(2022, 5, 1).astimezone(),
+        purchase_date=date(2022, 5, 1),
         user_id=user.id,
     )
 
@@ -70,7 +70,7 @@ def temp_equipment(db: Session) -> Generator[UUID, None, None]:
         equipment_type=EquipmentType.BIKE,
         brand="Propain",
         model="Hugene",
-        purchase_date=datetime(2023, 5, 1).astimezone(),
+        purchase_date=date(2023, 5, 1),
         user_id=user.id,
     )
 
