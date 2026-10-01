@@ -51,6 +51,42 @@ def test_get_goals(
     assert goals.count == exp_count
 
 
+@freeze_time("2024-12-31 23:30:00")
+def test_get_goals_defaults_to_user_local_year(
+    client: TestClient, temp_user_token: str
+) -> None:
+    headers = {"Authorization": f"Bearer {temp_user_token}"}
+    response = client.patch(
+        "/users/me/timezone",
+        headers=headers,
+        params={"timezone_name": "Europe/Berlin"},
+    )
+    assert response.status_code == 200
+
+    response = client.put(
+        "/goal",
+        headers=headers,
+        json={
+            "name": "New year goal",
+            "year": 2025,
+            "target": 1,
+            "type": GoalType.ACTIVITY,
+            "aggregation": GoalAggregation.COUNT,
+        },
+    )
+    assert response.status_code == 200
+
+    response = client.get("/goal", headers=headers)
+    assert response.status_code == 200
+    goals = GoalsPublic.model_validate(response.json())
+    assert goals.count == 1
+    assert goals.data[0].year == 2025
+
+    response = client.get("/goal", headers=headers, params={"year": 2024})
+    assert response.status_code == 200
+    assert GoalsPublic.model_validate(response.json()).count == 0
+
+
 def test_add_goal(
     client: TestClient,
     temp_user_token: str,

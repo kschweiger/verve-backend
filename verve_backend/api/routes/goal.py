@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query
@@ -42,14 +42,15 @@ def get_public_goal(goal: Goal) -> GoalPublic:
 @router.get("/", response_model=GoalsPublic)
 def get_goals(
     user_session: UserSession,
-    year: Annotated[
-        int, Query(ge=2000, default_factory=lambda: datetime.now(UTC).year)
-    ],
+    year: Annotated[int | None, Query(ge=2000)] = None,
     month: Annotated[int | None, Query(ge=1, lt=13)] = None,
     week: Annotated[int | None, Query(ge=1, lt=54)] = None,
 ) -> Any:
     _user_id, session = user_session
     user_id = uuid.UUID(_user_id)
+    timezone = get_user_timezone(session, user_id)
+    if year is None:
+        year = datetime.now(timezone).year
 
     if week is not None and month is not None:
         raise HTTPException(
@@ -70,7 +71,7 @@ def get_goals(
             session=session,
             user_id=user_id,
             goal=goal,
-            timezone=get_user_timezone(session, user_id),
+            timezone=timezone,
         )
 
         progress = goal.current / goal.target
