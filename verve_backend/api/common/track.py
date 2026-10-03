@@ -1,5 +1,8 @@
 import importlib.resources
+import json
+import math
 import uuid
+from dataclasses import dataclass
 from io import BytesIO
 from time import perf_counter
 from zoneinfo import ZoneInfo
@@ -21,6 +24,7 @@ from starlette.status import (
 )
 
 from verve_backend import crud
+from verve_backend.api.common.timezone import resolve_activity_timezone
 from verve_backend.api.deps import ObjectStoreClient
 from verve_backend.core.config import settings
 from verve_backend.models import Activity, RawTrackData, TrackPoint, TrackPointResponse
@@ -28,20 +32,23 @@ from verve_backend.models import Activity, RawTrackData, TrackPoint, TrackPointR
 logger = structlog.getLogger(__name__)
 
 
-def add_track(
-    activity_id: uuid.UUID,
-    user_id: uuid.UUID,
-    session: Session,
-    obj_store_client: ObjectStoreClient,
+@dataclass(frozen=True)
+class ParsedTrack:
+    track: Track
+    timezone: ZoneInfo
+    file_type: str
+    no_geometry: bool
+
+
+def _parse_track(
     file_name: str,
     file_content: bytes,
-    file_content_type: str | None,
-    timezone: ZoneInfo,
-) -> tuple[Track, int]:
+    timezone: ZoneInfo | None,
+) -> tuple[Track, str, bool]:
     empty_spatial_flag = False
 
     if file_name.endswith(".fit"):
-        track = FITTrack(file_content, max_speed_percentile=99, timezone=timezone)
+        track = FITTrack(file_content, max_speed_percentile=99)
         orig_file_type = "fit"
     elif file_name.endswith(".gpx"):
         track = ByteTrack(
@@ -96,8 +103,87 @@ def add_track(
             detail="File type not supported. Only .fit, .gpx, and .json files are "
             "supported.",
         )
-    # TODO: Deal with the empty_spatial_flag pass it ouside?
+    return track, orig_file_type, empty_spatial_flag
 
+
+def parse_track(
+    *,
+    file_name: str,
+    file_content: bytes,
+    fallback_timezone: ZoneInfo,
+    timezone_name: str | None = None,
+    verve_timezone: str | None = None,
+) -> ParsedTrack:
+    """Parse and select a display zone before any database or object-store writes."""
+    declared = timezone_name if timezone_name is not None else verve_timezone
+    initial_timezone = (
+        resolve_activity_timezone(
+            fallback_timezone=fallback_timezone,
+            timezone_name=declared,
+        )
+        if declared is not None
+        else None
+    )
+    track, file_type, no_geometry = _parse_track(
+        file_name,
+        file_content,
+        initial_timezone,
+    )
+    coordinates = None
+    coordinate_track = None if no_geometry else track
+    if declared is None and no_geometry and file_type == "json":
+        source = json.loads(file_content)
+        real_features = [
+            feature
+            for feature in source.get("features", [])
+            if feature.get("geometry") is not None
+        ]
+        if real_features:
+            # The nonspatial parser synthesizes ALL coordinates when any geometry
+            # is missing. Inspect only original features with real geometry.
+            coordinate_track = GeoJsonTrack(
+                {**source, "features": real_features},
+                max_speed_percentile=99,
+            )
+    if declared is None and coordinate_track is not None:
+        coordinates = next(
+            (
+                (point.latitude, point.longitude)
+                for segment in coordinate_track.track.segments
+                for point in segment.points
+                if point.time is not None
+                and math.isfinite(point.latitude)
+                and math.isfinite(point.longitude)
+                and -90 <= point.latitude <= 90
+                and -180 <= point.longitude <= 180
+            ),
+            None,
+        )
+    timezone = resolve_activity_timezone(
+        fallback_timezone=fallback_timezone,
+        timezone_name=timezone_name,
+        verve_timezone=verve_timezone,
+        coordinates=coordinates,
+    )
+    if file_type != "fit" and any(
+        point.time is not None and point.time.utcoffset() is None
+        for segment in track.track.segments
+        for point in segment.points
+    ):
+        track, file_type, no_geometry = _parse_track(file_name, file_content, timezone)
+    return ParsedTrack(track, timezone, file_type, no_geometry)
+
+
+def add_track(
+    activity_id: uuid.UUID,
+    user_id: uuid.UUID,
+    session: Session,
+    obj_store_client: ObjectStoreClient,
+    file_name: str,
+    file_content: bytes,
+    file_content_type: str | None,
+    parsed: ParsedTrack,
+) -> tuple[Track, int]:
     activity = session.get(Activity, activity_id)
     if activity is None:
         # This happens if a activity_id for a different user is passed
@@ -108,6 +194,7 @@ def add_track(
         )
 
     obj_path = f"tracks/{uuid.uuid4()}"
+    activity.timezone = parsed.timezone.key
 
     obj_store_client.upload_fileobj(
         BytesIO(file_content),
@@ -119,7 +206,7 @@ def add_track(
                 "original_filename": file_name,
                 "uploaded_by": str(user_id),
                 "activity_id": str(activity_id),
-                "file_type": orig_file_type,
+                "file_type": parsed.file_type,
             },
         },
     )
@@ -135,14 +222,14 @@ def add_track(
     pre = perf_counter()
     n_points = crud.insert_track(
         session=session,
-        track=track,
+        track=parsed.track,
         activity_id=activity_id,
         user_id=user_id,
-        no_geometry=empty_spatial_flag,
+        no_geometry=parsed.no_geometry,
     )
     logger.info("Inserting took: %.2f seconds", perf_counter() - pre)
 
-    return track, n_points
+    return parsed.track, n_points
 
 
 def get_track_points_response(

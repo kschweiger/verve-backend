@@ -24,6 +24,7 @@ def test_activities_to_calendar_weeks() -> None:
     activities = [
         # 1 activitiy from 1 type on a day
         ActivityPublic(
+            timezone="Europe/Berlin",
             id=UUID("25a4d482-c2a8-4cce-bea7-93efbb6467bd"),
             created_at=datetime.now().astimezone(),
             name="1 1",
@@ -37,6 +38,7 @@ def test_activities_to_calendar_weeks() -> None:
         # 2 activities from 1 type on a day
         ActivityPublic(
             id=UUID("a180d218-5cb3-4468-a632-b182507e643c"),
+            timezone="Europe/Berlin",
             created_at=datetime.now().astimezone(),
             name="2 1",
             start=datetime(2025, 11, 4, 12).astimezone(),
@@ -48,6 +50,7 @@ def test_activities_to_calendar_weeks() -> None:
         ),
         ActivityPublic(
             id=UUID("8df76316-2e99-4f9d-8ca8-9db8e67f5522"),
+            timezone="Europe/Berlin",
             created_at=datetime.now().astimezone(),
             name="2 2",
             start=datetime(2025, 11, 4, 12).astimezone(),
@@ -60,6 +63,7 @@ def test_activities_to_calendar_weeks() -> None:
         # 2 activities from 2 type on a day
         ActivityPublic(
             id=UUID("8281f63e-a17e-4d47-9836-3f15222c5250"),
+            timezone="Europe/Berlin",
             created_at=datetime.now().astimezone(),
             name="3 1",
             start=datetime(2025, 11, 5, 12).astimezone(),
@@ -71,6 +75,7 @@ def test_activities_to_calendar_weeks() -> None:
         ),
         ActivityPublic(
             id=UUID("79403e8e-6f3c-4356-b69d-f4af241b0350"),
+            timezone="Europe/Berlin",
             created_at=datetime.now().astimezone(),
             name="3 2",
             start=datetime(2025, 11, 5, 12).astimezone(),

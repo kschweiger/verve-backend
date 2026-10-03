@@ -29,6 +29,7 @@ def activity_with_equipment(
     user = db.exec(select(User)).first()
     assert user is not None
     activity = Activity(
+        timezone="Europe/Berlin",
         start=datetime(year=2025, month=3, day=1, hour=12).astimezone(),
         duration=timedelta(days=0, seconds=60 * 60 * 2),
         distance=15.0,
@@ -315,6 +316,7 @@ def test_remove_equipment(
     user = db.exec(select(User)).first()
     assert user is not None
     activity = Activity(
+        timezone="Europe/Berlin",
         start=datetime(year=2025, month=12, day=24, hour=12).astimezone(),
         duration=timedelta(days=0, seconds=60 * 60 * 2),
         distance=15.0,

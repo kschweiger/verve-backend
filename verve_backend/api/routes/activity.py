@@ -23,7 +23,7 @@ from verve_backend import crud
 from verve_backend.api.common.locale import get_activity_name
 from verve_backend.api.common.location import to_public_location
 from verve_backend.api.common.store_utils import remove_object_from_store
-from verve_backend.api.common.track import add_track
+from verve_backend.api.common.track import add_track, parse_track
 from verve_backend.api.common.utils import (
     check_and_raise_primary_key,
     check_distance_requirement,
@@ -73,6 +73,7 @@ from verve_backend.tasks import process_activity_highlights
 
 
 class ActivityUpdate(BaseModel):
+    timezone: TimeZoneName | None = None
     type_id: int | None = None
     sub_type_id: int | None = None
     meta_data: dict | None = None
@@ -111,6 +112,10 @@ def update_activity(
         raise HTTPException(status_code=404, detail="Activity not found")
 
     update_data = data.model_dump(exclude_unset=True)
+    if "timezone" in update_data and update_data["timezone"] is None:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST, detail="timezone cannot be set to null"
+        )
 
     if "type_id" in update_data:
         if update_data["type_id"] is None:
@@ -152,9 +157,10 @@ def update_activity(
         )
     metadata = update_data.get("meta_data")
     if metadata is not None and metadata.get("target") == "SwimmingMetaData":
+        effective_timezone = timezone_name or data.timezone or activity.timezone
         timezone = (
-            ZoneInfo(timezone_name)
-            if timezone_name is not None
+            ZoneInfo(effective_timezone)
+            if effective_timezone is not None
             else get_user_timezone(session, uuid.UUID(user_id))
         )
         for key in ("laps", "sets"):
@@ -545,6 +551,7 @@ def _import_verve_file(
     overwrite_type_id: int | None,
     overwrite_sub_type_id: int | None,
     timezone: ZoneInfo,
+    timezone_name: str | None = None,
 ) -> Activity:
     if not file_name.endswith(".json"):
         raise HTTPException(
@@ -570,6 +577,7 @@ def _import_verve_file(
         timezone=timezone,
         overwrite_type_id=overwrite_type_id,
         overwrite_sub_type_id=overwrite_sub_type_id,
+        timezone_name=timezone_name,
     )
 
     obj_path = f"tracks/{uuid.uuid4()}"
@@ -648,9 +656,17 @@ def create_auto_activity(
             overwrite_type_id=type_id,
             overwrite_sub_type_id=sub_type_id,
             timezone=timezone,
+            timezone_name=timezone_name,
         )
     else:
         logger.info("Identified standalone track data")
+        parsed = parse_track(
+            file_name=file_name,
+            file_content=file_content,
+            fallback_timezone=ZoneInfo(settings.timezone),
+            timezone_name=timezone_name,
+        )
+        timezone = parsed.timezone
 
         _type_id = settings.default_type_id if type_id is None else type_id
         # Use the default sub_type if the type is not passed. otherwise the sub_type is
@@ -658,6 +674,7 @@ def create_auto_activity(
         _sub_type_id = settings.defautl_sub_type_id if type_id is None else sub_type_id
         activity = Activity(
             user_id=user_id,
+            timezone=timezone.key,
             start=datetime.datetime.now(datetime.UTC),
             created_at=datetime.datetime.now(datetime.UTC),
             duration=datetime.timedelta(seconds=1),
@@ -695,7 +712,6 @@ def create_auto_activity(
 
         activity_type = session.get(ActivityType, activity.type_id)
         assert activity_type is not None
-        # TODO: Add error handling that removes the activity again
         track, _ = add_track(
             activity_id=activity.id,
             user_id=user_id,
@@ -704,7 +720,7 @@ def create_auto_activity(
             file_name=file_name,
             file_content=file_content,
             file_content_type=file_content_type,
-            timezone=timezone,
+            parsed=parsed,
         )
 
         update_activity_with_track(activity=activity, track=track)
@@ -758,6 +774,7 @@ def import_verve_file(
         overwrite_type_id=None,
         overwrite_sub_type_id=None,
         timezone=timezone,
+        timezone_name=timezone_name,
     )
 
     process_activity_highlights.delay(activity_id=activity.id, user_id=user_id)  # type: ignore

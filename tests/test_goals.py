@@ -211,6 +211,7 @@ def test_update_activity_goal(
         constraints["equipment_ids"] = [_rp[i] for i in constraints["equipment_ids"]]
 
     activity_1 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
         start=datetime(2025, 5, 1, 12).astimezone(),
         distance=10,
@@ -222,6 +223,7 @@ def test_update_activity_goal(
         equipment=[equipment_1],
     )
     activity_2 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
         start=datetime(2025, 5, 2, 12).astimezone(),
         distance=20,
@@ -232,6 +234,7 @@ def test_update_activity_goal(
         created_at=datetime(2025, 5, 2, 18).astimezone(),
     )
     activity_3 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
         start=datetime(2025, 5, 3, 12).astimezone(),
         distance=30,
@@ -243,6 +246,7 @@ def test_update_activity_goal(
         equipment=[equipment_1, equipment_2],
     )
     activity_4 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
         start=datetime(2025, 6, 1, 12).astimezone(),
         distance=40,
@@ -483,6 +487,7 @@ def test_update_weekly_activity_goal(
     """Test weekly goal state updates with various aggregations."""
     # Week 3 activities: Jan 13-19, 2025 (Mon-Sun)
     activity_week3_1 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
         start=datetime(2025, 1, 14, 12).astimezone(),  # Tuesday, week 3
         distance=10,
@@ -493,6 +498,7 @@ def test_update_weekly_activity_goal(
         created_at=datetime(2025, 1, 14, 18).astimezone(),
     )
     activity_week3_2 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
         start=datetime(2025, 1, 15, 12).astimezone(),  # Wednesday, week 3
         distance=30,
@@ -505,6 +511,7 @@ def test_update_weekly_activity_goal(
 
     # Week 1 activities: Dec 30, 2024 - Jan 5, 2025 (includes Dec 30-31, 2024)
     activity_week1_1 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
         start=datetime(2025, 1, 2, 12).astimezone(),  # Thursday, week 1
         distance=20,
@@ -515,6 +522,7 @@ def test_update_weekly_activity_goal(
         created_at=datetime(2025, 1, 2, 18).astimezone(),
     )
     activity_week1_2 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
         start=datetime(2025, 1, 3, 12).astimezone(),  # Friday, week 1
         distance=30,
@@ -527,6 +535,7 @@ def test_update_weekly_activity_goal(
 
     # Activity in week 4 (should not be counted for weeks 1 or 3)
     activity_week4 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
         start=datetime(2025, 1, 21, 12).astimezone(),  # Tuesday, week 4
         distance=25,
@@ -584,6 +593,7 @@ def test_weekly_goal_year_boundary(
     """
     # Activity on Dec 30, 2024 (ISO week 1 of 2025)
     activity_dec30 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
         start=datetime(2024, 12, 30, 12).astimezone(),
         distance=10,
@@ -596,6 +606,7 @@ def test_weekly_goal_year_boundary(
 
     # Activity on Dec 31, 2024 (ISO week 1 of 2025)
     activity_dec31 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
         start=datetime(2024, 12, 31, 12).astimezone(),
         distance=15,
@@ -608,6 +619,7 @@ def test_weekly_goal_year_boundary(
 
     # Activity on Jan 1, 2025 (ISO week 1 of 2025)
     activity_jan1 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
         start=datetime(2025, 1, 1, 12).astimezone(),
         distance=20,
@@ -657,6 +669,7 @@ def test_weekly_goal_incremental_update(
     """
     # First activity created at 2025-01-14 18:00
     activity_1 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
         start=datetime(2025, 1, 14, 12).astimezone(),
         distance=20,
@@ -669,6 +682,7 @@ def test_weekly_goal_incremental_update(
 
     # Second activity created at 2025-01-16 18:00 (after current_updated)
     activity_2 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
         start=datetime(2025, 1, 15, 12).astimezone(),
         distance=30,
@@ -681,6 +695,7 @@ def test_weekly_goal_incremental_update(
 
     # Third activity created at 2025-01-20 18:00 (after current_updated)
     activity_3 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
         start=datetime(2025, 1, 17, 12).astimezone(),
         distance=25,
@@ -763,6 +778,7 @@ def test_activity_goal_period_uses_user_timezone(
 ) -> None:
     activities = [
         Activity(
+            timezone="Europe/Berlin",
             user_id=temp_user_id,
             start=start,
             duration=timedelta(minutes=30),

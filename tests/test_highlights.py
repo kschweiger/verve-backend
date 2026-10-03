@@ -32,6 +32,7 @@ def create_dummy_activity(
     from verve_backend.api.common.utils import update_activity_with_track
 
     activity = Activity(
+        timezone="Europe/Berlin",
         user_id=user_id,
         start=start,
         distance=distance,
