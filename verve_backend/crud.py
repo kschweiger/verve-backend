@@ -16,7 +16,7 @@ from sqlalchemy.exc import DatabaseError
 from sqlmodel import Session, col, func, insert, select, text
 
 from verve_backend.api.common.locale import get_activity_name, get_tag_name
-from verve_backend.api.common.utils import update_activity_with_track
+from verve_backend.api.common.utils import get_user_timezone, update_activity_with_track
 from verve_backend.api.deps import SupportedLocale
 from verve_backend.core.config import settings
 from verve_backend.core.date_utils import to_utc_with_default_timezone
@@ -144,6 +144,7 @@ def create_activity(
     locale: SupportedLocale = SupportedLocale.DE,
     timezone: ZoneInfo | None = None,
 ) -> Result[Activity, uuid.UUID]:
+    timezone = timezone or get_user_timezone(session, user.id)
     activity_type = session.get(ActivityType, create.type_id)
     assert activity_type is not None
 
@@ -172,7 +173,13 @@ def create_activity(
         create.meta_data = validation_result.model_dump(mode="json")
 
     db_obj = Activity.model_validate(
-        create, update={"user_id": user.id, "name": name, "start": start}
+        create,
+        update={
+            "user_id": user.id,
+            "name": name,
+            "start": start,
+            "timezone": timezone.key,
+        },
     )
     session.add(db_obj)
     session.commit()

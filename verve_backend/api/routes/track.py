@@ -24,6 +24,7 @@ from verve_backend.api.common.track import (
 )
 from verve_backend.api.common.track import (
     get_track_points_response,
+    parse_track,
 )
 from verve_backend.api.common.utils import get_user_timezone
 from verve_backend.api.definitions import Tag
@@ -54,16 +55,24 @@ def add_track(
 ) -> Any:
     _user_id, session = user_session
     user_id = uuid.UUID(_user_id)
-    timezone = (
-        ZoneInfo(timezone_name)
-        if timezone_name is not None
-        else get_user_timezone(session, user_id)
-    )
+    activity = session.get(Activity, activity_id)
+    if activity is None:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST, detail="Activity id not found"
+        )
 
     file_name = file.filename
     assert file_name is not None
     file_content = file.file.read()
     file_content_type = file.content_type
+    parsed = parse_track(
+        file_name=file_name,
+        file_content=file_content,
+        fallback_timezone=ZoneInfo(activity.timezone)
+        if activity.timezone
+        else get_user_timezone(session, user_id),
+        timezone_name=timezone_name,
+    )
 
     track, n_points = upload_track(
         activity_id=activity_id,
@@ -73,7 +82,7 @@ def add_track(
         file_name=file_name,
         file_content=file_content,
         file_content_type=file_content_type,
-        timezone=timezone,
+        parsed=parsed,
     )
 
     try:

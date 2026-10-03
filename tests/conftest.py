@@ -250,6 +250,7 @@ def create_dummy_activity(
     from verve_backend.models import Activity
 
     activity = Activity(
+        timezone="Europe/Berlin",
         user_id=user_id,
         start=start,
         distance=distance,

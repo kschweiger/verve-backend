@@ -115,6 +115,7 @@ def test_get_collections_filters_by_user_local_period(
     }
     for name, start in starts.items():
         activity = Activity(
+            timezone="Europe/Berlin",
             start=start,
             duration=timedelta(minutes=30),
             distance=1.0,

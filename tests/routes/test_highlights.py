@@ -20,6 +20,7 @@ from verve_backend.tasks import process_activity_highlights
 
 def valid_activity_id(db: Session, user_id) -> UUID:
     activity = Activity(
+        timezone="Europe/Berlin",
         user_id=user_id,
         start=datetime.now().astimezone(),
         distance=100,
@@ -47,6 +48,7 @@ def test_yearly_highlight_uses_user_local_year(
     db.add(settings)
 
     activity = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
         start=datetime(2025, 1, 1, 7, 30, tzinfo=UTC),
         duration=timedelta(minutes=30),

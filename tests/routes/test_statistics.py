@@ -30,6 +30,7 @@ def test_year_stats_filters_by_user_local_year(
 
     db.add_all(
         Activity(
+            timezone="Europe/Berlin",
             start=start,
             duration=timedelta(minutes=30),
             distance=1.0,
@@ -71,6 +72,7 @@ def test_week_stats_uses_user_local_week_and_dates(
 
     db.add_all(
         Activity(
+            timezone="Europe/Berlin",
             start=start,
             duration=timedelta(minutes=30),
             distance=1.0,
@@ -120,6 +122,7 @@ def test_calendar_uses_user_local_month_and_dates(
 
     db.add_all(
         Activity(
+            timezone="Europe/Berlin",
             start=start,
             duration=timedelta(minutes=30),
             distance=1.0,
@@ -166,6 +169,7 @@ def test_activity_grid_uses_user_local_dates(
 
     db.add_all(
         Activity(
+            timezone="Europe/Berlin",
             start=start,
             duration=timedelta(minutes=30),
             distance=1.0,

@@ -31,6 +31,7 @@ def test_upload_track_uses_request_timezone_for_offsetless_times(
     celery_eager: None,
 ) -> None:
     activity = Activity(
+        timezone="Europe/Berlin",
         start=datetime(2025, 1, 1, tzinfo=UTC),
         duration=timedelta(minutes=10),
         distance=1.0,

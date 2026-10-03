@@ -94,6 +94,7 @@ def test_create_activity_resolves_start_to_utc(
     assert response.status_code == 200
     activity = ActivityPublic.model_validate(response.json())
     assert activity.start == expected_start
+    assert activity.timezone == (timezone_name or "America/Los_Angeles")
 
 
 @pytest.mark.parametrize(
@@ -140,14 +141,14 @@ def test_create_activity_names_in_effective_timezone(
         (
             "2025-01-01T00:30:00",
             None,
-            datetime(2025, 1, 1, 8, 30, tzinfo=UTC),
+            datetime(2024, 12, 31, 23, 30, tzinfo=UTC),
             "Night Ride",
         ),
         (
             "2025-01-01T00:30:00Z",
             None,
             datetime(2025, 1, 1, 0, 30, tzinfo=UTC),
-            "Afternoon Ride",
+            "Night Ride",
         ),
         (
             "2025-01-01T00:30:00",
@@ -198,6 +199,7 @@ def test_auto_gpx_resolves_track_times_to_utc(
     activity = ActivityPublic.model_validate(response.json())
     assert activity.start == expected_start
     assert activity.name == expected_name
+    assert activity.timezone == (timezone_name or "Europe/Berlin")
     first_point = db.exec(
         select(TrackPoint).where(TrackPoint.activity_id == activity.id)
     ).first()
@@ -210,8 +212,8 @@ def test_auto_gpx_resolves_track_times_to_utc(
     [
         (
             None,
-            datetime(2026, 1, 13, 23, 21, 56, tzinfo=UTC),
-            datetime(2026, 1, 13, 23, 22, 2, tzinfo=UTC),
+            datetime(2026, 1, 13, 14, 21, 56, tzinfo=UTC),
+            datetime(2026, 1, 13, 14, 22, 2, tzinfo=UTC),
         ),
         (
             "Europe/Berlin",
@@ -255,6 +257,7 @@ def test_import_verve_resolves_offsetless_times(
     assert response.status_code == 200
     activity = ActivityPublic.model_validate(response.json())
     assert activity.start == expected_start
+    assert activity.timezone == (timezone_name or "Europe/Zurich")
     first_point = db.exec(
         select(TrackPoint).where(TrackPoint.activity_id == activity.id)
     ).first()
@@ -314,6 +317,7 @@ def test_get_activities_filters_by_user_local_period(
     }
     db.add_all(
         Activity(
+            timezone="Europe/Berlin",
             start=start,
             duration=timedelta(minutes=30),
             distance=1.0,
@@ -352,6 +356,7 @@ def test_get_activities_tags(
     db.refresh(tag_1)
     db.refresh(tag_2)
     activity_1 = Activity(
+        timezone="Europe/Berlin",
         start=datetime(2024, 1, 1, 10).astimezone(),
         duration=timedelta(minutes=30),
         distance=1.0,
@@ -362,6 +367,7 @@ def test_get_activities_tags(
         user_id=temp_user_id,
     )
     activity_2 = Activity(
+        timezone="Europe/Berlin",
         start=datetime(2024, 1, 5, 10).astimezone(),
         duration=timedelta(minutes=30),
         distance=2.0,
@@ -372,6 +378,7 @@ def test_get_activities_tags(
         user_id=temp_user_id,
     )
     activity_3 = Activity(
+        timezone="Europe/Berlin",
         start=datetime(2024, 1, 8, 10).astimezone(),
         duration=timedelta(minutes=30),
         distance=2.0,
@@ -778,6 +785,7 @@ def test_update_swimming_metadata_resolves_times_and_preserves_other_fields(
         select(ActivityType).where(ActivityType.name == "Swimming")
     ).one()
     activity = Activity(
+        timezone="Europe/Berlin",
         start=datetime(2025, 1, 1, tzinfo=UTC),
         duration=timedelta(minutes=30),
         distance=1.0,
@@ -1046,6 +1054,7 @@ def test_delete_activity_without_track_and_images(
     """Test deleting an activity without track or images."""
     # Create activity
     activity = Activity(
+        timezone="Europe/Berlin",
         start=datetime(2024, 1, 1, 10).astimezone(),
         duration=timedelta(minutes=30),
         distance=1.0,
@@ -1484,6 +1493,7 @@ def test_add_and_rm_location_to_activity(
     """Test deleting an activity without track or images."""
     # Create activity
     activity = Activity(
+        timezone="Europe/Berlin",
         start=datetime(2024, 1, 1, 10).astimezone(),
         duration=timedelta(minutes=30),
         distance=1.0,
@@ -1546,6 +1556,7 @@ def test_add_and_remove_tags(
     db.commit()
     db.refresh(tag_1)
     activity_1 = Activity(
+        timezone="Europe/Berlin",
         start=datetime(2024, 1, 1, 10).astimezone(),
         duration=timedelta(minutes=30),
         distance=1.0,
@@ -1587,3 +1598,61 @@ def test_add_and_remove_tags(
     _activity = db.get(Activity, activity_id)
     assert _activity is not None
     assert len(_activity.tags) == 0
+
+
+@pytest.mark.parametrize("timezone_name", ["Europe/Berlin", "America/Los_Angeles"])
+def test_correct_activity_display_timezone_preserves_instants(
+    client: TestClient,
+    temp_user_token: str,
+    timezone_name: str,
+    celery_eager: None,
+) -> None:
+    headers = {"Authorization": f"Bearer {temp_user_token}"}
+    gpx = (
+        '<gpx version="1.1" creator="test"><trk><trkseg>'
+        '<trkpt lat="52.52" lon="13.405"><time>2026-07-01T10:00:00Z</time></trkpt>'
+        '<trkpt lat="52.521" lon="13.406"><time>2026-07-01T10:10:00Z</time></trkpt>'
+        "</trkseg></trk></gpx>"
+    )
+    response = client.post(
+        "/activity/auto/",
+        headers=headers,
+        params={"type_id": 1, "timezone_name": "Europe/Berlin"},
+        files={"file": ("Berlin.gpx", gpx, "application/gpx+xml")},
+    )
+    assert response.status_code == 200
+    activity = response.json()
+    points_before = client.get(f"/track/{activity['id']}", headers=headers).json()
+    response = client.patch(
+        f"/activity/{activity['id']}",
+        headers=headers,
+        json={"timezone": timezone_name},
+    )
+    assert response.status_code == 200
+    assert response.json()["timezone"] == timezone_name
+    assert response.json()["start"] == activity["start"]
+    points_after = client.get(f"/track/{activity['id']}", headers=headers).json()
+    assert [point["time"] for point in points_after["data"]] == [
+        point["time"] for point in points_before["data"]
+    ]
+    detail = client.get(f"/activity/{activity['id']}", headers=headers).json()
+    assert detail["timezone"] == timezone_name
+    activities = client.get("/activity/", headers=headers).json()["data"]
+    listed = next(item for item in activities if item["id"] == activity["id"])
+    assert listed["timezone"] == timezone_name
+
+
+@pytest.mark.parametrize("timezone", [None, "Not/AZone"])
+def test_activity_timezone_cannot_be_cleared_or_invalid(
+    client: TestClient,
+    user1_token: str,
+    timezone: str | None,
+) -> None:
+    headers = {"Authorization": f"Bearer {user1_token}"}
+    activities = client.get("/activity/", headers=headers).json()["data"]
+    response = client.patch(
+        f"/activity/{activities[0]['id']}",
+        headers=headers,
+        json={"timezone": timezone},
+    )
+    assert response.status_code in (400, 422)
