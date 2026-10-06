@@ -1,0 +1,46 @@
+{
+  "type": "FeatureCollection",
+  "properties": {
+    "verveVersion": "1.0",
+    "name": "verve-berlin-declared-new-york-utc",
+    "activityType": "Foot Sports",
+    "activitySubType": "Walk",
+    "startTime": "2026-08-10T08:00:00Z",
+    "durationSeconds": 600,
+    "totalDistanceMeters": 1300,
+    "timezone": "America/New_York"
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            13.405,
+            52.52,
+            35
+          ],
+          [
+            13.41,
+            52.525,
+            36
+          ],
+          [
+            13.415,
+            52.53,
+            37
+          ]
+        ]
+      },
+      "properties": {
+        "heartRates": [96, 108, 120],
+        "coordTimes": [
+          "2026-08-10T08:00:00Z",
+          "2026-08-10T08:05:00Z",
+          "2026-08-10T08:10:00Z"
+        ]
+      }
+    }
+  ]
+}

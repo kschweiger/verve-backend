@@ -1,7 +1,7 @@
-import asyncio
 import json
 from datetime import UTC, datetime, timedelta
 from importlib import resources
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 import pytest
@@ -10,6 +10,9 @@ from pytest_mock import MockerFixture
 from sqlmodel import Session, select
 
 from verve_backend.models import Activity, RawTrackData, TrackPoint
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3.client import S3Client
 
 
 @pytest.mark.parametrize("route", ["/activity/import/", "/activity/auto/"])
@@ -28,6 +31,7 @@ def test_verve_declared_zone_wins_over_gps_and_owner_setting(
     temp_user_token: str,
     celery_eager: None,
     mocker: MockerFixture,
+    object_store: "S3Client",
     route: str,
     override: str | None,
     expected_zone: str,
@@ -35,7 +39,6 @@ def test_verve_declared_zone_wins_over_gps_and_owner_setting(
     point_hour: int,
 ) -> None:
     from verve_backend.api.common import timezone
-    from verve_backend.api.deps import get_s3_client
     from verve_backend.core.config import settings
     from verve_backend.schema.exporter import _cast
 
@@ -84,13 +87,9 @@ def test_verve_declared_zone_wins_over_gps_and_owner_setting(
     assert first_point.time == datetime(2026, 1, 13, point_hour, 22, 2, tzinfo=UTC)
     raw = db.get(RawTrackData, UUID(activity["id"]))
     assert raw is not None
-    store = asyncio.run(get_s3_client())
-    try:
-        stored = store.get_object(Bucket=settings.BOTO3_BUCKET, Key=raw.store_path)
-        with stored["Body"] as body:
-            assert body.read() == file_bytes
-    finally:
-        store.close()
+    stored = object_store.get_object(Bucket=settings.BOTO3_BUCKET, Key=raw.store_path)
+    with stored["Body"] as body:
+        assert body.read() == file_bytes
     reimported = client.post(
         "/activity/import/",
         headers=headers,
