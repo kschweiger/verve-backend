@@ -318,6 +318,7 @@ class ActivityCreate(ActivityBase):
 
 
 class ActivityPublic(ActivityBase):
+    timezone: TimeZoneName
     id: uuid.UUID
     created_at: datetime
 
@@ -325,6 +326,7 @@ class ActivityPublic(ActivityBase):
 
 
 class ActivityCorePublic(ActivityCore):
+    timezone: TimeZoneName
     id: uuid.UUID
     created_at: datetime
 
@@ -334,6 +336,9 @@ class ActivityCorePublic(ActivityCore):
 class Activity(ActivityBase, table=True):
     __tablename__: str = "activities"  # type: ignore
 
+    timezone: TimeZoneName = Field(
+        nullable=False, description="Activity display IANA timezone"
+    )
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(
         foreign_key="users.id", nullable=False, ondelete="CASCADE"

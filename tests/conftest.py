@@ -1,9 +1,10 @@
+import asyncio
 import json
 import os
 import random
 from datetime import datetime, timedelta
 from importlib import resources
-from typing import Any, Generator
+from typing import TYPE_CHECKING, Any, Generator
 from uuid import UUID
 
 import pytest
@@ -19,6 +20,9 @@ from verve_backend.models import (
     LocationType,
     User,
 )
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3.client import S3Client
 
 
 # This runs right after cmd arg parsing but after imports
@@ -87,6 +91,23 @@ def user1_id(client: TestClient, user1_token: str) -> UUID:
     assert response.status_code == 200
     data = response.json()
     return UUID(data["id"])
+
+
+@pytest.fixture(scope="session")
+def timezone_user_tokens(client: TestClient) -> dict[str, str]:
+    tokens = {}
+    for timezone, email in [
+        ("America/Los_Angeles", "user3@mail.com"),
+        ("Europe/Berlin", "user4@mail.com"),
+    ]:
+        response = client.post(
+            "/login/access-token",
+            data={"username": email, "password": "12345678"},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        assert response.status_code == 200
+        tokens[timezone] = response.json()["access_token"]
+    return tokens
 
 
 @pytest.fixture(scope="session")
@@ -211,10 +232,14 @@ def dummy_track() -> PyTrack:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def object_store():  # noqa: ANN201
+def object_store() -> Generator["S3Client", None, None]:
     from verve_backend.api.deps import get_and_init_s3_client
 
-    return get_and_init_s3_client()
+    store = asyncio.run(get_and_init_s3_client())
+    try:
+        yield store
+    finally:
+        store.close()
 
 
 @pytest.fixture(scope="session")
@@ -250,6 +275,7 @@ def create_dummy_activity(
     from verve_backend.models import Activity
 
     activity = Activity(
+        timezone="Europe/Berlin",
         user_id=user_id,
         start=start,
         distance=distance,
@@ -320,6 +346,27 @@ def generate_data(session: Session) -> None:
                 is_admin=is_admin,
             ).unwrap()
         )
+
+    # Persistent fixture owners for file-based timezone integration tests.
+    for name, email, timezone in [
+        ("username3", "user3@mail.com", "America/Los_Angeles"),
+        ("username4", "user4@mail.com", "Europe/Berlin"),
+    ]:
+        user = crud.create_user(
+            session=session,
+            user_create=models.UserCreate(
+                name=name,
+                password="12345678",
+                email=email,
+                full_name=f"Timezone fixtures: {timezone}",
+            ),
+        ).unwrap()
+        user_settings = session.get(models.UserSettings, user.id)
+        assert user_settings is not None
+        user_settings.timezone = timezone
+        user_settings.locale = "en"
+        session.add(user_settings)
+    session.commit()
 
     # -------------------- ACTIVITIES ---------------------------
     activity_1 = crud.create_activity(
