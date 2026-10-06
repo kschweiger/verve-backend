@@ -1,21 +1,23 @@
-# How activity timezones work
+# How timezones work in the backend
 
-The backend keeps two pieces of information: **when an activity happened**
-and **which timezone to use when displaying it**. This lets a hike in Los
-Angeles show its local start time even when its owner lives in Berlin.
-Activity start and track point timestamps are stored as instants; the saved
-display timezone is separate from those timestamps.
+The backend separates **when something happened**, **the activity's local time**,
+and **the user's calendar**.
 
-## Timestamp, offset, and timezone
+| Value | Meaning | Example |
+| --- | --- | --- |
+| Timestamp | A moment in time, handled as an aware UTC value | `2026-08-10T16:00:00Z` |
+| Activity timezone | The saved zone for displaying this activity | `America/Los_Angeles` |
+| User timezone | The saved zone for calendars, filters, statistics, and goals | `Europe/Berlin` |
 
-A timestamp such as `2026-08-10T16:00:00Z` identifies a moment in UTC.
-The same moment can be written as `2026-08-10T09:00:00-07:00`.
-The `-07:00` is an offset: a difference from UTC.
+The user's timezone defaults to `Europe/Berlin`. It is returned by
+`GET /users/me/settings` and changed through `PATCH /users/me/timezone`.
 
-A timezone name such as `America/Los_Angeles` contains the rules for choosing
-that offset on a particular date, including daylight saving time. Similarly,
-`Europe/Berlin` uses UTC+1 in January and UTC+2 in August. The activity's date
-determines the offset, even if you view it in a different season.
+## Offsets and daylight saving time
+
+`16:00Z` and `09:00-07:00` describe the same moment. The `-07:00` is an
+**offset** from UTC. A **timezone** such as `Europe/Berlin` supplies the rules
+for choosing the offset: UTC+1 in January, UTC+2 in August. The timestamp's
+date determines the offset, even if you view it in a different season.
 
 ## When an activity is uploaded
 
@@ -27,20 +29,25 @@ first available source:
 3. The timezone at the first timed GPS point with real coordinates.
 4. The owner's saved timezone.
 
-If GPS lookup cannot identify a land timezone, the backend uses the fallback.
-The first timed GPS point's zone applies even if the track later crosses into
-another timezone.
+GPS lookup uses local timezone data. Ocean or unusable coordinates fall back
+to the owner's zone. A track crossing timezone boundaries keeps its first zone.
 
-Times containing `Z` or an explicit offset keep their meaning. FIT timestamps
-are decoded as UTC. GPX and GeoJSON times without an offset are interpreted
-in the selected activity timezone.
+Times with `Z` or an offset keep their meaning. FIT times are decoded as UTC.
+Offsetless GPX/GeoJSON times are interpreted in the selected activity zone.
+Swimming lap/set times follow the same rule; other metadata is left as supplied.
+Raw uploaded files remain unchanged.
 
 Manual activities use the request override or the owner's timezone. Replacing
 a track uses the override or GPS timezone; otherwise it keeps the saved zone.
 Users can correct an activity's timezone without changing existing timestamps.
 Verve export and import preserve the saved timezone.
 
-## What the frontend receives
+## Storage and API responses
+
+Activity starts, track times, audit timestamps, and token expiry are instants,
+handled as aware UTC values. Responses include `Z` or an offset; the activity's
+zone is separate. Durations measure elapsed time. Equipment purchase dates
+are dates such as `2026-08-10`, with no timezone.
 
 For a Los Angeles hike starting at 09:00 in August:
 
@@ -51,11 +58,31 @@ For a Los Angeles hike starting at 09:00 in August:
 }
 ```
 
-Activity detail and list responses include `timezone`; track point timestamps
-remain instants. To display local times, the frontend must format them using
-the activity's timezone, for example with `Intl.DateTimeFormat`. This displays
-09:00 and handles daylight saving automatically. Formatting happens when a
-time is displayed; it does not require rewriting every track point or manually
-adding an offset.
+Activity detail and lists include `timezone`. The frontend formats timestamps
+using that zone, for example with `Intl.DateTimeFormat`, to show 09:00 above.
+It formats labels as needed; it needn't rewrite the track or manually add offsets.
 
-The owner's timezone still determines existing calendar filters and goals.
+## Calendars, statistics, and goals
+
+These use the **user's saved timezone**, including when travelling. A hike at
+23:30 on August 10 in Los Angeles displays that time, but belongs to August 11
+in a Berlin user's calendar: it is already 08:30 there. Grouping uses the
+activity's start, without splitting it across days.
+
+Local day/week/month/year boundaries are converted to UTC for queries, including
+the beginning and excluding the end. This handles 23- and 25-hour days.
+Calendar grids, streaks, period filters, and goal progress follow this rule.
+Yearly highlights use the user's timezone when calculated.
+
+Changing the user's zone leaves activity instants and display zones unchanged.
+Calendar requests use the new setting; goals recalculate when fetched.
+Stored yearly highlights need recalculation to reflect the change.
+
+## Current limits
+
+Offsetless times around a daylight saving clock change can be ambiguous or
+nonexistent. These aren't currently rejected; use explicit offsets to identify
+the intended instant.
+
+Alembic migrations for timezone fields, timestamp columns, purchase dates, and
+existing data are pending. Tests build their schema directly from the models.

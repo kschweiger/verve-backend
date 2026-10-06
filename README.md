@@ -1,5 +1,9 @@
 # Backend for Verve Outdoors
 
+## Reference
+
+- [How timezones work in the backend](docs/activity-timezone.md)
+
 
 ## Dependencies
 
