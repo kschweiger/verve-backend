@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime, time
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
@@ -8,7 +8,11 @@ from pydantic import BaseModel
 from sqlmodel import Session, col, func, select
 
 from verve_backend.core.config import settings
-from verve_backend.core.date_utils import get_week_date_range
+from verve_backend.core.date_utils import (
+    get_local_date_range_utc_bounds,
+    get_local_period_utc_bounds,
+    get_week_date_range,
+)
 from verve_backend.core.timing import log_timing
 from verve_backend.enums import GoalAggregation, GoalType, TemporalType
 from verve_backend.models import (
@@ -208,17 +212,13 @@ def _build_activity_stmt(
     if contraints.sub_type_id:
         stmt = stmt.where(Activity.sub_type_id == contraints.sub_type_id)
 
-    if month is not None:
-        start_date = date(year, month, 1)
-        end_date = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
-    elif week is not None:
+    if month is None and week is not None:
         start_date, end_date = get_week_date_range(year, week)
+        start_at, end_at = get_local_date_range_utc_bounds(
+            start_date, end_date, timezone
+        )
     else:
-        start_date = date(year, 1, 1)
-        end_date = date(year + 1, 1, 1)
-
-    start_at = datetime.combine(start_date, time.min, timezone).astimezone(UTC)
-    end_at = datetime.combine(end_date, time.min, timezone).astimezone(UTC)
+        start_at, end_at = get_local_period_utc_bounds(year, month, timezone)
     stmt = stmt.where(col(Activity.start) >= start_at).where(
         col(Activity.start) < end_at
     )

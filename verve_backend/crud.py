@@ -148,16 +148,12 @@ def create_activity(
     activity_type = session.get(ActivityType, create.type_id)
     assert activity_type is not None
 
-    start = (
-        to_utc_with_default_timezone(create.start, timezone)
-        if timezone is not None
-        else create.start
-    )
+    start = to_utc_with_default_timezone(create.start, timezone)
     name = create.name
     if name is None:
         name = get_activity_name(
             activity_type.name.lower().replace(" ", "_"),
-            start.astimezone(timezone) if timezone is not None else start,
+            start.astimezone(timezone),
             locale,
         )
     if create.meta_data:
@@ -168,7 +164,7 @@ def create_activity(
         )
         if not isinstance(validation_result, ActivityMetaData):
             return Err(validation_result)
-        if timezone is not None and isinstance(validation_result, SwimmingMetaData):
+        if isinstance(validation_result, SwimmingMetaData):
             normalize_swimming_times_to_utc(validation_result, timezone)
         create.meta_data = validation_result.model_dump(mode="json")
 
