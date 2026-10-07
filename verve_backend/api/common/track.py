@@ -27,6 +27,7 @@ from verve_backend import crud
 from verve_backend.api.common.timezone import resolve_activity_timezone
 from verve_backend.api.deps import ObjectStoreClient
 from verve_backend.core.config import settings
+from verve_backend.core.date_utils import to_utc_with_default_timezone
 from verve_backend.models import Activity, RawTrackData, TrackPoint, TrackPointResponse
 
 logger = structlog.getLogger(__name__)
@@ -171,6 +172,11 @@ def parse_track(
         for point in segment.points
     ):
         track, file_type, no_geometry = _parse_track(file_name, file_content, timezone)
+    # Normalize before processing caches metrics: local subtraction uses wall time.
+    for segment in track.track.segments:
+        for point in segment.points:
+            if point.time is not None:
+                point.time = to_utc_with_default_timezone(point.time, timezone)
     return ParsedTrack(track, timezone, file_type, no_geometry)
 
 

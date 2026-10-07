@@ -1,5 +1,5 @@
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from importlib import resources
 from zoneinfo import ZoneInfo
 
@@ -258,3 +258,86 @@ def test_ocean_track_uses_fallback_without_inventing_iana_zone() -> None:
         10,
         tzinfo=UTC,
     )
+
+
+@pytest.mark.parametrize("file_type", ["gpx", "json"])
+@pytest.mark.parametrize(
+    ("times", "expected_seconds"),
+    [
+        pytest.param(
+            ["2026-03-29T01:30:00", "2026-03-29T03:30:00", "2026-03-29T03:40:00"],
+            4200,
+            id="spring",
+        ),
+        pytest.param(
+            ["2026-10-25T01:30:00", "2026-10-25T03:30:00", "2026-10-25T03:40:00"],
+            11400,
+            id="autumn",
+        ),
+    ],
+)
+def test_offsetless_track_duration_uses_elapsed_time_across_dst(
+    file_type: str,
+    times: list[str],
+    expected_seconds: int,
+) -> None:
+    from verve_backend.api.common.track import parse_track
+
+    coordinates = [(52.52, 13.405), (52.53, 13.415), (52.54, 13.425)]
+    if file_type == "gpx":
+        points = "".join(
+            f'<trkpt lat="{lat}" lon="{lon}"><time>{time}</time></trkpt>'
+            for (lat, lon), time in zip(coordinates, times, strict=True)
+        )
+        content = (
+            '<gpx version="1.1" creator="test"><trk><trkseg>'
+            + points
+            + "</trkseg></trk></gpx>"
+        ).encode()
+    else:
+        content = json.dumps(
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "LineString",
+                    "coordinates": [[lon, lat, 10] for lat, lon in coordinates],
+                },
+                "properties": {"coordTimes": times},
+            }
+        ).encode()
+    parsed = parse_track(
+        file_name=f"track.{file_type}",
+        file_content=content,
+        fallback_timezone=ZoneInfo("America/Los_Angeles"),
+        timezone_name="Europe/Berlin",
+    )
+    points = parsed.track.track.segments[0].points
+    assert parsed.timezone.key == "Europe/Berlin"
+    assert parsed.track.get_track_overview().total_time_seconds == expected_seconds
+    assert all(point.time.utcoffset() == timedelta(0) for point in points)
+
+
+def test_track_normalization_preserves_offsets_and_missing_times() -> None:
+    from verve_backend.api.common.track import parse_track
+
+    content = gpx_bytes(
+        [
+            "2026-10-25T02:55:00+02:00",
+            "2026-10-25T02:00:00+01:00",
+            "2026-10-25T02:05:00+01:00",
+        ]
+    ).replace(b"<trkseg>", b'<trkseg><trkpt lat="52.51" lon="13.395"/>')
+    parsed = parse_track(
+        file_name="track.gpx",
+        file_content=content,
+        fallback_timezone=ZoneInfo("Europe/Berlin"),
+        timezone_name="Europe/Berlin",
+    )
+    points = parsed.track.track.segments[0].points
+    assert points[0].time is None
+    assert [point.time for point in points[1:]] == [
+        datetime(2026, 10, 25, 0, 55, tzinfo=UTC),
+        datetime(2026, 10, 25, 1, 0, tzinfo=UTC),
+        datetime(2026, 10, 25, 1, 5, tzinfo=UTC),
+    ]
+    assert all(point.time.utcoffset() == timedelta(0) for point in points[1:])

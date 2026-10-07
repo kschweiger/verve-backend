@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from importlib import resources
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -197,3 +197,65 @@ def test_correcting_timezone_keeps_file_instants_and_heart_rates(
     assert [(point["time"], point["heartrate"]) for point in after] == [
         (point["time"], point["heartrate"]) for point in before
     ]
+
+
+@pytest.mark.parametrize("route", ["/activity/auto/", "/track/"])
+def test_dst_upload_persists_elapsed_duration(
+    client: TestClient,
+    db: Session,
+    temp_user_token: str,
+    object_store: "S3Client",
+    route: str,
+) -> None:
+    from verve_backend.core.config import settings
+
+    content = (
+        '<gpx version="1.1" creator="test"><trk><trkseg>'
+        '<trkpt lat="52.52" lon="13.405"><time>2026-03-29T01:30:00</time></trkpt>'
+        '<trkpt lat="52.53" lon="13.415"><time>2026-03-29T03:30:00</time></trkpt>'
+        '<trkpt lat="52.54" lon="13.425"><time>2026-03-29T03:40:00</time></trkpt>'
+        "</trkseg></trk></gpx>"
+    ).encode()
+    headers = {"Authorization": f"Bearer {temp_user_token}"}
+    params = {"timezone_name": "Europe/Berlin"}
+    files = {"file": ("spring.gpx", content, "application/gpx+xml")}
+    if route == "/activity/auto/":
+        response = client.post(
+            route, headers=headers, params={**params, "type_id": 2}, files=files
+        )
+        assert response.status_code == 200
+        activity_id = UUID(response.json()["id"])
+    else:
+        response = client.post(
+            "/activity/",
+            headers=headers,
+            json={
+                "start": "2026-03-29T00:00:00Z",
+                "duration": "PT10M",
+                "distance": 1.0,
+                "type_id": 2,
+                "sub_type_id": None,
+                "name": "DST upload",
+            },
+        )
+        assert response.status_code == 200
+        activity_id = UUID(response.json()["id"])
+        response = client.put(
+            route,
+            headers=headers,
+            params={**params, "activity_id": str(activity_id)},
+            files=files,
+        )
+        assert response.status_code == 201
+
+    response = client.get(f"/activity/{activity_id}", headers=headers)
+    assert response.status_code == 200
+    activity = ActivityPublic.model_validate(response.json())
+    assert activity.duration == timedelta(seconds=4200)
+    assert activity.start == datetime(2026, 3, 29, 0, 30, tzinfo=UTC)
+    assert activity.timezone == "Europe/Berlin"
+    raw = db.get(RawTrackData, activity_id)
+    assert raw is not None
+    stored = object_store.get_object(Bucket=settings.BOTO3_BUCKET, Key=raw.store_path)
+    with stored["Body"] as body:
+        assert body.read() == content
