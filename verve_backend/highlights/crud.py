@@ -1,8 +1,10 @@
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from sqlmodel import Session, delete, select
+from sqlmodel import Session, col, delete, select
 
+from verve_backend.api.common.utils import get_user_timezone
+from verve_backend.highlights.registry import registry
 from verve_backend.models import (
     Activity,
     ActivityHighlight,
@@ -87,3 +89,28 @@ def update_top_n_highlights(
                 rank=i + 1,
             )
             session.add(new_highlight)
+
+
+def rebuild_user_highlights(*, session: Session, user_id: UUID) -> int:
+    """Replace a user's rankings inside the caller's transaction without committing."""
+    timezone = get_user_timezone(session, user_id)
+    session.exec(
+        delete(ActivityHighlight).where(col(ActivityHighlight.user_id) == user_id)
+    )
+    activities = session.exec(
+        select(Activity).where(Activity.user_id == user_id).order_by(Activity.id)  # type: ignore
+    ).all()
+    for activity in activities:
+        for metric, calculator in registry.calculators.items():
+            result = calculator(activity.id, user_id, session)
+            if result is not None:
+                update_top_n_highlights(
+                    session=session,
+                    user_id=user_id,
+                    activity=activity,
+                    timezone=timezone,
+                    metric=metric,
+                    value=result.value,
+                    track_id=result.track_id,
+                )
+    return len(activities)

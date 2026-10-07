@@ -3,6 +3,7 @@
 ## Reference
 
 - [How timezones work in the backend](docs/activity-timezone.md)
+- [Admin maintenance jobs](docs/admin-maintenance.md)
 
 
 ## Dependencies

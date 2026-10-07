@@ -67,6 +67,7 @@ dev = [
   "plotly>=7.1.0",
   "rich>=15.0.0",
   "seaborn>=0.13.2",
+  "ty>=0.0.85",
   { include-group = "test" },
 ]
 test = [

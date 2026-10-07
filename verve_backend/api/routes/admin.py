@@ -1,9 +1,13 @@
-from uuid import UUID
+from collections import defaultdict
+from typing import Any
+from uuid import UUID, uuid4
 
-import structlog
+from celery import chord
 from fastapi import APIRouter, HTTPException
-from sqlmodel import Session, delete, select
+from pydantic import BaseModel
+from sqlmodel import select
 from starlette.status import (
+    HTTP_202_ACCEPTED,
     HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST,
     HTTP_403_FORBIDDEN,
@@ -11,59 +15,141 @@ from starlette.status import (
 
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import CurrentUser, SessionDep
+from verve_backend.celery_app import celery
 from verve_backend.models import (
-    Activity,
-    ActivityHighlight,
+    RawTrackData,
     User,
 )
-from verve_backend.tasks import process_activity_highlights
+from verve_backend.tasks import (
+    finish_track_reprocessing,
+    recalculate_user_highlights,
+    reprocess_stored_track,
+)
 
-logger = structlog.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=[Tag.ADMIN])
 
 
-def rerun_highlights_for_user(session: Session, user_id: UUID) -> None:
-    logger.debug("Starting to rerun highlights for user", user_id=user_id)
-    activities = session.exec(select(Activity).where(Activity.user_id == user_id)).all()
-
-    for activity in activities:
-        logger.info("elakhewrlkgjhelrkj")
-        process_activity_highlights.delay(activity_id=activity.id, user_id=user_id)
+class TrackReprocessingJob(BaseModel):
+    activity_id: UUID
+    user_id: UUID
+    task_id: UUID
 
 
-@router.post("/recalculat_hightlights", status_code=HTTP_204_NO_CONTENT)
-async def recalculate_highlights(
-    *,
-    session: SessionDep,
-    user: CurrentUser,
-    user_id: UUID | None = None,
-) -> None:
-    assert user
+class AdminUserJob(BaseModel):
+    user_id: UUID
+    task_id: UUID
+
+
+class TrackReprocessingJobs(BaseModel):
+    tracks: list[TrackReprocessingJob]
+    users: list[AdminUserJob]
+
+
+class HighlightRecalculationJobs(BaseModel):
+    users: list[AdminUserJob]
+
+
+class AdminTaskStatus(BaseModel):
+    task_id: UUID
+    state: str
+    result: dict[str, Any] | None = None
+    error: str | None = None
+
+
+@router.post("/reprocess-tracks", status_code=HTTP_202_ACCEPTED)
+def reprocess_tracks(
+    *, session: SessionDep, user: CurrentUser, user_id: UUID | None = None
+) -> TrackReprocessingJobs:
+    """Queue one task per stored track and one final highlight rebuild per user."""
     if not user.is_admin:
         raise HTTPException(
             status_code=HTTP_403_FORBIDDEN,
             detail="Operation only allowed for admin users",
         )
-    for_user = None
+    if user_id is not None and session.get(User, user_id) is None:
+        raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail="User not found")
+    statement = select(RawTrackData).order_by(
+        RawTrackData.user_id, RawTrackData.activity_id
+    )
     if user_id is not None:
-        for_user = session.get(User, user_id)
-        if for_user is None:
-            raise HTTPException(
-                status_code=HTTP_400_BAD_REQUEST,
-                detail="User with id %s does not exist" % user_id,
+        statement = statement.where(RawTrackData.user_id == user_id)
+    tracks_by_user: dict[UUID, list[UUID]] = defaultdict(list)
+    for raw in session.exec(statement).all():
+        tracks_by_user[raw.user_id].append(raw.activity_id)
+
+    jobs = TrackReprocessingJobs(tracks=[], users=[])
+    for owner_id, activity_ids in tracks_by_user.items():
+        signatures = []
+        for activity_id in activity_ids:
+            task_id = uuid4()
+            signatures.append(
+                reprocess_stored_track.s(activity_id=activity_id, user_id=owner_id).set(  # type: ignore
+                    task_id=str(task_id)
+                )
             )
-
-    logger.warning("Deleting all highlights and recalculate them", user_id=user_id)
-    del_stmt = delete(ActivityHighlight)
-    if for_user:
-        del_stmt = del_stmt.where(
-            ActivityHighlight.user_id == user_id,  # type: ignore
+            jobs.tracks.append(
+                TrackReprocessingJob(
+                    activity_id=activity_id, user_id=owner_id, task_id=task_id
+                )
+            )
+        task_id = uuid4()
+        callback = finish_track_reprocessing.s(user_id=owner_id).set(
+            task_id=str(task_id)
         )
-    session.exec(del_stmt)
+        chord(signatures, callback).apply_async()
+        jobs.users.append(AdminUserJob(user_id=owner_id, task_id=task_id))
+    return jobs
 
-    if for_user:
-        rerun_highlights_for_user(session, for_user.id)
 
+@router.get("/tasks/{task_id}")
+def get_admin_task_status(*, task_id: UUID, user: CurrentUser) -> AdminTaskStatus:
+    if not user.is_admin:
+        raise HTTPException(
+            status_code=HTTP_403_FORBIDDEN,
+            detail="Operation only allowed for admin users",
+        )
+    task = celery.AsyncResult(str(task_id))
+    state = task.state
+    return AdminTaskStatus(
+        task_id=task_id,
+        state=state,
+        result=task.result if state == "SUCCESS" else None,
+        error=str(task.result) if state == "FAILURE" else None,
+    )
+
+
+@router.post("/recalculate-highlights", status_code=HTTP_202_ACCEPTED)
+def recalculate_highlights(
+    *,
+    session: SessionDep,
+    user: CurrentUser,
+    user_id: UUID | None = None,
+) -> HighlightRecalculationJobs:
+    """Queue a complete highlight rebuild for each selected user."""
+    if not user.is_admin:
+        raise HTTPException(
+            status_code=HTTP_403_FORBIDDEN,
+            detail="Operation only allowed for admin users",
+        )
+    if user_id is not None:
+        if session.get(User, user_id) is None:
+            raise HTTPException(
+                status_code=HTTP_400_BAD_REQUEST, detail="User not found"
+            )
+        user_ids = [user_id]
     else:
-        for _user in session.exec(select(User)).all():
-            rerun_highlights_for_user(session, _user.id)
+        user_ids = session.exec(select(User.id).order_by(User.id)).all()
+    jobs = HighlightRecalculationJobs(users=[])
+    for owner_id in user_ids:
+        task = recalculate_user_highlights.delay(user_id=owner_id)  # type: ignore
+        jobs.users.append(AdminUserJob(user_id=owner_id, task_id=task.id))
+    return jobs
+
+
+@router.post(
+    "/recalculat_hightlights", status_code=HTTP_204_NO_CONTENT, deprecated=True
+)
+def recalculate_highlights_legacy(
+    *, session: SessionDep, user: CurrentUser, user_id: UUID | None = None
+) -> None:
+    recalculate_highlights(session=session, user=user, user_id=user_id)
