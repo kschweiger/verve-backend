@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -9,11 +10,14 @@ from sqlmodel import Session
 from verve_backend import crud
 from verve_backend.enums import GoalAggregation, GoalType, TemporalType
 from verve_backend.models import (
+    ActivityCreate,
     GoalCreate,
     GoalPublic,
     GoalsPublic,
     ListResponse,
     LocationPublic,
+    User,
+    UserPublic,
 )
 
 
@@ -421,3 +425,96 @@ def test_modify_manual_goal_floor(
     assert response.status_code == 200
     _response_goal = GoalPublic.model_validate(response.json())
     assert _response_goal.current == 0
+
+
+@pytest.mark.parametrize(
+    ("aggregation", "expected_current"),
+    [
+        (GoalAggregation.COUNT, 1),
+        (GoalAggregation.DURATION, 1800),
+        (GoalAggregation.TOTAL_DISTANCE, 2),
+        (GoalAggregation.AVG_DISTANCE, 2),
+        (GoalAggregation.MAX_DISTANCE, 2),
+    ],
+)
+def test_goal_progress_recalculates_after_timezone_change(
+    client: TestClient,
+    db: Session,
+    temp_user_id: UUID,
+    temp_user_token: str,
+    aggregation: GoalAggregation,
+    expected_current: float,
+) -> None:
+    headers = {"Authorization": f"Bearer {temp_user_token}"}
+    user = db.get(User, temp_user_id)
+    assert user is not None
+    start = datetime(2026, 1, 1, 0, 30, tzinfo=UTC)
+    with freeze_time(datetime(2026, 1, 2, 12, tzinfo=UTC)):
+        activity = crud.create_activity(
+            session=db,
+            user=UserPublic.model_validate(user),
+            create=ActivityCreate(
+                name="January boundary ride",
+                start=start,
+                duration=timedelta(minutes=30),
+                distance=2,
+                type_id=1,
+                sub_type_id=1,
+            ),
+        ).unwrap()
+        display_timezone = activity.timezone
+        response = client.put(
+            "/goal",
+            headers=headers,
+            json={
+                "name": "January progress",
+                "year": 2026,
+                "month": 1,
+                "temporal_type": TemporalType.MONTHLY,
+                "type": GoalType.ACTIVITY,
+                "aggregation": aggregation,
+                "target": 10,
+                "constraints": {"type_id": 1},
+            },
+        )
+        assert response.status_code == 200
+
+        response = client.get(
+            "/goal/", headers=headers, params={"year": 2026, "month": 1}
+        )
+        assert response.status_code == 200
+        goals = GoalsPublic.model_validate(response.json())
+        assert goals.count == 1
+        assert goals.data[0].current == expected_current
+
+        response = client.patch(
+            "/users/me/timezone",
+            headers=headers,
+            params={"timezone_name": "America/Los_Angeles"},
+        )
+        assert response.status_code == 200
+        response = client.get(
+            "/goal/", headers=headers, params={"year": 2026, "month": 1}
+        )
+        assert response.status_code == 200
+        january_goal = GoalsPublic.model_validate(response.json()).data[0]
+        assert january_goal.current == 0
+        assert january_goal.progress == 0
+        assert january_goal.reached is False
+
+        response = client.patch(
+            "/users/me/timezone",
+            headers=headers,
+            params={"timezone_name": "Europe/Berlin"},
+        )
+        assert response.status_code == 200
+        for _ in range(2):
+            response = client.get(
+                "/goal/", headers=headers, params={"year": 2026, "month": 1}
+            )
+            assert response.status_code == 200
+            january_goal = GoalsPublic.model_validate(response.json()).data[0]
+            assert january_goal.current == expected_current
+        db.refresh(activity)
+        assert activity.start == start
+        assert activity.timezone == display_timezone
