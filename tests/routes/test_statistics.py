@@ -59,6 +59,161 @@ def test_year_stats_filters_by_user_local_year(
         assert stats.count.per_sub_type[1][1] == expected_count
 
 
+def test_week_stats_rejects_invalid_iso_week(
+    db: Session, client: TestClient, temp_user_token: str, temp_user_id: UUID
+) -> None:
+    db.add(
+        Activity(
+            timezone="Europe/Berlin",
+            start=datetime(2025, 12, 29, 12, tzinfo=UTC),
+            duration=timedelta(minutes=30),
+            moving_duration=timedelta(minutes=30),
+            distance=1.0,
+            type_id=1,
+            sub_type_id=1,
+            name="Adjacent ISO year",
+            user_id=temp_user_id,
+        )
+    )
+    db.commit()
+    response = client.get(
+        "/statistics/week",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        params={"year": 2025, "week": 53, "activity_type_id": 1},
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Invalid ISO week/year combination"
+
+
+@pytest.mark.parametrize(
+    ("year", "week"),
+    [
+        pytest.param(10000, 1, id="unrepresentable-year"),
+        pytest.param(9999, 52, id="unrepresentable-exclusive-end"),
+    ],
+)
+def test_week_stats_rejects_unrepresentable_range(
+    client: TestClient, temp_user_token: str, year: int, week: int
+) -> None:
+    response = client.get(
+        "/statistics/week",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        params={"year": year, "week": week, "activity_type_id": 1},
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Invalid ISO week/year combination"
+
+
+@pytest.mark.parametrize(
+    ("params", "status_code"),
+    [
+        pytest.param({"year": 2025}, 400, id="year-only"),
+        pytest.param({"week": 1}, 400, id="week-only"),
+        pytest.param({"year": 2025, "week": 0}, 422, id="week-below-range"),
+        pytest.param({"year": 2025, "week": 54}, 422, id="week-above-range"),
+        pytest.param({"year": "invalid", "week": 1}, 422, id="malformed-year"),
+        pytest.param({"year": 2025, "week": "invalid"}, 422, id="malformed-week"),
+    ],
+)
+def test_week_stats_parameter_validation(
+    client: TestClient, temp_user_token: str, params: dict, status_code: int
+) -> None:
+    response = client.get(
+        "/statistics/week",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        params={**params, "activity_type_id": 1},
+    )
+    assert response.status_code == status_code
+    if status_code == 400:
+        assert response.json()["detail"] == "Both year and week must be set."
+    else:
+        assert response.json()["detail"][0]["loc"] == [
+            "query",
+            "year" if params.get("year") == "invalid" else "week",
+        ]
+
+
+@pytest.mark.parametrize(
+    ("year", "week", "monday", "sunday"),
+    [
+        pytest.param(2020, 53, date(2020, 12, 28), date(2021, 1, 3), id="week-53"),
+        pytest.param(2025, 1, date(2024, 12, 30), date(2025, 1, 5), id="week-1"),
+    ],
+)
+def test_week_stats_accepts_iso_year_boundary_weeks(
+    db: Session,
+    client: TestClient,
+    temp_user_token: str,
+    temp_user_id: UUID,
+    year: int,
+    week: int,
+    monday: date,
+    sunday: date,
+) -> None:
+    db.add_all(
+        Activity(
+            timezone="Europe/Berlin",
+            start=datetime(
+                day.year, day.month, day.day, 12, tzinfo=ZoneInfo("Europe/Berlin")
+            ),
+            duration=timedelta(minutes=30),
+            moving_duration=timedelta(minutes=30),
+            distance=1.0,
+            type_id=1,
+            sub_type_id=1,
+            name="ISO year boundary",
+            user_id=temp_user_id,
+        )
+        for day in (monday, sunday)
+    )
+    db.commit()
+    response = client.get(
+        "/statistics/week",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        params={"year": year, "week": week, "activity_type_id": 1},
+    )
+    assert response.status_code == 200
+    stats = WeekStatsResponse.model_validate(response.json())
+    assert stats.distance.total == 2.0
+    assert stats.distance.per_day[monday] == 1.0
+    assert stats.distance.per_day[sunday] == 1.0
+
+
+def test_week_stats_uses_half_open_local_bounds(
+    db: Session, client: TestClient, temp_user_token: str, temp_user_id: UUID
+) -> None:
+    db.add_all(
+        Activity(
+            timezone="Europe/Berlin",
+            start=datetime.fromisoformat(start),
+            duration=timedelta(minutes=30),
+            moving_duration=timedelta(minutes=30),
+            distance=1.0,
+            type_id=1,
+            sub_type_id=1,
+            name="DST week boundary",
+            user_id=temp_user_id,
+        )
+        for start in (
+            "2026-03-22T22:59:59Z",
+            "2026-03-22T23:00:00Z",
+            "2026-03-29T21:59:59Z",
+            "2026-03-29T22:00:00Z",
+        )
+    )
+    db.commit()
+    response = client.get(
+        "/statistics/week",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        params={"year": 2026, "week": 13, "activity_type_id": 1},
+    )
+    assert response.status_code == 200
+    stats = WeekStatsResponse.model_validate(response.json())
+    assert stats.distance.total == 2.0
+    assert stats.distance.per_day[date(2026, 3, 23)] == 1.0
+    assert stats.distance.per_day[date(2026, 3, 29)] == 1.0
+
+
 def test_week_stats_uses_user_local_week_and_dates(
     db: Session, client: TestClient, temp_user_token: str, temp_user_id: UUID
 ) -> None:

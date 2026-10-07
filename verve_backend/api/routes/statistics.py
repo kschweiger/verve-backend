@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlmodel import Session, select, text
 from starlette.status import (
     HTTP_400_BAD_REQUEST,
+    HTTP_422_UNPROCESSABLE_CONTENT,
     HTTP_501_NOT_IMPLEMENTED,
 )
 
@@ -24,7 +25,6 @@ from verve_backend.core.date_utils import (
     get_local_date_range_utc_bounds,
     get_local_period_utc_bounds,
     get_month_grid,
-    get_week_date_range,
     iso_week_date_weeks_ago,
 )
 from verve_backend.models import Activity, ActivityType, UserSettings
@@ -332,7 +332,14 @@ def get_week_stats(
             detail="Both year and week must be set.",
         )
 
-    week_start, week_end = get_week_date_range(year, week)
+    try:
+        week_start = date.fromisocalendar(year, week, 1)
+        week_end = week_start + timedelta(days=7)
+    except (ValueError, OverflowError) as exc:
+        raise HTTPException(
+            status_code=HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Invalid ISO week/year combination",
+        ) from exc
     start_at, end_at = get_local_date_range_utc_bounds(week_start, week_end, timezone)
 
     stmt = (
