@@ -78,11 +78,29 @@ Changing the user's zone leaves activity instants and display zones unchanged.
 Calendar requests use the new setting; goals recalculate when fetched.
 Stored yearly highlights need recalculation to reflect the change.
 
+## Database migration
+
+Alembic revision `d9e3386babd7` adds the required activity and user timezone
+columns, fills existing rows with `Europe/Berlin`, and converts timestamp columns
+to `TIMESTAMP WITH TIME ZONE`. The temporary database defaults used to fill those
+rows are removed; new writes use the application's timezone selection.
+
+Existing offsetless timestamps are interpreted as **Europe/Berlin wall times**.
+The conversion explicitly uses that zone, independently of the database session:
+12:00 in January becomes 11:00Z, while 12:00 in July becomes 10:00Z. Downgrading
+converts instants back to Berlin wall times.
+
+Equipment purchase timestamps become `DATE`, preserving the recorded calendar
+date. This discards their time of day; downgrading restores midnight.
+
+Historical file reprocessing, activity timezone corrections, JSON metadata
+conversion, and rebuilding derived data remain a separate data migration.
+
 ## Current limits
 
 Offsetless times around a daylight saving clock change can be ambiguous or
 nonexistent. These aren't currently rejected; use explicit offsets to identify
 the intended instant.
 
-Alembic migrations for timezone fields, timestamp columns, purchase dates, and
-existing data are pending. Tests build their schema directly from the models.
+Application tests build their schema directly from the models. Migration tests
+exercise this revision against temporary legacy tables in PostgreSQL.
