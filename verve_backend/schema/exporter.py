@@ -187,12 +187,16 @@ def _cast(session: Session, activity_id: UUID) -> VerveFeature:
 
         _features.append(
             LineFeature(
-                geometry=LineStringGeometry(coordinates=_coordinates),
-                properties=LineProperties(
-                    coord_times=_times,
-                    heart_rates=_heart_rates if any(_heart_rates) else None,
-                    cadences=_cadences if any(_cadences) else None,
-                    powers=_powers if any(_powers) else None,
+                geometry=LineStringGeometry.model_validate(
+                    {"coordinates": _coordinates}
+                ),
+                properties=LineProperties.model_validate(
+                    {
+                        "coord_times": _times,
+                        "heart_rates": _heart_rates if any(_heart_rates) else None,
+                        "cadences": _cadences if any(_cadences) else None,
+                        "powers": _powers if any(_powers) else None,
+                    }
                 ),
             )
         )

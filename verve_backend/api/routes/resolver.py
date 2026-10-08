@@ -46,11 +46,11 @@ def get_resolved_types(
         all_sub_types = session.exec(stmt).all()
         all_resolved_activities.append(
             ResolvedType(
-                id=_type.id,  # type: ignore
+                id=_type.id,
                 name=_type.name,
                 sub_types=[
                     ResolvedSubType(
-                        id=st.id,  # type: ignore
+                        id=st.id,
                         name=st.name,
                     )
                     for st in all_sub_types

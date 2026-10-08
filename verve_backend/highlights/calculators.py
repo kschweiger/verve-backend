@@ -107,8 +107,8 @@ def _get_window_metric_from_track(
         .read_text()
     )
     try:
-        data = session.exec(
-            text(stmt),  # type: ignore
+        data = session.exec(  # type: ignore
+            text(stmt),
             params=dict(
                 activity_id=activity_id,
                 user_id=user_id,

@@ -21,8 +21,8 @@ def get_tables_with_user_id(session: Session, schema: str) -> list[str]:
         WHERE table_schema = :schema
           AND column_name = 'user_id'
     """)
-    results = session.exec(
-        stmt,  # type: ignore
+    results = session.exec(  # type: ignore
+        stmt,
         params={"schema": schema},
     ).all()
     # results is a list of tuples like [('activities',), ('goals',)]
@@ -61,8 +61,8 @@ def check_rls_configuration() -> None:
               AND c.relrowsecurity = true;
         """)
 
-        enabled_tables_result = session.exec(
-            stmt_enabled,  # type: ignore
+        enabled_tables_result = session.exec(  # type: ignore
+            stmt_enabled,
             params={"schema": schema, "tables": target_tables},
         ).all()
         # Flatten results
@@ -77,8 +77,8 @@ def check_rls_configuration() -> None:
               AND tablename = ANY(:tables);
         """)
 
-        tables_with_policies_result = session.exec(
-            stmt_policies,  # type: ignore
+        tables_with_policies_result = session.exec(  # type: ignore
+            stmt_policies,
             params={"schema": schema, "tables": target_tables},
         ).all()
         tables_with_policies = {r[0] for r in tables_with_policies_result}

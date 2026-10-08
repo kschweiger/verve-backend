@@ -70,7 +70,7 @@ async def health_check(
     # Check object store connection (boto3 compatible)
     try:
         client = await get_s3_client()
-        all_buckets = {b["Name"] for b in client.list_buckets()["Buckets"]}  # type: ignore
+        all_buckets = {b["Name"] for b in client.list_buckets()["Buckets"]}
         if settings.BOTO3_BUCKET not in all_buckets:
             raise Exception(f"Bucket {settings.BOTO3_BUCKET} not found")
         health_status["object_store"] = "healthy"

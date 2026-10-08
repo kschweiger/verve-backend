@@ -76,7 +76,7 @@ def get_heatmap(
 
         if exclude_types:
             query = query.where(
-                tuple_(Activity.type_id, Activity.sub_type_id).notin_(exclude_types)  # type: ignore
+                tuple_(Activity.type_id, Activity.sub_type_id).notin_(exclude_types)
             )
 
         query = query.order_by(col(Activity.start).desc())
@@ -89,7 +89,7 @@ def get_heatmap(
     else:
         if exclude_types:
             query = select(Activity.id).where(
-                tuple_(Activity.type_id, Activity.sub_type_id).notin_(exclude_types)  # type: ignore
+                tuple_(Activity.type_id, Activity.sub_type_id).notin_(exclude_types)
             )
             _sel_ids = session.exec(query).all()
             if _sel_ids:
@@ -101,8 +101,8 @@ def get_heatmap(
         .read_text()
     )
 
-    data = session.exec(
-        text(stmt),  # type: ignore
+    data = session.exec(  # type: ignore
+        text(stmt),
         params={"activity_ids": sel_ids},
     ).all()
 

@@ -97,7 +97,7 @@ def add_track(
         logger.info("Removing track data")
         # TODO: Implment
 
-    process_activity_highlights.delay(activity_id=activity_id, user_id=user_id)  # type: ignore
+    process_activity_highlights.delay(activity_id=activity_id, user_id=user_id)
 
     return JSONResponse(
         status_code=HTTP_201_CREATED,
@@ -374,8 +374,8 @@ def segment_statistics(
         .read_text()
     )
 
-    data = session.exec(
-        text(stmt),  # type: ignore
+    data = session.exec(  # ty: ignore[no-matching-overload]
+        text(stmt),
         params=dict(
             segment_set_id=segment_set_id,
             user_id=user_id,

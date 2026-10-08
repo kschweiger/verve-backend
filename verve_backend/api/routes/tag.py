@@ -77,8 +77,8 @@ def get_all_tags(*, user_session: UserSession) -> Any:
     cats = session.exec(select(ActivityTagCategory)).all()
 
     return UserTagResponse(
-        tags=tags,  # type: ignore
-        categories=cats,  # type: ignore
+        tags=tags,
+        categories=cats,
     )
 
 

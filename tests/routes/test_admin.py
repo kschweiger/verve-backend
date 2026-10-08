@@ -243,7 +243,7 @@ def test_reprocess_rolls_back_all_batches_on_database_failure(
     activity = stored_track(
         "long.gpx", f"<gpx><trk><trkseg>{points}</trkseg></trk></gpx>".encode()
     )
-    db.exec(
+    db.exec(  # type: ignore
         text(
             "ALTER TABLE track_points ADD CONSTRAINT reprocessing_test_point_limit "
             f"CHECK (user_id != '{temp_user_id}'::uuid OR id < 100) NOT VALID"
@@ -262,7 +262,7 @@ def test_reprocess_rolls_back_all_batches_on_database_failure(
         assert len(remaining) == 1
         assert remaining[0].extensions == {"distance": 1, "enhanced_speed": 1}
     finally:
-        db.exec(
+        db.exec(  # type: ignore
             text(
                 "ALTER TABLE track_points DROP CONSTRAINT reprocessing_test_point_limit"
             )
@@ -637,7 +637,7 @@ def test_failed_highlight_recalculation_preserves_previous_rankings(
     db.add(existing)
     db.commit()
     highlight_id = existing.id
-    db.exec(
+    db.exec(  # type: ignore
         text(
             "ALTER TABLE activity_highlights ADD CONSTRAINT highlight_test_value_limit "
             f"CHECK (user_id != '{temp_user_id}'::uuid OR value != 999) NOT VALID"
@@ -655,7 +655,7 @@ def test_failed_highlight_recalculation_preserves_previous_rankings(
         assert remaining[0].id == highlight_id
         assert remaining[0].value == 123
     finally:
-        db.exec(
+        db.exec(  # type: ignore
             text(
                 "ALTER TABLE activity_highlights DROP CONSTRAINT "
                 "highlight_test_value_limit"

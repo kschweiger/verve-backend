@@ -130,14 +130,18 @@ def setup_activity_types(session: Session) -> None:
 
 def setup_location_types(session: Session) -> None:
     for _type, _sub_types in LOCATION_TYPES.items():
-        atype = LocationType(name=_type)
+        # The database generates the primary key.
+        atype = LocationType(name=_type)  # ty: ignore[missing-argument]
         session.add(atype)
         session.commit()
         session.refresh(atype)
         print(f"  Created location type: {_type}")
 
         for sub_type in _sub_types:
-            stype = LocationSubType(name=sub_type, type_id=atype.id)
+            # The database generates the primary key.
+            stype = LocationSubType(  # ty: ignore[missing-argument]
+                name=sub_type, type_id=atype.id
+            )
             session.add(stype)
             session.commit()
             print(f"    Created location subtype: {sub_type}")
@@ -149,7 +153,7 @@ def setup_rls_policies(session: Session, schema: str = "api") -> None:
     for relation_prefix, table_name in RSL_TABLES:
         try:
             session.exec(  # type: ignore
-                text(  # type: ignore
+                text(
                     f"""
                 ALTER TABLE {schema}.{table_name} ENABLE ROW LEVEL SECURITY;
                 CREATE POLICY {relation_prefix}_isolation_policy

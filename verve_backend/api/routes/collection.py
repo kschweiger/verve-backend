@@ -140,8 +140,8 @@ def get_collections(
             year, month, get_user_timezone(session, uuid.UUID(user_id))
         )
 
-    rows = session.exec(
-        text(stmt),  # type: ignore
+    rows = session.exec(  # type: ignore
+        text(stmt),
         params={
             "start_at": start_at,
             "end_at": end_at,

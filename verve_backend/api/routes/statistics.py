@@ -30,7 +30,7 @@ from verve_backend.core.date_utils import (
 from verve_backend.models import Activity, ActivityType, UserSettings
 from verve_backend.transformations import CalendarWeek, build_calendar_response
 
-T = TypeVar("T", int, float)
+T = TypeVar("T", bound=int | float)
 
 
 logger = structlog.getLogger(__name__)
@@ -229,8 +229,8 @@ def get_year_stats(
         .read_text()
     )
 
-    data = session.exec(
-        text(stmt),  # type: ignore
+    data = session.exec(  # type: ignore
+        text(stmt),
         params={"user_id": user_id, "start_at": start_at, "end_at": end_at},
     ).all()
 
@@ -348,8 +348,8 @@ def get_week_stats(
         .read_text()
     )
 
-    data = session.exec(
-        text(stmt),  # type: ignore
+    data = session.exec(  # type: ignore
+        text(stmt),
         params={
             "user_id": user_id,
             "start_at": start_at,
@@ -463,8 +463,8 @@ def _run_query(
         .read_text()
     )
 
-    _data = session.exec(
-        text(stmt),  # type: ignore
+    _data = session.exec(  # type: ignore
+        text(stmt),
         params=params,
     )
     _data = _data.first() if type == "first" else _data.all()
