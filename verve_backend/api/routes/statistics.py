@@ -472,7 +472,7 @@ def _run_query(
     return _data
 
 
-@router.get("/activity-grid", response_model=ActivityGridResponse)
+@router.get("/activity_grid", response_model=ActivityGridResponse)
 def get_activity_grid(
     user_session: UserSession,
     weeks: int = 52,

@@ -41,7 +41,7 @@ def test_update_user_details(
     user = db.get(User, temp_user_id)
     assert user is not None
     token = client.post(
-        "/login/access-token",
+        "/login/access_token",
         data={"username": user.email, "password": "temporarypassword"},
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     ).json()["access_token"]
@@ -70,7 +70,7 @@ def test_update_password(
     user = db.get(User, temp_user_id)
     assert user is not None
     token = client.post(
-        "/login/access-token",
+        "/login/access_token",
         data={"username": user.email, "password": "temporarypassword"},
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     ).json()["access_token"]
@@ -99,7 +99,7 @@ def test_update_password_error(
     user = db.get(User, temp_user_id)
     assert user is not None
     token = client.post(
-        "/login/access-token",
+        "/login/access_token",
         data={"username": user.email, "password": "temporarypassword"},
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     ).json()["access_token"]

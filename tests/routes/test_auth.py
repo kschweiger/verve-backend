@@ -18,7 +18,7 @@ def test_forgot_password(db: Session, client: TestClient, user1_id: UUID) -> Non
     assert settings.RESET_PASSWORD_RESPONSE == "append"
 
     response = client.post(
-        "/login/forgot-password",
+        "/login/forgot_password",
         json={"email": "user1@mail.com"},
     )
     assert response.status_code == 200
@@ -26,7 +26,7 @@ def test_forgot_password(db: Session, client: TestClient, user1_id: UUID) -> Non
     _resp = PasswordForgotResponse.model_validate(response.json())
     assert _resp.message == "If this account exists, you will receive an email"
     assert _resp.reset_link is not None
-    assert "reset-password?token=" in _resp.reset_link
+    assert "reset_password?token=" in _resp.reset_link
 
     tokens = db.exec(
         select(PasswordResetToken).where(PasswordResetToken.user_id == user1_id)
@@ -43,7 +43,7 @@ def test_forgot_password_unknown_email(db: Session, client: TestClient) -> None:
     assert settings.RESET_PASSWORD_RESPONSE == "append"
 
     response = client.post(
-        "/login/forgot-password",
+        "/login/forgot_password",
         json={"email": "random@mail.com"},
     )
     assert response.status_code == 200
@@ -75,7 +75,7 @@ def test_reset_password(
             crud.add_reset_token(session=db, user_id=temp_user_id)
 
     response = client.post(
-        "/login/forgot-password",
+        "/login/forgot_password",
         json={"email": temp_user.email},
     )
     assert response.status_code == 200
@@ -87,7 +87,7 @@ def test_reset_password(
     reset_token = m.group(1) if m else None
 
     response = client.post(
-        "/login/reset-password",
+        "/login/reset_password",
         json={"token": reset_token, "new_password": "newpassword123"},
     )
     assert response.status_code == 200
@@ -105,7 +105,7 @@ def test_reset_password(
 
     # Try reusing the token
     response = client.post(
-        "/login/reset-password",
+        "/login/reset_password",
         json={"token": reset_token, "new_password": "newpassword123"},
     )
 
@@ -120,7 +120,7 @@ def test_reset_password_token_expired(
         token, _ = crud.add_reset_token(session=db, user_id=temp_user_id)
 
     response = client.post(
-        "/login/reset-password",
+        "/login/reset_password",
         json={"token": token, "new_password": "newpassword123"},
     )
     assert response.status_code == 400
