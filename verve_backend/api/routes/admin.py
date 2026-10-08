@@ -4,8 +4,8 @@ from uuid import UUID, uuid4
 
 from celery import chord
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from sqlmodel import select
+from pydantic import BaseModel, Field
+from sqlmodel import col, select
 from starlette.status import (
     HTTP_202_ACCEPTED,
     HTTP_204_NO_CONTENT,
@@ -32,9 +32,13 @@ router = APIRouter(prefix="/admin", tags=[Tag.ADMIN])
 
 
 class TrackReprocessingJob(BaseModel):
-    activity_id: UUID
-    user_id: UUID
-    task_id: UUID
+    """Background task that rebuilds one activity from its stored source file."""
+
+    activity_id: UUID = Field(description="Activity whose track will be rebuilt.")
+    user_id: UUID = Field(description="Owner of the activity.")
+    task_id: UUID = Field(
+        description="Track task ID. Poll GET /admin/tasks/{task_id} for its result."
+    )
 
 
 class AdminUserJob(BaseModel):
@@ -42,9 +46,33 @@ class AdminUserJob(BaseModel):
     task_id: UUID
 
 
+class TrackReprocessingCompletionJob(BaseModel):
+    """Waits for an owner's selected track tasks and reports their combined results.
+
+    Recalculates the owner's highlights if at least one track was rebuilt.
+    """
+
+    user_id: UUID = Field(
+        description="Activity owner whose selected track tasks this job waits for."
+    )
+    task_id: UUID = Field(
+        description="Completion task ID. Poll GET /admin/tasks/{task_id} for the "
+        "combined reprocessed/failed counts, individual track results, and "
+        "highlight recalculation outcome."
+    )
+
+
 class TrackReprocessingJobs(BaseModel):
-    tracks: list[TrackReprocessingJob]
-    users: list[AdminUserJob]
+    """Background jobs queued by a single-track or bulk track reprocessing request."""
+
+    tracks: list[TrackReprocessingJob] = Field(
+        description="One independent rebuild task per selected activity."
+    )
+    completion_tasks: list[TrackReprocessingCompletionJob] = Field(
+        description="One completion task per affected activity owner. Each waits "
+        "for that owner's selected track tasks, aggregates their results, and "
+        "recalculates highlights if at least one track was rebuilt."
+    )
 
 
 class HighlightRecalculationJobs(BaseModel):
@@ -58,7 +86,7 @@ class AdminTaskStatus(BaseModel):
     error: str | None = None
 
 
-@router.post("/reprocess-tracks", status_code=HTTP_202_ACCEPTED)
+@router.post("/reprocess_tracks", status_code=HTTP_202_ACCEPTED)
 def reprocess_tracks(
     *, session: SessionDep, user: CurrentUser, user_id: UUID | None = None
 ) -> TrackReprocessingJobs:
@@ -71,7 +99,7 @@ def reprocess_tracks(
     if user_id is not None and session.get(User, user_id) is None:
         raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail="User not found")
     statement = select(RawTrackData).order_by(
-        RawTrackData.user_id, RawTrackData.activity_id
+        col(RawTrackData.user_id), col(RawTrackData.activity_id)
     )
     if user_id is not None:
         statement = statement.where(RawTrackData.user_id == user_id)
@@ -82,7 +110,7 @@ def reprocess_tracks(
     return queue_track_reprocessing(tracks_by_user)
 
 
-@router.post("/reprocess-track", status_code=HTTP_202_ACCEPTED)
+@router.post("/reprocess_track", status_code=HTTP_202_ACCEPTED)
 def reprocess_track(
     *, session: SessionDep, user: CurrentUser, activity_id: UUID
 ) -> TrackReprocessingJobs:
@@ -111,7 +139,7 @@ def reprocess_track(
 def queue_track_reprocessing(
     tracks_by_user: dict[UUID, list[UUID]],
 ) -> TrackReprocessingJobs:
-    jobs = TrackReprocessingJobs(tracks=[], users=[])
+    jobs = TrackReprocessingJobs(tracks=[], completion_tasks=[])
     for owner_id, activity_ids in tracks_by_user.items():
         signatures = []
         for activity_id in activity_ids:
@@ -127,11 +155,13 @@ def queue_track_reprocessing(
                 )
             )
         task_id = uuid4()
-        callback = finish_track_reprocessing.s(user_id=owner_id).set(
+        callback = finish_track_reprocessing.s(user_id=owner_id).set(  # type: ignore
             task_id=str(task_id)
         )
         chord(signatures, callback).apply_async()
-        jobs.users.append(AdminUserJob(user_id=owner_id, task_id=task_id))
+        jobs.completion_tasks.append(
+            TrackReprocessingCompletionJob(user_id=owner_id, task_id=task_id)
+        )
     return jobs
 
 
@@ -152,7 +182,7 @@ def get_admin_task_status(*, task_id: UUID, user: CurrentUser) -> AdminTaskStatu
     )
 
 
-@router.post("/recalculate-highlights", status_code=HTTP_202_ACCEPTED)
+@router.post("/recalculate_highlights", status_code=HTTP_202_ACCEPTED)
 def recalculate_highlights(
     *,
     session: SessionDep,
@@ -172,7 +202,7 @@ def recalculate_highlights(
             )
         user_ids = [user_id]
     else:
-        user_ids = session.exec(select(User.id).order_by(User.id)).all()
+        user_ids = session.exec(select(User.id).order_by(col(User.id))).all()
     jobs = HighlightRecalculationJobs(users=[])
     for owner_id in user_ids:
         task = recalculate_user_highlights.delay(user_id=owner_id)  # type: ignore

@@ -103,6 +103,9 @@ build-backend = "uv_build"
 module-name = "verve_backend"
 module-root = ""
 
+[tool.ty.terminal]
+error-on-warning = false
+
 [tool.git-changelog]
 output = "CHANGELOG.md"
 convention = "conventional"

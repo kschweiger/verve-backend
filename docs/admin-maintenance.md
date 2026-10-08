@@ -23,7 +23,10 @@ The existing `/admin/recalculat_hightlights` spelling remains as a deprecated HT
 `POST /admin/reprocess-tracks` returns HTTP 202 with two arrays:
 
 - `tracks`: an `activity_id`, `user_id`, and `task_id` for every selected stored track.
-- `users`: a `user_id` and completion `task_id` for every affected user.
+- `completion_tasks`: a `user_id` and completion `task_id` for every affected
+  activity owner. Each task waits for that owner's selected track jobs, aggregates
+  their results, and recalculates highlights if at least one track was rebuilt.
+  Poll its `task_id` at `GET /admin/tasks/{task_id}` for the combined result.
 
 Selection uses the database's `raw_track_data` records. Each activity gets its own
 background task, which downloads the existing S3 object and parses it with the

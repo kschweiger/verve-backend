@@ -1,5 +1,10 @@
 # UTC Datetime Contract
 
+This is the original design proposal. For current behavior, see
+[How timezones work in the backend](../../activity-timezone.md). The backend now
+uses the user's saved timezone for calendars and accepts offsetless activity
+input using the selected activity timezone.
+
 ## Goal
 
 Make timestamp handling consistent with SQLModel 0.0.46: application instants are

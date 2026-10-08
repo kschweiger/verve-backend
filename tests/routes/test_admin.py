@@ -45,6 +45,7 @@ def stored_track(
             avg_power=999,
             max_power=999,
             meta_data={"note": "Keep my edits"},
+            sub_type_id=None,
         )
         db.add(activity)
         db.commit()
@@ -88,9 +89,9 @@ def stored_track(
 @pytest.mark.parametrize(
     ("method", "path"),
     [
-        ("POST", "/admin/reprocess-tracks"),
-        ("POST", f"/admin/reprocess-track?activity_id={UUID(int=1)}"),
-        ("POST", "/admin/recalculate-highlights"),
+        ("POST", "/admin/reprocess_tracks"),
+        ("POST", f"/admin/reprocess_track?activity_id={UUID(int=1)}"),
+        ("POST", "/admin/recalculate_highlights"),
         ("GET", f"/admin/tasks/{UUID(int=1)}"),
     ],
 )
@@ -106,9 +107,9 @@ def test_admin_jobs_require_admin(
 @pytest.mark.parametrize(
     ("method", "path"),
     [
-        ("POST", "/admin/reprocess-tracks"),
-        ("POST", f"/admin/reprocess-track?activity_id={UUID(int=1)}"),
-        ("POST", "/admin/recalculate-highlights"),
+        ("POST", "/admin/reprocess_tracks"),
+        ("POST", f"/admin/reprocess_track?activity_id={UUID(int=1)}"),
+        ("POST", "/admin/recalculate_highlights"),
         ("GET", f"/admin/tasks/{UUID(int=1)}"),
     ],
 )
@@ -313,18 +314,18 @@ def test_admin_queues_each_track_and_reports_partial_failure(
     db.commit()
     headers = {"Authorization": f"Bearer {admin_token}"}
     response = client.post(
-        "/admin/reprocess-tracks",
+        "/admin/reprocess_tracks",
         headers=headers,
         params={"user_id": str(temp_user_id)},
     )
     assert response.status_code == 202
     jobs = response.json()
     assert {job["activity_id"] for job in jobs["tracks"]} == {str(good.id), str(bad.id)}
-    assert len(jobs["users"]) == 1
-    task_ids = [job["task_id"] for job in [*jobs["tracks"], *jobs["users"]]]
+    assert len(jobs["completion_tasks"]) == 1
+    task_ids = [job["task_id"] for job in [*jobs["tracks"], *jobs["completion_tasks"]]]
     try:
         status = client.get(
-            f"/admin/tasks/{jobs['users'][0]['task_id']}", headers=headers
+            f"/admin/tasks/{jobs['completion_tasks'][0]['task_id']}", headers=headers
         )
         assert status.status_code == 200
         assert status.json()["state"] == "SUCCESS"
@@ -354,7 +355,7 @@ def test_admin_queues_each_track_and_reports_partial_failure(
 
 
 @pytest.mark.parametrize(
-    "path", ["/admin/reprocess-tracks", "/admin/recalculate-highlights"]
+    "path", ["/admin/reprocess_tracks", "/admin/recalculate_highlights"]
 )
 def test_admin_recalculation_rejects_unknown_user(
     client: TestClient, admin_token: str, path: str
@@ -391,7 +392,7 @@ def test_admin_reprocesses_only_the_requested_activity(
     other = stored_track("other.gpx", content)
     headers = {"Authorization": f"Bearer {admin_token}"}
     response = client.post(
-        "/admin/reprocess-track",
+        "/admin/reprocess_track",
         headers=headers,
         params={"activity_id": str(selected.id)},
     )
@@ -400,10 +401,10 @@ def test_admin_reprocesses_only_the_requested_activity(
     assert len(jobs["tracks"]) == 1
     assert jobs["tracks"][0]["activity_id"] == str(selected.id)
     assert jobs["tracks"][0]["user_id"] == str(temp_user_id)
-    assert len(jobs["users"]) == 1
+    assert len(jobs["completion_tasks"]) == 1
     try:
         status = client.get(
-            f"/admin/tasks/{jobs['users'][0]['task_id']}", headers=headers
+            f"/admin/tasks/{jobs['completion_tasks'][0]['task_id']}", headers=headers
         ).json()
         assert status["state"] == "SUCCESS"
         assert status["result"]["reprocessed"] == 1
@@ -413,7 +414,7 @@ def test_admin_reprocesses_only_the_requested_activity(
         assert selected.duration == timedelta(minutes=10)
         assert other.duration == timedelta(hours=99)
     finally:
-        for job in [*jobs["tracks"], *jobs["users"]]:
+        for job in [*jobs["tracks"], *jobs["completion_tasks"]]:
             celery.AsyncResult(job["task_id"]).forget()
 
 
@@ -436,11 +437,12 @@ def test_admin_single_reprocessing_requires_activity_and_source(
             start=datetime(2026, 1, 1, tzinfo=UTC),
             duration=timedelta(hours=1),
             distance=12,
+            sub_type_id=None,
         )
         db.add(activity)
         db.commit()
     response = client.post(
-        "/admin/reprocess-track",
+        "/admin/reprocess_track",
         headers={"Authorization": f"Bearer {admin_token}"},
         params={"activity_id": str(activity_id)},
     )
@@ -505,6 +507,7 @@ def test_admin_recalculates_highlights_without_stored_tracks(
         start=datetime(2026, 1, 1, tzinfo=UTC),
         duration=timedelta(hours=1),
         distance=12,
+        sub_type_id=None,
     )
     db.add(activity)
     db.commit()
@@ -524,7 +527,7 @@ def test_admin_recalculates_highlights_without_stored_tracks(
     headers = {"Authorization": f"Bearer {admin_token}"}
     for _ in range(2):
         response = client.post(
-            "/admin/recalculate-highlights",
+            "/admin/recalculate_highlights",
             headers=headers,
             params={"user_id": str(temp_user_id)},
         )
