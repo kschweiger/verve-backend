@@ -738,7 +738,7 @@ def create_auto_activity(
 
         session.commit()
 
-    process_activity_highlights.delay(activity_id=activity.id, user_id=user_id)  # type: ignore
+    process_activity_highlights.delay(activity_id=activity.id, user_id=user_id)
 
     return activity
 
@@ -777,6 +777,6 @@ def import_verve_file(
         timezone_name=timezone_name,
     )
 
-    process_activity_highlights.delay(activity_id=activity.id, user_id=user_id)  # type: ignore
+    process_activity_highlights.delay(activity_id=activity.id, user_id=user_id)
 
     return activity

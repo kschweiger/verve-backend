@@ -117,9 +117,7 @@ async def get_s3_client() -> S3Client:
 
 
 async def ensure_bucket_exists(client: S3Client, bucket_name: str = "verve") -> None:
-    all_buckets = set(
-        [b["Name"] for b in client.list_buckets()["Buckets"]]  # type: ignore
-    )
+    all_buckets = set([b["Name"] for b in client.list_buckets()["Buckets"]])
     if bucket_name not in all_buckets:
         try:
             client.create_bucket(Bucket=bucket_name)

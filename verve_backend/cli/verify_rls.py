@@ -30,7 +30,7 @@ console = Console()
 
 def find_all_relevant_tables() -> list[str]:
     with contextmanager(get_db)() as session:
-        tables = session.exec(
+        tables = session.exec(  # type: ignore
             text(
                 f"""
                 SELECT
@@ -43,7 +43,7 @@ def find_all_relevant_tables() -> list[str]:
                 ORDER BY
                     table_name;
                 """
-            )  # type: ignore
+            )
         ).all()
     table_names = []
     for (name,) in tables:
@@ -103,6 +103,10 @@ async def create_user_data(user: UserBase) -> None:
         ).unwrap()
 
         now = datetime.now(UTC)
+        extensions: dict[str, list[int | None] | None] = {
+            "heart_rate": [120, 130, 140, 140],
+            "power": [150, 160, 170, 170],
+        }
         track = PyTrack(
             points=[(1, 1), (1.0001, 1.0001), (1.0002, 1.0002), (1.0003, 1.0003)],
             elevations=[100, 105, 110, 110],
@@ -112,10 +116,7 @@ async def create_user_data(user: UserBase) -> None:
                 now + timedelta(seconds=60),
                 now + timedelta(seconds=90),
             ],
-            extensions={
-                "heart_rate": [120, 130, 140, 140],
-                "power": [150, 160, 170, 170],
-            },
+            extensions=extensions,
         )
         crud.insert_track(
             session=session,
@@ -210,7 +211,7 @@ async def create_user_data(user: UserBase) -> None:
         )
         session.commit()
 
-        session.exec(
+        session.exec(  # type: ignore
             text(
                 f"""
                 INSERT INTO {settings.POSTGRES_SCHEMA}.image
@@ -221,9 +222,9 @@ async def create_user_data(user: UserBase) -> None:
                     '{activity_1.id}'
                 )
                 """
-            )  # type: ignore
+            )
         )
-        session.exec(
+        session.exec(  # type: ignore
             text(
                 f"""
                 INSERT INTO {settings.POSTGRES_SCHEMA}.raw_track_data
@@ -234,7 +235,7 @@ async def create_user_data(user: UserBase) -> None:
                     '{activity_1.id}'
                 )
                 """
-            )  # type: ignore
+            )
         )
         session.commit()
         activity_2 = crud.create_activity(

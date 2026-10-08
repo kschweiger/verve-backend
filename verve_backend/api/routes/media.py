@@ -86,7 +86,7 @@ async def add_image(
         )
 
     db_obj = Image(
-        user_id=user_id,  # type: ignore
+        user_id=user_id,
         activity_id=activity_id,
     )
     session.add(db_obj)

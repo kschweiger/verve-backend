@@ -61,9 +61,7 @@ def _parse_track(
     elif file_name.endswith(".json"):
         file_bytes = BytesIO(file_content).read()
         try:
-            track = GeoJsonTrack(  # type: ignore
-                file_bytes, max_speed_percentile=99, timezone=timezone
-            )
+            track = GeoJsonTrack(file_bytes, max_speed_percentile=99, timezone=timezone)
         except UnsupportedGeoJsonTypeError:
             logger.error("geojson file type not supported")
             raise HTTPException(
@@ -85,7 +83,7 @@ def _parse_track(
                 allow_empty_spatial=True,
                 timezone=timezone,
                 # TODO: Set default lat/long?
-            )  # type: ignore
+            )
             empty_spatial_flag = True
         except Exception as e:
             err_uuid = uuid.uuid4()
@@ -219,7 +217,7 @@ def add_track(
 
     raw_data = RawTrackData(
         activity_id=activity_id,
-        user_id=user_id,  # type: ignore
+        user_id=user_id,
         store_path=obj_path,
     )
     session.add(raw_data)
@@ -261,8 +259,8 @@ def get_track_points_response(
         .read_text()
     )
 
-    rows = session.exec(
-        text(stmt),  # type: ignore
+    rows = session.exec(  # type: ignore
+        text(stmt),
         params={"activity_id": activity_id, "min_distance": min_distance},
     ).all()
 

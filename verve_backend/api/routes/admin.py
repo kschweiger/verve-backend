@@ -145,7 +145,7 @@ def queue_track_reprocessing(
         for activity_id in activity_ids:
             task_id = uuid4()
             signatures.append(
-                reprocess_stored_track.s(activity_id=activity_id, user_id=owner_id).set(  # type: ignore
+                reprocess_stored_track.s(activity_id=activity_id, user_id=owner_id).set(
                     task_id=str(task_id)
                 )
             )
@@ -155,7 +155,7 @@ def queue_track_reprocessing(
                 )
             )
         task_id = uuid4()
-        callback = finish_track_reprocessing.s(user_id=owner_id).set(  # type: ignore
+        callback = finish_track_reprocessing.s(user_id=owner_id).set(
             task_id=str(task_id)
         )
         chord(signatures, callback).apply_async()
@@ -205,7 +205,7 @@ def recalculate_highlights(
         user_ids = session.exec(select(User.id).order_by(col(User.id))).all()
     jobs = HighlightRecalculationJobs(users=[])
     for owner_id in user_ids:
-        task = recalculate_user_highlights.delay(user_id=owner_id)  # type: ignore
+        task = recalculate_user_highlights.delay(user_id=owner_id)
         jobs.users.append(AdminUserJob(user_id=owner_id, task_id=task.id))
     return jobs
 

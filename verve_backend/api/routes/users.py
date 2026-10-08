@@ -212,7 +212,7 @@ def update_timezone(*, user_session: UserSession, timezone_name: TimeZoneName) -
     assert user_settings is not None
 
     if user_settings.timezone != timezone_name:
-        session.execute(
+        session.exec(
             update(Goal)
             .where(
                 col(Goal.user_id) == UUID(_user_id),
