@@ -27,7 +27,7 @@ logger = structlog.getLogger(__name__)
 router = APIRouter(tags=[Tag.AUTH])
 
 
-@router.post("/login/access-token")
+@router.post("/login/access_token")
 def login_access_token(
     session: SessionDep, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
 ) -> Token:
@@ -57,7 +57,7 @@ def login_access_token(
     )
 
 
-@router.post("/login/test-token", response_model=UserPublic)
+@router.post("/login/test_token", response_model=UserPublic)
 def test_token(current_user: CurrentUser) -> Any:
     """
     Test access token
@@ -74,7 +74,7 @@ class PasswordForgotPayload(BaseModel):
     email: EmailStr
 
 
-@router.post("/login/forgot-password")
+@router.post("/login/forgot_password")
 def forgot_password(
     session: SessionDep, data: PasswordForgotPayload
 ) -> PasswordForgotResponse:
@@ -87,7 +87,7 @@ def forgot_password(
     if _user:
         token, _ = crud.add_reset_token(session=session, user_id=_user.id)
         if settings.RESET_PASSWORD_RESPONSE == "append":
-            link = f"{settings.FRONTEND_HOST}/reset-password?token={token}"
+            link = f"{settings.FRONTEND_HOST}/reset_password?token={token}"
 
     return PasswordForgotResponse(message=msg, reset_link=link)
 
@@ -97,7 +97,7 @@ class PasswordResetPayload(BaseModel):
     new_password: UserPassword
 
 
-@router.post("/login/reset-password")
+@router.post("/login/reset_password")
 def reset_password(session: SessionDep, data: PasswordResetPayload) -> Any:
     _now = datetime.now(UTC)
 

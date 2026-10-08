@@ -343,7 +343,7 @@ def test_activity_grid_uses_user_local_dates(
 
     with freeze_time("2025-02-01 01:00:00"):
         response = client.get(
-            "/statistics/activity-grid", headers=headers, params={"weeks": 1}
+            "/statistics/activity_grid", headers=headers, params={"weeks": 1}
         )
     assert response.status_code == 200
     grid = ActivityGridResponse.model_validate(response.json())
@@ -835,7 +835,7 @@ def test_activity_grid_route(
     user1_token: str,
 ) -> None:
     response = client.get(
-        "/statistics/activity-grid",
+        "/statistics/activity_grid",
         params={"weeks": 4},
         headers={"Authorization": f"Bearer {user1_token}"},
     )

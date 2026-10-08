@@ -49,7 +49,7 @@ def db():  # noqa: ANN201
 @pytest.fixture(scope="session")
 def admin_token(client: TestClient) -> str:
     response = client.post(
-        "/login/access-token",
+        "/login/access_token",
         data={"username": "admin@mail.com", "password": "12345678"},
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
@@ -61,7 +61,7 @@ def admin_token(client: TestClient) -> str:
 @pytest.fixture(scope="session")
 def user2_token(client: TestClient) -> str:
     response = client.post(
-        "/login/access-token",
+        "/login/access_token",
         data={"username": "user2@mail.com", "password": "12345678"},
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
@@ -73,7 +73,7 @@ def user2_token(client: TestClient) -> str:
 @pytest.fixture(scope="session")
 def user1_token(client: TestClient) -> str:
     response = client.post(
-        "/login/access-token",
+        "/login/access_token",
         data={"username": "user1@mail.com", "password": "12345678"},
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
@@ -101,7 +101,7 @@ def timezone_user_tokens(client: TestClient) -> dict[str, str]:
         ("Europe/Berlin", "user4@mail.com"),
     ]:
         response = client.post(
-            "/login/access-token",
+            "/login/access_token",
             data={"username": email, "password": "12345678"},
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
@@ -167,7 +167,7 @@ def temp_user_token(temp_user_id: UUID, client: TestClient) -> str:
             raise ValueError(f"User with id {temp_user_id} not found")
 
         token = client.post(
-            "/login/access-token",
+            "/login/access_token",
             data={"username": user.email, "password": "temporarypassword"},
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         ).json()["access_token"]
