@@ -11,12 +11,14 @@ from starlette.status import (
     HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST,
     HTTP_403_FORBIDDEN,
+    HTTP_404_NOT_FOUND,
 )
 
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import CurrentUser, SessionDep
 from verve_backend.celery_app import celery
 from verve_backend.models import (
+    Activity,
     RawTrackData,
     User,
 )
@@ -77,6 +79,38 @@ def reprocess_tracks(
     for raw in session.exec(statement).all():
         tracks_by_user[raw.user_id].append(raw.activity_id)
 
+    return queue_track_reprocessing(tracks_by_user)
+
+
+@router.post("/reprocess-track", status_code=HTTP_202_ACCEPTED)
+def reprocess_track(
+    *, session: SessionDep, user: CurrentUser, activity_id: UUID
+) -> TrackReprocessingJobs:
+    """Queue a stored track rebuild for one activity and refresh its user's rankings."""
+    if not user.is_admin:
+        raise HTTPException(
+            status_code=HTTP_403_FORBIDDEN,
+            detail="Operation only allowed for admin users",
+        )
+    activity = session.get(Activity, activity_id)
+    if activity is None:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Activity not found")
+    raw = session.get(RawTrackData, activity_id)
+    if raw is None:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND, detail="Activity has no stored source track"
+        )
+    if raw.user_id != activity.user_id:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail="Stored source track does not belong to the activity owner",
+        )
+    return queue_track_reprocessing({activity.user_id: [activity_id]})
+
+
+def queue_track_reprocessing(
+    tracks_by_user: dict[UUID, list[UUID]],
+) -> TrackReprocessingJobs:
     jobs = TrackReprocessingJobs(tracks=[], users=[])
     for owner_id, activity_ids in tracks_by_user.items():
         signatures = []

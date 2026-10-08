@@ -8,7 +8,9 @@ import pytest
 from fastapi.testclient import TestClient
 from mypy_boto3_s3.client import S3Client
 from pytest_mock import MockerFixture
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select, text
+from structlog.testing import capture_logs
 
 from verve_backend.core.config import settings
 from verve_backend.models import (
@@ -87,6 +89,7 @@ def stored_track(
     ("method", "path"),
     [
         ("POST", "/admin/reprocess-tracks"),
+        ("POST", f"/admin/reprocess-track?activity_id={UUID(int=1)}"),
         ("POST", "/admin/recalculate-highlights"),
         ("GET", f"/admin/tasks/{UUID(int=1)}"),
     ],
@@ -104,6 +107,7 @@ def test_admin_jobs_require_admin(
     ("method", "path"),
     [
         ("POST", "/admin/reprocess-tracks"),
+        ("POST", f"/admin/reprocess-track?activity_id={UUID(int=1)}"),
         ("POST", "/admin/recalculate-highlights"),
         ("GET", f"/admin/tasks/{UUID(int=1)}"),
     ],
@@ -363,6 +367,123 @@ def test_admin_recalculation_rejects_unknown_user(
     assert response.status_code == 400
 
 
+def test_admin_reprocesses_only_the_requested_activity(
+    client: TestClient,
+    admin_token: str,
+    db: Session,
+    temp_user_id: UUID,
+    stored_track: Callable[[str, bytes], Activity],
+    celery_eager: None,
+    mocker: MockerFixture,
+) -> None:
+    from verve_backend.celery_app import celery
+    from verve_backend.tasks import finish_track_reprocessing, reprocess_stored_track
+
+    mocker.patch.object(reprocess_stored_track, "store_eager_result", True)
+    mocker.patch.object(finish_track_reprocessing, "store_eager_result", True)
+    mocker.patch.dict(celery.conf.changes, {"task_store_eager_result": True})
+    content = (
+        resources.files("tests.resources.timezones")
+        .joinpath("berlin-summer-local.gpx")
+        .read_bytes()
+    )
+    selected = stored_track("selected.gpx", content)
+    other = stored_track("other.gpx", content)
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = client.post(
+        "/admin/reprocess-track",
+        headers=headers,
+        params={"activity_id": str(selected.id)},
+    )
+    assert response.status_code == 202
+    jobs = response.json()
+    assert len(jobs["tracks"]) == 1
+    assert jobs["tracks"][0]["activity_id"] == str(selected.id)
+    assert jobs["tracks"][0]["user_id"] == str(temp_user_id)
+    assert len(jobs["users"]) == 1
+    try:
+        status = client.get(
+            f"/admin/tasks/{jobs['users'][0]['task_id']}", headers=headers
+        ).json()
+        assert status["state"] == "SUCCESS"
+        assert status["result"]["reprocessed"] == 1
+        assert status["result"]["highlights_rebuilt"] is True
+        db.refresh(selected)
+        db.refresh(other)
+        assert selected.duration == timedelta(minutes=10)
+        assert other.duration == timedelta(hours=99)
+    finally:
+        for job in [*jobs["tracks"], *jobs["users"]]:
+            celery.AsyncResult(job["task_id"]).forget()
+
+
+@pytest.mark.parametrize("has_activity", [False, True])
+def test_admin_single_reprocessing_requires_activity_and_source(
+    client: TestClient,
+    admin_token: str,
+    db: Session,
+    temp_user_id: UUID,
+    has_activity: bool,
+) -> None:
+    activity_id = uuid4()
+    if has_activity:
+        activity = Activity(
+            id=activity_id,
+            user_id=temp_user_id,
+            timezone="Europe/Berlin",
+            name="No stored source",
+            type_id=1,
+            start=datetime(2026, 1, 1, tzinfo=UTC),
+            duration=timedelta(hours=1),
+            distance=12,
+        )
+        db.add(activity)
+        db.commit()
+    response = client.post(
+        "/admin/reprocess-track",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        params={"activity_id": str(activity_id)},
+    )
+    assert response.status_code == 404
+
+
+def test_missing_stored_file_logs_location_and_keeps_activity(
+    db: Session,
+    temp_user_id: UUID,
+    stored_track: Callable[[str, bytes], Activity],
+    object_store: S3Client,
+) -> None:
+    from verve_backend.tasks import reprocess_stored_track
+
+    activity = stored_track("missing.gpx", b"Deleted original file")
+    raw = db.get(RawTrackData, activity.id)
+    assert raw is not None
+    path = raw.store_path
+    object_store.delete_object(Bucket=settings.BOTO3_BUCKET, Key=path)
+    with capture_logs() as logs:
+        result = reprocess_stored_track(activity_id=activity.id, user_id=temp_user_id)
+
+    assert "not available" in result["error"]
+    assert settings.BOTO3_BUCKET in result["error"]
+    assert path in result["error"]
+    errors = [entry for entry in logs if entry["log_level"] == "error"]
+    assert any(
+        entry.get("activity_id") == str(activity.id)
+        and entry.get("bucket") == settings.BOTO3_BUCKET
+        and entry.get("key") == path
+        and "not available" in entry["event"]
+        and not entry.get("exc_info")
+        for entry in errors
+    )
+    db.refresh(activity)
+    assert activity.distance == 999
+    assert db.get(RawTrackData, activity.id) is not None
+    points = db.exec(
+        select(TrackPoint).where(TrackPoint.activity_id == activity.id)
+    ).all()
+    assert len(points) == 1
+
+
 def test_admin_recalculates_highlights_without_stored_tracks(
     client: TestClient,
     admin_token: str,
@@ -494,9 +615,7 @@ def test_failed_highlight_recalculation_preserves_previous_rankings(
     db: Session,
     temp_user_id: UUID,
     stored_track: Callable[[str, bytes], Activity],
-    mocker: MockerFixture,
 ) -> None:
-    from verve_backend.highlights.registry import registry
     from verve_backend.tasks import recalculate_user_highlights
 
     activity = stored_track(
@@ -515,21 +634,28 @@ def test_failed_highlight_recalculation_preserves_previous_rankings(
     db.add(existing)
     db.commit()
     highlight_id = existing.id
-    mocker.patch.dict(
-        registry.calculators,
-        {
-            HighlightMetric.DISTANCE: mocker.Mock(
-                side_effect=ValueError("Cannot calculate")
-            )
-        },
+    db.exec(
+        text(
+            "ALTER TABLE activity_highlights ADD CONSTRAINT highlight_test_value_limit "
+            f"CHECK (user_id != '{temp_user_id}'::uuid OR value != 999) NOT VALID"
+        )
     )
-
-    with pytest.raises(ValueError, match="Cannot calculate"):
-        recalculate_user_highlights(user_id=temp_user_id)
-    db.expire_all()
-    remaining = db.exec(
-        select(ActivityHighlight).where(ActivityHighlight.user_id == temp_user_id)
-    ).all()
-    assert len(remaining) == 1
-    assert remaining[0].id == highlight_id
-    assert remaining[0].value == 123
+    db.commit()
+    try:
+        with pytest.raises(IntegrityError):
+            recalculate_user_highlights(user_id=temp_user_id)
+        db.expire_all()
+        remaining = db.exec(
+            select(ActivityHighlight).where(ActivityHighlight.user_id == temp_user_id)
+        ).all()
+        assert len(remaining) == 1
+        assert remaining[0].id == highlight_id
+        assert remaining[0].value == 123
+    finally:
+        db.exec(
+            text(
+                "ALTER TABLE activity_highlights DROP CONSTRAINT "
+                "highlight_test_value_limit"
+            )
+        )
+        db.commit()

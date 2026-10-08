@@ -4,6 +4,7 @@ from contextlib import closing
 from datetime import datetime
 from uuid import UUID
 
+from botocore.exceptions import ClientError
 from mypy_boto3_s3.client import S3Client
 from sqlmodel import Session, col, delete, select, update
 
@@ -12,6 +13,7 @@ from verve_backend.api.common.track import parse_track
 from verve_backend.api.common.utils import get_user_timezone, update_activity_with_track
 from verve_backend.core.config import settings
 from verve_backend.enums import GoalType
+from verve_backend.exceptions import StoredTrackFileUnavailableError
 from verve_backend.models import (
     Activity,
     Goal,
@@ -42,9 +44,21 @@ def reprocess_activity_track(
     if activity.user_id != user_id or raw.user_id != user_id:
         raise ValueError("Activity and stored source must belong to the requested user")
 
-    source = object_store_client.get_object(
-        Bucket=settings.BOTO3_BUCKET, Key=raw.store_path
-    )
+    try:
+        source = object_store_client.get_object(
+            Bucket=settings.BOTO3_BUCKET, Key=raw.store_path
+        )
+    except ClientError as exc:
+        if exc.response.get("Error", {}).get("Code") in {
+            "NoSuchKey",
+            "NoSuchBucket",
+            "NotFound",
+            "404",
+        }:
+            raise StoredTrackFileUnavailableError(
+                bucket=settings.BOTO3_BUCKET, key=raw.store_path
+            ) from exc
+        raise
     with closing(source["Body"]) as body:
         content = body.read()
     metadata = source.get("Metadata", {})

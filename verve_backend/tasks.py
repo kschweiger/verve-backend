@@ -13,6 +13,7 @@ from verve_backend.celery_app import celery
 from verve_backend.core.config import settings
 from verve_backend.core.db import get_engine
 from verve_backend.core.track_reprocessing import reprocess_activity_track
+from verve_backend.exceptions import StoredTrackFileUnavailableError
 from verve_backend.highlights.crud import (
     rebuild_user_highlights,
     update_top_n_highlights,
@@ -104,6 +105,14 @@ def reprocess_stored_track(*, activity_id: UUID, user_id: UUID) -> dict[str, Any
                 user_id=UUID(str(user_id)),
             )
         result.update(number_of_points=number_of_points, removed_cuts=removed_cuts)
+    except StoredTrackFileUnavailableError as exc:
+        result["error"] = str(exc)
+        logger.error(
+            "Stored track file is not available in the bucket",
+            bucket=exc.bucket,
+            key=exc.key,
+            **result,
+        )
     except Exception as exc:
         logger.exception("Stored track reprocessing failed", **result)
         result["error"] = (str(exc) or type(exc).__name__).splitlines()[0][:500]
