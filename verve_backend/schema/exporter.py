@@ -118,6 +118,7 @@ def _cast(session: Session, activity_id: UUID) -> VerveFeature:
         assert _type_name is not None
 
     props = VerveProperties(
+        timezone=activity.timezone,
         name=activity.name,
         activity_type=_type_name.name,
         activity_sub_type=_sub_type.name if _sub_type else None,

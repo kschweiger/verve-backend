@@ -1,6 +1,6 @@
 import re
 import uuid
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from enum import StrEnum, auto
 from typing import Annotated, Any, Generic, TypeVar
 
@@ -11,6 +11,7 @@ from pydantic import (
     BaseModel,
     EmailStr,
 )
+from pydantic_extra_types.timezone_name import TimeZoneName
 from sqlalchemy import JSON, Column
 from sqlmodel import (
     Field,
@@ -317,6 +318,7 @@ class ActivityCreate(ActivityBase):
 
 
 class ActivityPublic(ActivityBase):
+    timezone: TimeZoneName
     id: uuid.UUID
     created_at: datetime
 
@@ -324,6 +326,7 @@ class ActivityPublic(ActivityBase):
 
 
 class ActivityCorePublic(ActivityCore):
+    timezone: TimeZoneName
     id: uuid.UUID
     created_at: datetime
 
@@ -333,11 +336,14 @@ class ActivityCorePublic(ActivityCore):
 class Activity(ActivityBase, table=True):
     __tablename__: str = "activities"  # type: ignore
 
+    timezone: TimeZoneName = Field(
+        nullable=False, description="Activity display IANA timezone"
+    )
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(
         foreign_key="users.id", nullable=False, ondelete="CASCADE"
     )
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     equipment: list["Equipment"] = Relationship(
         back_populates="activities",
@@ -377,7 +383,7 @@ class EquipmentBase(SQLModel):
     brand: str | None = None
     model: str | None = None
     description: str | None = None
-    purchase_date: datetime | None = None
+    purchase_date: date | None = None
 
 
 class EquipmentCreate(EquipmentBase):
@@ -574,7 +580,7 @@ class GoalBase(SQLModel):
     active: bool = Field(default=True)
 
     temporal_type: TemporalType = Field(default=TemporalType.YEARLY)
-    year: int = Field(default=datetime.now().year)
+    year: int = Field(default=datetime.now(timezone.utc).year)
     month: int | None = Field(default=None)
     week: int | None = Field(default=None)
 
@@ -585,7 +591,7 @@ class GoalBase(SQLModel):
 
 
 class GoalCreate(GoalBase):
-    pass
+    year: int | None = None  # type: ignore
 
 
 class GoalPublic(GoalBase):
@@ -601,7 +607,7 @@ class Goal(GoalBase, table=True):
     user_id: uuid.UUID = Field(
         foreign_key="users.id", nullable=False, ondelete="CASCADE"
     )
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class GoalsPublic(SQLModel):
@@ -664,7 +670,7 @@ class Location(LocationBase, table=True):
     user_id: uuid.UUID = Field(
         foreign_key="users.id", nullable=False, ondelete="CASCADE"
     )
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     type_id: PositiveNumber[int] = Field(foreign_key="location_type.id", nullable=False)
     sub_type_id: PositiveNumber[int] = Field(
@@ -729,7 +735,7 @@ class ZoneInterval(ZoneIntervalBase, table=True):
     user_id: uuid.UUID = Field(
         foreign_key="users.id", nullable=False, ondelete="CASCADE"
     )
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class UserSettingsBase(SQLModel):
@@ -745,6 +751,9 @@ class UserSettingsBase(SQLModel):
     records_settings: RecordsSettings = Field(
         sa_column=Column(PydanticJSON(RecordsSettings)),
         default_factory=lambda: RecordsSettings().model_dump(mode="json"),
+    )
+    timezone: TimeZoneName = Field(
+        default="Europe/Berlin", description="IANA timezone name"
     )
 
 
@@ -963,10 +972,10 @@ class PasswordResetToken(SQLModel, table=True):
     )
     token_hash: str = Field(index=True)
     expires_at: datetime = Field(
-        default_factory=lambda: datetime.now() + timedelta(hours=1)
+        default_factory=lambda: datetime.now(timezone.utc) + timedelta(hours=1)
     )
     used_at: datetime | None = Field(default=None)
-    created_at: datetime = Field(default_factory=lambda: datetime.now())
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class ActivityCollectionBase(SQLModel):
@@ -988,7 +997,7 @@ class ActivityCollection(ActivityCollectionBase, table=True):
     __tablename__: str = "activity_collections"  # type: ignore
 
     id: uuid.UUID = Field(default_factory=uuid.uuid7, primary_key=True)
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     user_id: uuid.UUID = Field(
         foreign_key="users.id", nullable=False, index=True, ondelete="CASCADE"
     )
@@ -1000,4 +1009,4 @@ class ActivityCollection(ActivityCollectionBase, table=True):
             "lazy": "select",
         },
     )
-    updated_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

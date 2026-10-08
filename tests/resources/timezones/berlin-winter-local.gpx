@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Verve timezone fixtures" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>berlin-winter-local</name>
+    <trkseg>
+      <trkpt lat="52.52" lon="13.405"><ele>35</ele><time>2026-01-10T10:00:00</time><extensions><heartrate>96</heartrate></extensions></trkpt>
+      <trkpt lat="52.525" lon="13.41"><ele>36</ele><time>2026-01-10T10:05:00</time><extensions><heartrate>108</heartrate></extensions></trkpt>
+      <trkpt lat="52.53" lon="13.415"><ele>37</ele><time>2026-01-10T10:10:00</time><extensions><heartrate>120</heartrate></extensions></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

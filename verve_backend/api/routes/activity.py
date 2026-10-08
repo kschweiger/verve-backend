@@ -3,10 +3,12 @@ import json
 import uuid
 from io import BytesIO
 from typing import Annotated, Any
+from zoneinfo import ZoneInfo
 
 import structlog
 from fastapi import APIRouter, HTTPException, Query, UploadFile
 from pydantic import BaseModel
+from pydantic_extra_types.timezone_name import TimeZoneName
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, delete, func, select
 from starlette.status import (
@@ -21,10 +23,11 @@ from verve_backend import crud
 from verve_backend.api.common.locale import get_activity_name
 from verve_backend.api.common.location import to_public_location
 from verve_backend.api.common.store_utils import remove_object_from_store
-from verve_backend.api.common.track import add_track
+from verve_backend.api.common.track import add_track, parse_track
 from verve_backend.api.common.utils import (
     check_and_raise_primary_key,
     check_distance_requirement,
+    get_user_timezone,
     update_activity_with_track,
     validate_sub_type_id,
 )
@@ -36,6 +39,10 @@ from verve_backend.api.deps import (
 )
 from verve_backend.api.routes.media import delete_image
 from verve_backend.core.config import settings
+from verve_backend.core.date_utils import (
+    get_local_period_utc_bounds,
+    to_utc_with_default_timezone,
+)
 from verve_backend.models import (
     ActivitiesPublic,
     Activity,
@@ -66,6 +73,7 @@ from verve_backend.tasks import process_activity_highlights
 
 
 class ActivityUpdate(BaseModel):
+    timezone: TimeZoneName | None = None
     type_id: int | None = None
     sub_type_id: int | None = None
     meta_data: dict | None = None
@@ -95,14 +103,19 @@ def update_activity(
     user_session: UserSession,
     id: uuid.UUID,
     data: ActivityUpdate,
+    timezone_name: TimeZoneName | None = None,
 ) -> Any:
-    _, session = user_session
+    user_id, session = user_session
 
     activity = session.get(Activity, id)
     if not activity:
         raise HTTPException(status_code=404, detail="Activity not found")
 
     update_data = data.model_dump(exclude_unset=True)
+    if "timezone" in update_data and update_data["timezone"] is None:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST, detail="timezone cannot be set to null"
+        )
 
     if "type_id" in update_data:
         if update_data["type_id"] is None:
@@ -142,6 +155,39 @@ def update_activity(
         raise HTTPException(
             status_code=HTTP_400_BAD_REQUEST, detail="meta_data cannot be set to null"
         )
+    metadata = update_data.get("meta_data")
+    if metadata is not None and metadata.get("target") == "SwimmingMetaData":
+        effective_timezone = timezone_name or data.timezone or activity.timezone
+        timezone = (
+            ZoneInfo(effective_timezone)
+            if effective_timezone is not None
+            else get_user_timezone(session, uuid.UUID(user_id))
+        )
+        for key in ("laps", "sets"):
+            records = metadata.get(key)
+            if not isinstance(records, list):
+                continue
+            for record in records:
+                if not isinstance(record, dict):
+                    continue
+                for field in ("start_time", "end_time"):
+                    value = record.get(field)
+                    if value is None:
+                        continue
+                    try:
+                        timestamp = (
+                            value
+                            if isinstance(value, datetime.datetime)
+                            else datetime.datetime.fromisoformat(value)
+                        )
+                    except (TypeError, ValueError) as e:
+                        raise HTTPException(
+                            status_code=HTTP_422_UNPROCESSABLE_CONTENT,
+                            detail=f"Invalid {field} in swimming metadata",
+                        ) from e
+                    record[field] = to_utc_with_default_timezone(
+                        timestamp, timezone
+                    ).isoformat()
     if "duration" in update_data and update_data["duration"] is None:
         raise HTTPException(
             status_code=HTTP_400_BAD_REQUEST, detail="duration cannot be set to null"
@@ -368,7 +414,7 @@ def get_activities(
     tag_id: int | None = None,
     category_id: int | None = None,
 ) -> Any:
-    _, session = user_session
+    user_id, session = user_session
 
     if type_id is None and sub_type_id is not None:
         raise HTTPException(
@@ -393,9 +439,10 @@ def get_activities(
     if offset is not None:
         stmt = stmt.offset(offset)
     if year is not None:
-        stmt = stmt.where(func.extract("year", Activity.start) == year)  # type: ignore
-        if month is not None:
-            stmt = stmt.where(func.extract("month", Activity.start) == month)  # type: ignore
+        start_at, end_at = get_local_period_utc_bounds(
+            year, month, get_user_timezone(session, uuid.UUID(user_id))
+        )
+        stmt = stmt.where(col(Activity.start) >= start_at, col(Activity.start) < end_at)
 
     if type_id is not None:
         stmt = stmt.where(Activity.type_id == type_id)
@@ -434,6 +481,7 @@ def create_activity(
     locale: LocaleQuery | None = None,
     data: ActivityCreate,
     add_default_equipment: bool = False,
+    timezone_name: TimeZoneName | None = None,
 ) -> Any:
     user_id, session = user_session
     user = session.get(User, user_id)
@@ -446,12 +494,18 @@ def create_activity(
     check_distance_requirement(
         session=session, type_id=data.type_id, distance=data.distance
     )
+    timezone = (
+        ZoneInfo(timezone_name)
+        if timezone_name is not None
+        else get_user_timezone(session, user.id)
+    )
 
     result = crud.create_activity(
         session=session,
         create=data,
         user=user,  # type: ignore
         locale=locale,
+        timezone=timezone,
     )
     match result:
         case Ok(_activity):
@@ -496,6 +550,8 @@ def _import_verve_file(
     file_content_type: str | None,
     overwrite_type_id: int | None,
     overwrite_sub_type_id: int | None,
+    timezone: ZoneInfo,
+    timezone_name: str | None = None,
 ) -> Activity:
     if not file_name.endswith(".json"):
         raise HTTPException(
@@ -518,8 +574,10 @@ def _import_verve_file(
         session=session,
         user_id=user_id,
         data=data,
+        timezone=timezone,
         overwrite_type_id=overwrite_type_id,
         overwrite_sub_type_id=overwrite_sub_type_id,
+        timezone_name=timezone_name,
     )
 
     obj_path = f"tracks/{uuid.uuid4()}"
@@ -560,12 +618,14 @@ def create_auto_activity(
     sub_type_id: int | None = None,
     locale: LocaleQuery | None = None,
     add_default_equipment: bool = False,
+    timezone_name: TimeZoneName | None = None,
 ) -> Any:
     _user_id, session = user_session
     user_id = uuid.UUID(_user_id)
 
     settings = session.get(UserSettings, user_id)
     assert settings
+    timezone = ZoneInfo(timezone_name or settings.timezone)
 
     file_name = file.filename
     assert file_name is not None
@@ -595,9 +655,18 @@ def create_auto_activity(
             file_content_type=file_content_type,
             overwrite_type_id=type_id,
             overwrite_sub_type_id=sub_type_id,
+            timezone=timezone,
+            timezone_name=timezone_name,
         )
     else:
         logger.info("Identified standalone track data")
+        parsed = parse_track(
+            file_name=file_name,
+            file_content=file_content,
+            fallback_timezone=ZoneInfo(settings.timezone),
+            timezone_name=timezone_name,
+        )
+        timezone = parsed.timezone
 
         _type_id = settings.default_type_id if type_id is None else type_id
         # Use the default sub_type if the type is not passed. otherwise the sub_type is
@@ -605,8 +674,9 @@ def create_auto_activity(
         _sub_type_id = settings.defautl_sub_type_id if type_id is None else sub_type_id
         activity = Activity(
             user_id=user_id,
-            start=datetime.datetime.now(),
-            created_at=datetime.datetime.now(),
+            timezone=timezone.key,
+            start=datetime.datetime.now(datetime.UTC),
+            created_at=datetime.datetime.now(datetime.UTC),
             duration=datetime.timedelta(seconds=1),
             distance=1,
             type_id=_type_id,
@@ -642,7 +712,6 @@ def create_auto_activity(
 
         activity_type = session.get(ActivityType, activity.type_id)
         assert activity_type is not None
-        # TODO: Add error handling that removes the activity again
         track, _ = add_track(
             activity_id=activity.id,
             user_id=user_id,
@@ -651,6 +720,7 @@ def create_auto_activity(
             file_name=file_name,
             file_content=file_content,
             file_content_type=file_content_type,
+            parsed=parsed,
         )
 
         update_activity_with_track(activity=activity, track=track)
@@ -659,7 +729,7 @@ def create_auto_activity(
         assert first_point_time is not None
         activity.name = get_activity_name(
             activity_type.name.lower().replace(" ", "_"),
-            first_point_time,
+            first_point_time.astimezone(timezone),
             locale or settings.locale,
         )
         session.add(activity)
@@ -679,9 +749,15 @@ def import_verve_file(
     user_session: UserSession,
     obj_store_client: ObjectStoreClient,
     file: UploadFile,
+    timezone_name: TimeZoneName | None = None,
 ) -> Any:
     _user_id, session = user_session
     user_id = uuid.UUID(_user_id)
+    timezone = (
+        ZoneInfo(timezone_name)
+        if timezone_name is not None
+        else get_user_timezone(session, user_id)
+    )
 
     file_name = file.filename
     assert file_name is not None
@@ -697,6 +773,8 @@ def import_verve_file(
         file_content_type=file_content_type,
         overwrite_type_id=None,
         overwrite_sub_type_id=None,
+        timezone=timezone,
+        timezone_name=timezone_name,
     )
 
     process_activity_highlights.delay(activity_id=activity.id, user_id=user_id)  # type: ignore

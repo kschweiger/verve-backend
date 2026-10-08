@@ -4,7 +4,10 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from pydantic_extra_types.timezone_name import TimeZoneName
+from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
+from sqlmodel import col
 from starlette.status import HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN
 
 from verve_backend import crud
@@ -15,9 +18,11 @@ from verve_backend.api.common.utils import (
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import CurrentUser, SessionDep, UserSession
 from verve_backend.core.security import get_password_hash, verify_password
+from verve_backend.enums import GoalType
 from verve_backend.models import (
     ActivitySubType,
     ActivityType,
+    Goal,
     HeatmapSettings,
     RecordsSettings,
     User,
@@ -194,6 +199,28 @@ def replace_records_settings(
     assert user_settings is not None
 
     user_settings.records_settings = data
+
+    session.add(user_settings)
+    session.commit()
+
+
+@router.patch("/me/timezone")
+def update_timezone(*, user_session: UserSession, timezone_name: TimeZoneName) -> Any:
+    _user_id, session = user_session
+
+    user_settings = session.get(UserSettings, UUID(_user_id))
+    assert user_settings is not None
+
+    if user_settings.timezone != timezone_name:
+        session.execute(
+            update(Goal)
+            .where(
+                col(Goal.user_id) == UUID(_user_id),
+                col(Goal.type) != GoalType.MANUAL,
+            )
+            .values(current=0, current_updated=None)
+        )
+        user_settings.timezone = timezone_name
 
     session.add(user_settings)
     session.commit()

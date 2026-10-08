@@ -1,0 +1,263 @@
+{
+  "description": "Portable upload scenarios. Apply user_timezone first, pass timezone_name only when non-null, then upload file to each route. local_start is an expected display value without an offset, not an API timestamp.",
+  "cases": [
+    {
+      "id": "berlin-gpx-utc",
+      "file": "berlin-summer-utc.gpx",
+      "description": "GPS selects Berlin while UTC instants are preserved.",
+      "user_timezone": "America/Los_Angeles",
+      "timezone_name": null,
+      "routes": [
+        "/activity/auto/"
+      ],
+      "expected": {
+        "timezone": "Europe/Berlin",
+        "start": "2026-08-10T08:00:00Z",
+        "point_times": [
+          "2026-08-10T08:00:00Z",
+          "2026-08-10T08:05:00Z",
+          "2026-08-10T08:10:00Z"
+        ],
+        "duration_seconds": 600,
+        "heart_rates": [96, 108, 120],
+        "elapsed_seconds": [0, 300, 600],
+        "local_start": "2026-08-10T10:00:00"
+      }
+    },
+    {
+      "id": "berlin-gpx-offset",
+      "file": "berlin-summer-offset.gpx",
+      "description": "Numeric +02:00 identifies instants; GPS identifies the IANA zone.",
+      "user_timezone": "America/Los_Angeles",
+      "timezone_name": null,
+      "routes": [
+        "/activity/auto/"
+      ],
+      "expected": {
+        "timezone": "Europe/Berlin",
+        "start": "2026-08-10T08:00:00Z",
+        "point_times": [
+          "2026-08-10T08:00:00Z",
+          "2026-08-10T08:05:00Z",
+          "2026-08-10T08:10:00Z"
+        ],
+        "duration_seconds": 600,
+        "heart_rates": [96, 108, 120],
+        "elapsed_seconds": [0, 300, 600],
+        "local_start": "2026-08-10T10:00:00"
+      }
+    },
+    {
+      "id": "berlin-gpx-local-summer",
+      "file": "berlin-summer-local.gpx",
+      "description": "Offsetless summer times use Berlin daylight saving time.",
+      "user_timezone": "America/Los_Angeles",
+      "timezone_name": null,
+      "routes": [
+        "/activity/auto/"
+      ],
+      "expected": {
+        "timezone": "Europe/Berlin",
+        "start": "2026-08-10T08:00:00Z",
+        "point_times": [
+          "2026-08-10T08:00:00Z",
+          "2026-08-10T08:05:00Z",
+          "2026-08-10T08:10:00Z"
+        ],
+        "duration_seconds": 600,
+        "heart_rates": [96, 108, 120],
+        "elapsed_seconds": [0, 300, 600],
+        "local_start": "2026-08-10T10:00:00"
+      }
+    },
+    {
+      "id": "berlin-gpx-local-winter",
+      "file": "berlin-winter-local.gpx",
+      "description": "Offsetless winter times use Berlin standard time.",
+      "user_timezone": "America/Los_Angeles",
+      "timezone_name": null,
+      "routes": [
+        "/activity/auto/"
+      ],
+      "expected": {
+        "timezone": "Europe/Berlin",
+        "start": "2026-01-10T09:00:00Z",
+        "point_times": [
+          "2026-01-10T09:00:00Z",
+          "2026-01-10T09:05:00Z",
+          "2026-01-10T09:10:00Z"
+        ],
+        "duration_seconds": 600,
+        "heart_rates": [96, 108, 120],
+        "elapsed_seconds": [0, 300, 600],
+        "local_start": "2026-01-10T10:00:00"
+      }
+    },
+    {
+      "id": "travelling-los-angeles",
+      "file": "los-angeles-summer-utc.gpx",
+      "description": "A Berlin owner's hike displays in Los Angeles time.",
+      "user_timezone": "Europe/Berlin",
+      "timezone_name": null,
+      "routes": [
+        "/activity/auto/"
+      ],
+      "expected": {
+        "timezone": "America/Los_Angeles",
+        "start": "2026-08-10T16:00:00Z",
+        "point_times": [
+          "2026-08-10T16:00:00Z",
+          "2026-08-10T16:05:00Z",
+          "2026-08-10T16:10:00Z"
+        ],
+        "duration_seconds": 600,
+        "heart_rates": [96, 108, 120],
+        "elapsed_seconds": [0, 300, 600],
+        "local_start": "2026-08-10T09:00:00"
+      }
+    },
+    {
+      "id": "berlin-dst-fallback",
+      "file": "berlin-dst-fallback.gpx",
+      "description": "Clocks move backwards but points remain five minutes apart.",
+      "user_timezone": "America/Los_Angeles",
+      "timezone_name": null,
+      "routes": [
+        "/activity/auto/"
+      ],
+      "expected": {
+        "timezone": "Europe/Berlin",
+        "start": "2026-10-25T00:55:00Z",
+        "point_times": [
+          "2026-10-25T00:55:00Z",
+          "2026-10-25T01:00:00Z",
+          "2026-10-25T01:05:00Z"
+        ],
+        "duration_seconds": 600,
+        "heart_rates": [96, 108, 120],
+        "elapsed_seconds": [0, 300, 600],
+        "local_start": "2026-10-25T02:55:00"
+      }
+    },
+    {
+      "id": "verve-declared-zone",
+      "file": "verve-berlin-declared-new-york.json",
+      "description": "Verve zone wins over Berlin GPS and Los Angeles owner.",
+      "user_timezone": "America/Los_Angeles",
+      "timezone_name": null,
+      "routes": [
+        "/activity/auto/",
+        "/activity/import/"
+      ],
+      "expected": {
+        "timezone": "America/New_York",
+        "start": "2026-08-10T14:00:00Z",
+        "point_times": [
+          "2026-08-10T14:00:00Z",
+          "2026-08-10T14:05:00Z",
+          "2026-08-10T14:10:00Z"
+        ],
+        "duration_seconds": 600,
+        "heart_rates": [96, 108, 120],
+        "elapsed_seconds": [0, 300, 600],
+        "local_start": "2026-08-10T10:00:00"
+      }
+    },
+    {
+      "id": "verve-gps-zone",
+      "file": "verve-berlin-no-zone.json",
+      "description": "Older Verve files without a zone infer it from GPS.",
+      "user_timezone": "America/Los_Angeles",
+      "timezone_name": null,
+      "routes": [
+        "/activity/auto/",
+        "/activity/import/"
+      ],
+      "expected": {
+        "timezone": "Europe/Berlin",
+        "start": "2026-08-10T08:00:00Z",
+        "point_times": [
+          "2026-08-10T08:00:00Z",
+          "2026-08-10T08:05:00Z",
+          "2026-08-10T08:10:00Z"
+        ],
+        "duration_seconds": 600,
+        "heart_rates": [96, 108, 120],
+        "elapsed_seconds": [0, 300, 600],
+        "local_start": "2026-08-10T10:00:00"
+      }
+    },
+    {
+      "id": "verve-owner-fallback",
+      "file": "verve-no-geometry-no-zone.json",
+      "description": "Without a declared zone or real geometry, use the owner's setting.",
+      "user_timezone": "America/Los_Angeles",
+      "timezone_name": null,
+      "routes": [
+        "/activity/auto/",
+        "/activity/import/"
+      ],
+      "expected": {
+        "timezone": "America/Los_Angeles",
+        "start": "2026-08-10T16:00:00Z",
+        "point_times": [
+          "2026-08-10T16:00:00Z",
+          "2026-08-10T16:05:00Z",
+          "2026-08-10T16:10:00Z"
+        ],
+        "duration_seconds": 600,
+        "heart_rates": [96, 108, 120],
+        "elapsed_seconds": [0, 300, 600],
+        "local_start": "2026-08-10T09:00:00"
+      }
+    },
+    {
+      "id": "request-override",
+      "file": "verve-berlin-declared-new-york.json",
+      "description": "Tokyo request override wins over file, GPS, and owner.",
+      "user_timezone": "America/Los_Angeles",
+      "timezone_name": "Asia/Tokyo",
+      "routes": [
+        "/activity/auto/",
+        "/activity/import/"
+      ],
+      "expected": {
+        "timezone": "Asia/Tokyo",
+        "start": "2026-08-10T01:00:00Z",
+        "point_times": [
+          "2026-08-10T01:00:00Z",
+          "2026-08-10T01:05:00Z",
+          "2026-08-10T01:10:00Z"
+        ],
+        "duration_seconds": 600,
+        "heart_rates": [96, 108, 120],
+        "elapsed_seconds": [0, 300, 600],
+        "local_start": "2026-08-10T10:00:00"
+      }
+    },
+    {
+      "id": "verve-aware-instants",
+      "file": "verve-berlin-declared-new-york-utc.json",
+      "description": "A declared display zone never reinterprets UTC timestamps.",
+      "user_timezone": "America/Los_Angeles",
+      "timezone_name": null,
+      "routes": [
+        "/activity/auto/",
+        "/activity/import/"
+      ],
+      "expected": {
+        "timezone": "America/New_York",
+        "start": "2026-08-10T08:00:00Z",
+        "point_times": [
+          "2026-08-10T08:00:00Z",
+          "2026-08-10T08:05:00Z",
+          "2026-08-10T08:10:00Z"
+        ],
+        "duration_seconds": 600,
+        "heart_rates": [96, 108, 120],
+        "elapsed_seconds": [0, 300, 600],
+        "local_start": "2026-08-10T04:00:00"
+      }
+    }
+  ]
+}

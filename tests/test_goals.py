@@ -1,6 +1,7 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import pytest
 from geoalchemy2.shape import from_shape
@@ -10,6 +11,7 @@ from sqlmodel import Session, select
 from verve_backend.enums import GoalAggregation, GoalType, TemporalType
 from verve_backend.goal import (
     GoalContraints,
+    _build_activity_stmt,
     _validate_temporal_setup,
     _validate_type_aggregation_combination,
     update_goal_state,
@@ -115,7 +117,7 @@ def test_type_aggregation_validation(
         (None, None, GoalAggregation.TOTAL_DISTANCE, TemporalType.YEARLY, {}, 100),
         (
             5,
-            datetime(2025, 5, 1, 20),
+            datetime(2025, 5, 1, 20).astimezone(),
             GoalAggregation.TOTAL_DISTANCE,
             TemporalType.MONTHLY,
             {},
@@ -209,46 +211,50 @@ def test_update_activity_goal(
         constraints["equipment_ids"] = [_rp[i] for i in constraints["equipment_ids"]]
 
     activity_1 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
-        start=datetime(2025, 5, 1, 12),
+        start=datetime(2025, 5, 1, 12).astimezone(),
         distance=10,
         duration=timedelta(minutes=10),
         type_id=1,
         sub_type_id=None,
         name="Activity 1",
-        created_at=datetime(2025, 5, 1, 18),
+        created_at=datetime(2025, 5, 1, 18).astimezone(),
         equipment=[equipment_1],
     )
     activity_2 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
-        start=datetime(2025, 5, 2, 12),
+        start=datetime(2025, 5, 2, 12).astimezone(),
         distance=20,
         duration=timedelta(minutes=20),
         type_id=1,
         sub_type_id=1,
         name="Activity 2",
-        created_at=datetime(2025, 5, 2, 18),
+        created_at=datetime(2025, 5, 2, 18).astimezone(),
     )
     activity_3 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
-        start=datetime(2025, 5, 3, 12),
+        start=datetime(2025, 5, 3, 12).astimezone(),
         distance=30,
         duration=timedelta(minutes=30),
         type_id=1,
         sub_type_id=1,
         name="Activity 3",
-        created_at=datetime(2025, 5, 3, 18),
+        created_at=datetime(2025, 5, 3, 18).astimezone(),
         equipment=[equipment_1, equipment_2],
     )
     activity_4 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
-        start=datetime(2025, 6, 1, 12),
+        start=datetime(2025, 6, 1, 12).astimezone(),
         distance=40,
         duration=timedelta(minutes=40),
         type_id=2,
         sub_type_id=None,
         name="Activity 3",
-        created_at=datetime(2025, 6, 1, 18),
+        created_at=datetime(2025, 6, 1, 18).astimezone(),
     )
     goal = Goal(
         user_id=temp_user_id,
@@ -267,7 +273,9 @@ def test_update_activity_goal(
     db.commit()
     db.refresh(goal)
 
-    update_goal_state(session=db, user_id=temp_user_id, goal=goal)
+    update_goal_state(
+        session=db, user_id=temp_user_id, goal=goal, timezone=ZoneInfo("Europe/Berlin")
+    )
 
     updated_goal = db.get(Goal, goal.id)
     assert updated_goal is not None
@@ -297,13 +305,17 @@ def test_update_location_goal(
     db.commit()
     db.refresh(goal)
 
-    update_goal_state(session=db, user_id=user2_id, goal=goal)
+    update_goal_state(
+        session=db, user_id=user2_id, goal=goal, timezone=ZoneInfo("Europe/Berlin")
+    )
 
     updated_goal = db.get(Goal, goal.id)
     assert updated_goal is not None
     assert updated_goal.current == 1
 
-    update_goal_state(session=db, user_id=user2_id, goal=goal)
+    update_goal_state(
+        session=db, user_id=user2_id, goal=goal, timezone=ZoneInfo("Europe/Berlin")
+    )
 
     updated_goal = db.get(Goal, goal.id)
     assert updated_goal is not None
@@ -454,7 +466,12 @@ def test_temporal_validation_weekly(
         (1, None, GoalAggregation.TOTAL_DISTANCE, 50),
         (1, None, GoalAggregation.COUNT, 2),
         # Incremental update: only count activities created after current_updated
-        (3, datetime(2025, 1, 14, 20), GoalAggregation.TOTAL_DISTANCE, 30),
+        (
+            3,
+            datetime(2025, 1, 14, 20).astimezone(),
+            GoalAggregation.TOTAL_DISTANCE,
+            30,
+        ),
         # Week 52 (no activities): should return 0
         (52, None, GoalAggregation.COUNT, 0),
     ],
@@ -470,58 +487,63 @@ def test_update_weekly_activity_goal(
     """Test weekly goal state updates with various aggregations."""
     # Week 3 activities: Jan 13-19, 2025 (Mon-Sun)
     activity_week3_1 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
-        start=datetime(2025, 1, 14, 12),  # Tuesday, week 3
+        start=datetime(2025, 1, 14, 12).astimezone(),  # Tuesday, week 3
         distance=10,
         duration=timedelta(minutes=30),
         type_id=1,
         sub_type_id=None,
         name="Activity Week 3 - 1",
-        created_at=datetime(2025, 1, 14, 18),
+        created_at=datetime(2025, 1, 14, 18).astimezone(),
     )
     activity_week3_2 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
-        start=datetime(2025, 1, 15, 12),  # Wednesday, week 3
+        start=datetime(2025, 1, 15, 12).astimezone(),  # Wednesday, week 3
         distance=30,
         duration=timedelta(minutes=30),
         type_id=1,
         sub_type_id=None,
         name="Activity Week 3 - 2",
-        created_at=datetime(2025, 1, 15, 18),
+        created_at=datetime(2025, 1, 15, 18).astimezone(),
     )
 
     # Week 1 activities: Dec 30, 2024 - Jan 5, 2025 (includes Dec 30-31, 2024)
     activity_week1_1 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
-        start=datetime(2025, 1, 2, 12),  # Thursday, week 1
+        start=datetime(2025, 1, 2, 12).astimezone(),  # Thursday, week 1
         distance=20,
         duration=timedelta(minutes=20),
         type_id=1,
         sub_type_id=None,
         name="Activity Week 1 - 1",
-        created_at=datetime(2025, 1, 2, 18),
+        created_at=datetime(2025, 1, 2, 18).astimezone(),
     )
     activity_week1_2 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
-        start=datetime(2025, 1, 3, 12),  # Friday, week 1
+        start=datetime(2025, 1, 3, 12).astimezone(),  # Friday, week 1
         distance=30,
         duration=timedelta(minutes=30),
         type_id=1,
         sub_type_id=None,
         name="Activity Week 1 - 2",
-        created_at=datetime(2025, 1, 3, 18),
+        created_at=datetime(2025, 1, 3, 18).astimezone(),
     )
 
     # Activity in week 4 (should not be counted for weeks 1 or 3)
     activity_week4 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
-        start=datetime(2025, 1, 21, 12),  # Tuesday, week 4
+        start=datetime(2025, 1, 21, 12).astimezone(),  # Tuesday, week 4
         distance=25,
         duration=timedelta(minutes=25),
         type_id=1,
         sub_type_id=None,
         name="Activity Week 4",
-        created_at=datetime(2025, 1, 21, 18),
+        created_at=datetime(2025, 1, 21, 18).astimezone(),
     )
 
     goal = Goal(
@@ -552,7 +574,9 @@ def test_update_weekly_activity_goal(
     db.commit()
     db.refresh(goal)
 
-    update_goal_state(session=db, user_id=temp_user_id, goal=goal)
+    update_goal_state(
+        session=db, user_id=temp_user_id, goal=goal, timezone=ZoneInfo("Europe/Berlin")
+    )
 
     updated_goal = db.get(Goal, goal.id)
     assert updated_goal is not None
@@ -569,38 +593,41 @@ def test_weekly_goal_year_boundary(
     """
     # Activity on Dec 30, 2024 (ISO week 1 of 2025)
     activity_dec30 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
-        start=datetime(2024, 12, 30, 12),
+        start=datetime(2024, 12, 30, 12).astimezone(),
         distance=10,
         duration=timedelta(minutes=30),
         type_id=1,
         sub_type_id=None,
         name="Activity on Dec 30",
-        created_at=datetime(2024, 12, 30, 18),
+        created_at=datetime(2024, 12, 30, 18).astimezone(),
     )
 
     # Activity on Dec 31, 2024 (ISO week 1 of 2025)
     activity_dec31 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
-        start=datetime(2024, 12, 31, 12),
+        start=datetime(2024, 12, 31, 12).astimezone(),
         distance=15,
         duration=timedelta(minutes=30),
         type_id=1,
         sub_type_id=None,
         name="Activity on Dec 31",
-        created_at=datetime(2024, 12, 31, 18),
+        created_at=datetime(2024, 12, 31, 18).astimezone(),
     )
 
     # Activity on Jan 1, 2025 (ISO week 1 of 2025)
     activity_jan1 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
-        start=datetime(2025, 1, 1, 12),
+        start=datetime(2025, 1, 1, 12).astimezone(),
         distance=20,
         duration=timedelta(minutes=30),
         type_id=1,
         sub_type_id=None,
         name="Activity on Jan 1",
-        created_at=datetime(2025, 1, 1, 18),
+        created_at=datetime(2025, 1, 1, 18).astimezone(),
     )
 
     # Goal for week 1 of 2025
@@ -622,7 +649,9 @@ def test_weekly_goal_year_boundary(
     db.commit()
     db.refresh(goal)
 
-    update_goal_state(session=db, user_id=temp_user_id, goal=goal)
+    update_goal_state(
+        session=db, user_id=temp_user_id, goal=goal, timezone=ZoneInfo("Europe/Berlin")
+    )
 
     updated_goal = db.get(Goal, goal.id)
     assert updated_goal is not None
@@ -640,38 +669,41 @@ def test_weekly_goal_incremental_update(
     """
     # First activity created at 2025-01-14 18:00
     activity_1 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
-        start=datetime(2025, 1, 14, 12),
+        start=datetime(2025, 1, 14, 12).astimezone(),
         distance=20,
         duration=timedelta(minutes=30),
         type_id=1,
         sub_type_id=None,
         name="Activity 1",
-        created_at=datetime(2025, 1, 14, 18),
+        created_at=datetime(2025, 1, 14, 18).astimezone(),
     )
 
     # Second activity created at 2025-01-16 18:00 (after current_updated)
     activity_2 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
-        start=datetime(2025, 1, 15, 12),
+        start=datetime(2025, 1, 15, 12).astimezone(),
         distance=30,
         duration=timedelta(minutes=30),
         type_id=1,
         sub_type_id=None,
         name="Activity 2",
-        created_at=datetime(2025, 1, 16, 18),
+        created_at=datetime(2025, 1, 16, 18).astimezone(),
     )
 
     # Third activity created at 2025-01-20 18:00 (after current_updated)
     activity_3 = Activity(
+        timezone="Europe/Berlin",
         user_id=temp_user_id,
-        start=datetime(2025, 1, 17, 12),
+        start=datetime(2025, 1, 17, 12).astimezone(),
         distance=25,
         duration=timedelta(minutes=30),
         type_id=1,
         sub_type_id=None,
         name="Activity 3",
-        created_at=datetime(2025, 1, 20, 18),
+        created_at=datetime(2025, 1, 20, 18).astimezone(),
     )
 
     # Goal with current_updated = 2025-01-15 19:00
@@ -687,7 +719,7 @@ def test_weekly_goal_incremental_update(
         type=GoalType.ACTIVITY,
         aggregation=GoalAggregation.TOTAL_DISTANCE,
         current=0,
-        current_updated=datetime(2025, 1, 15, 19),
+        current_updated=datetime(2025, 1, 15, 19).astimezone(),
         constraints={},
     )
 
@@ -695,10 +727,89 @@ def test_weekly_goal_incremental_update(
     db.commit()
     db.refresh(goal)
 
-    update_goal_state(session=db, user_id=temp_user_id, goal=goal)
+    update_goal_state(
+        session=db, user_id=temp_user_id, goal=goal, timezone=ZoneInfo("Europe/Berlin")
+    )
 
     updated_goal = db.get(Goal, goal.id)
     assert updated_goal is not None
     # Only activity_2 and activity_3 should be counted: 30 + 25 = 55
     # activity_1 was created at 18:00 which is before current_updated (19:00)
     assert updated_goal.current == 55
+
+
+@pytest.mark.parametrize(
+    ("month", "week", "timezone_name", "start_utc", "end_utc"),
+    [
+        pytest.param(
+            None,
+            None,
+            "America/Los_Angeles",
+            datetime(2025, 1, 1, 8, tzinfo=UTC),
+            datetime(2026, 1, 1, 8, tzinfo=UTC),
+            id="year",
+        ),
+        pytest.param(
+            3,
+            None,
+            "America/New_York",
+            datetime(2025, 3, 1, 5, tzinfo=UTC),
+            datetime(2025, 4, 1, 4, tzinfo=UTC),
+            id="month-across-dst",
+        ),
+        pytest.param(
+            None,
+            14,
+            "Europe/Berlin",
+            datetime(2025, 3, 30, 22, tzinfo=UTC),
+            datetime(2025, 4, 6, 22, tzinfo=UTC),
+            id="iso-week",
+        ),
+    ],
+)
+def test_activity_goal_period_uses_user_timezone(
+    db: Session,
+    temp_user_id: UUID,
+    month: int | None,
+    week: int | None,
+    timezone_name: str,
+    start_utc: datetime,
+    end_utc: datetime,
+) -> None:
+    activities = [
+        Activity(
+            timezone="Europe/Berlin",
+            user_id=temp_user_id,
+            start=start,
+            duration=timedelta(minutes=30),
+            distance=1,
+            type_id=1,
+            name=name,
+            sub_type_id=None,
+        )
+        for name, start in (
+            ("before start", start_utc - timedelta(seconds=1)),
+            ("at start", start_utc),
+            ("before end", end_utc - timedelta(seconds=1)),
+            ("at end", end_utc),
+        )
+    ]
+    db.add_all(activities)
+    db.commit()
+
+    stmt = _build_activity_stmt(
+        user_id=temp_user_id,
+        contraints=GoalContraints(),
+        year=2025,
+        month=month,
+        week=week,
+        last_updated=None,
+        possible_activity_ids=None,
+        filter_distance=False,
+        timezone=ZoneInfo(timezone_name),
+    )
+
+    assert {activity.name for activity in db.exec(stmt).all()} == {
+        "at start",
+        "before end",
+    }

@@ -1,7 +1,9 @@
 import importlib.resources
 import uuid
 from collections import defaultdict
+from datetime import UTC, datetime
 from typing import Generator, Type, TypeVar
+from zoneinfo import ZoneInfo
 
 import structlog
 from geo_track_analyzer import Track
@@ -14,11 +16,17 @@ from sqlalchemy.exc import DatabaseError
 from sqlmodel import Session, col, func, insert, select, text
 
 from verve_backend.api.common.locale import get_activity_name, get_tag_name
-from verve_backend.api.common.utils import update_activity_with_track
+from verve_backend.api.common.utils import get_user_timezone, update_activity_with_track
 from verve_backend.api.deps import SupportedLocale
 from verve_backend.core.config import settings
+from verve_backend.core.date_utils import to_utc_with_default_timezone
 from verve_backend.core.db import get_search_query
-from verve_backend.core.meta_data import ActivityMetaData, validate_meta_data
+from verve_backend.core.meta_data import (
+    ActivityMetaData,
+    SwimmingMetaData,
+    normalize_swimming_times_to_utc,
+    validate_meta_data,
+)
 from verve_backend.core.security import (
     generate_reset_token,
     get_password_hash,
@@ -134,15 +142,18 @@ def create_activity(
     create: ActivityCreate,
     user: UserPublic,
     locale: SupportedLocale = SupportedLocale.DE,
+    timezone: ZoneInfo | None = None,
 ) -> Result[Activity, uuid.UUID]:
+    timezone = timezone or get_user_timezone(session, user.id)
     activity_type = session.get(ActivityType, create.type_id)
     assert activity_type is not None
 
+    start = to_utc_with_default_timezone(create.start, timezone)
     name = create.name
     if name is None:
         name = get_activity_name(
             activity_type.name.lower().replace(" ", "_"),
-            create.start,
+            start.astimezone(timezone),
             locale,
         )
     if create.meta_data:
@@ -153,9 +164,19 @@ def create_activity(
         )
         if not isinstance(validation_result, ActivityMetaData):
             return Err(validation_result)
+        if isinstance(validation_result, SwimmingMetaData):
+            normalize_swimming_times_to_utc(validation_result, timezone)
         create.meta_data = validation_result.model_dump(mode="json")
 
-    db_obj = Activity.model_validate(create, update={"user_id": user.id, "name": name})
+    db_obj = Activity.model_validate(
+        create,
+        update={
+            "user_id": user.id,
+            "name": name,
+            "start": start,
+            "timezone": timezone.key,
+        },
+    )
     session.add(db_obj)
     session.commit()
     session.refresh(db_obj)
@@ -227,9 +248,18 @@ def get_points(
             }
             for extension in avail_track_ext:
                 try:
-                    value = float(get_extension_value(point, extension))
+                    raw_value = get_extension_value(point, extension)
                 except GPXPointExtensionError:
                     value = None
+                else:
+                    try:
+                        value = float(raw_value)
+                    except ValueError:
+                        if extension in extension_fields:
+                            raise
+                        # FIT developer fields can contain dictionary or text
+                        # values. Keep their parser representation in JSON.
+                        value = raw_value
                 if extension in extension_fields:
                     point_model_data[extension] = value
                 else:
@@ -374,6 +404,9 @@ def update_activity_with_track_data(
 def create_goal(
     *, session: Session, goal: GoalCreate, user_id: uuid.UUID | str
 ) -> TypedResult[Goal, str]:
+    if goal.year is None:
+        goal.year = datetime.now(UTC).year
+
     # Basic validation for base attributes
     validation_result = validate_goal_creation(goal)
     if validation_result is not None:

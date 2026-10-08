@@ -1,9 +1,11 @@
 import json
 import uuid
+from datetime import UTC, datetime, timedelta
 from importlib import resources
 
 import pytest
 from fastapi.testclient import TestClient
+from mypy_boto3_s3.client import S3Client
 from sqlmodel import Session, col, select
 
 from verve_backend.api.routes.track import (
@@ -11,15 +13,119 @@ from verve_backend.api.routes.track import (
     SegmentSetPublic,
     SegmentStatisticsResponse,
 )
+from verve_backend.core.config import settings
 from verve_backend.models import (
     ActivitiesPublic,
     Activity,
     ListResponse,
+    RawTrackData,
     SegmentCut,
     SegmentSet,
     TrackPoint,
     User,
 )
+
+
+def test_upload_preserves_nonnumeric_extensions_and_numeric_measurements(
+    db: Session,
+    client: TestClient,
+    temp_user_id: uuid.UUID,
+    temp_user_token: str,
+    object_store: S3Client,
+    celery_eager: None,
+) -> None:
+    extension_text = "{7: 0, 13: 0}"
+    gpx = (
+        '<gpx version="1.1" creator="test"><trk><trkseg>'
+        '<trkpt lat="48.0" lon="11.0"><ele>500</ele>'
+        "<time>2026-09-20T10:00:00Z</time><extensions>"
+        f"<developer_fields>{extension_text}</developer_fields>"
+        "<enhanced_speed_ms>5.5</enhanced_speed_ms><heartrate>98</heartrate>"
+        "</extensions></trkpt>"
+        '<trkpt lat="48.001" lon="11.001"><ele>505</ele>'
+        "<time>2026-09-20T10:01:00Z</time><extensions>"
+        f"<developer_fields>{extension_text}</developer_fields>"
+        "<enhanced_speed_ms>6.5</enhanced_speed_ms><heartrate>104</heartrate>"
+        "</extensions></trkpt></trkseg></trk></gpx>"
+    ).encode()
+    try:
+        response = client.post(
+            "/activity/auto/",
+            headers={"Authorization": f"Bearer {temp_user_token}"},
+            params={"type_id": 1},
+            files={"file": ("extensions.gpx", gpx, "application/gpx+xml")},
+        )
+        assert response.status_code == 200
+        activity_id = uuid.UUID(response.json()["id"])
+        points = db.exec(
+            select(TrackPoint)
+            .where(TrackPoint.activity_id == activity_id)
+            .order_by(TrackPoint.id)
+        ).all()
+        assert len(points) == 2
+        assert points[0].extensions["developer_fields"] == extension_text
+        assert points[1].extensions["developer_fields"] == extension_text
+        assert [p.extensions["enhanced_speed_ms"] for p in points] == [5.5, 6.5]
+        assert [p.heartrate for p in points] == [98, 104]
+        raw = db.get(RawTrackData, activity_id)
+        assert raw is not None
+        source = object_store.get_object(
+            Bucket=settings.BOTO3_BUCKET, Key=raw.store_path
+        )
+        try:
+            assert source["Body"].read() == gpx
+        finally:
+            source["Body"].close()
+    finally:
+        for raw in db.exec(
+            select(RawTrackData).where(RawTrackData.user_id == temp_user_id)
+        ).all():
+            object_store.delete_object(Bucket=settings.BOTO3_BUCKET, Key=raw.store_path)
+
+
+def test_upload_track_uses_request_timezone_for_offsetless_times(
+    db: Session,
+    client: TestClient,
+    temp_user_id: uuid.UUID,
+    temp_user_token: str,
+    celery_eager: None,
+) -> None:
+    activity = Activity(
+        timezone="Europe/Berlin",
+        start=datetime(2025, 1, 1, tzinfo=UTC),
+        duration=timedelta(minutes=10),
+        distance=1.0,
+        type_id=1,
+        sub_type_id=None,
+        name="Track timezone test",
+        user_id=temp_user_id,
+    )
+    db.add(activity)
+    db.commit()
+    db.refresh(activity)
+
+    gpx = (
+        '<gpx version="1.1" creator="test"><trk><trkseg>'
+        '<trkpt lat="48.0" lon="11.0"><time>2025-01-01T00:30:00</time></trkpt>'
+        '<trkpt lat="48.001" lon="11.001"><time>2025-01-01T00:40:00</time></trkpt>'
+        "</trkseg></trk></gpx>"
+    ).encode()
+    response = client.put(
+        "/track/",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        params={"activity_id": str(activity.id), "timezone_name": "Europe/Berlin"},
+        files={"file": ("timezone.gpx", gpx, "application/gpx+xml")},
+    )
+    assert response.status_code == 201
+
+    db.refresh(activity)
+    expected = datetime(2024, 12, 31, 23, 30, tzinfo=UTC)
+    assert activity.start == expected
+    first_point = db.exec(
+        select(TrackPoint).where(TrackPoint.activity_id == activity.id)
+    ).first()
+    assert first_point is not None
+    assert first_point.time == expected
 
 
 def test_get_track_data(client: TestClient, user1_token: str) -> None:
@@ -90,6 +196,7 @@ def test_get_segment_sets(
     _sets = db.exec(select(SegmentSet).where(SegmentSet.user_id == user1_id)).all()
     assert len(_sets) > 0
     activity_id = _sets[0].activity_id
+    _activity_sets = [s for s in _sets if s.activity_id == activity_id]
 
     response = client.get(
         f"/track/segments/sets/{activity_id}",
@@ -100,7 +207,7 @@ def test_get_segment_sets(
     res_data = ListResponse[uuid.UUID].model_validate(response.json())
 
     assert len(res_data.data) > 0
-    assert len(res_data.data) == len(_sets)
+    assert len(res_data.data) == len(_activity_sets)
 
 
 def test_get_segment_stats_running(

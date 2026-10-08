@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Literal, Self
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, model_validator
 from pydantic.alias_generators import to_camel
@@ -9,6 +10,7 @@ from verve_backend.core.meta_data import (
     SetData,
     SwimmingMetaData,
     SwimStyle,
+    normalize_swimming_times_to_utc,
 )
 
 
@@ -80,8 +82,8 @@ class SwimmingMetaDataEnvelopeV1(VerveMetaDataModel):
     version: Literal["1.0"] = "1.0"
     data: SwimmingMetaDataV1
 
-    def to_core_meta_data(self) -> SwimmingMetaData:
-        return SwimmingMetaData(
+    def to_core_meta_data(self, timezone: ZoneInfo) -> SwimmingMetaData:
+        metadata = SwimmingMetaData(
             pool_length_meters=self.data.pool_length_meters,
             total_stroke_count=self.data.total_stroke_count,
             avg_swofl=self.data.average_swolf,
@@ -126,6 +128,8 @@ class SwimmingMetaDataEnvelopeV1(VerveMetaDataModel):
             ]
             or None,
         )
+        normalize_swimming_times_to_utc(metadata, timezone)
+        return metadata
 
 
 def _seconds_to_timedelta(seconds: float | None) -> timedelta | None:

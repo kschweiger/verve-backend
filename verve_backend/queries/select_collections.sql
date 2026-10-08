@@ -4,8 +4,8 @@
 -- returned aggregates always cover the full collection.
 --
 -- Parameters:
---   :year   - optional year filter based on collection activity dates
---   :month  - optional month filter based on collection activity dates; route requires year
+--   :start_at - optional inclusive UTC start of the user's local period
+--   :end_at   - optional exclusive UTC end of the user's local period
 --   :limit  - maximum number of collections to return
 --   :offset - number of collections to skip
 
@@ -18,14 +18,8 @@ WITH matching_collections AS (
         JOIN activity_collection_links ac ON c.id = ac.collection_id
         JOIN activities a ON ac.activity_id = a.id
     WHERE
-        (
-            CAST(:year AS INTEGER) IS NULL
-            OR EXTRACT(YEAR FROM a.start) = CAST(:year AS INTEGER)
-        )
-        AND (
-            CAST(:month AS INTEGER) IS NULL
-            OR EXTRACT(MONTH FROM a.start) = CAST(:month AS INTEGER)
-        )
+        (CAST(:start_at AS TIMESTAMPTZ) IS NULL OR a.start >= CAST(:start_at AS TIMESTAMPTZ))
+        AND (CAST(:end_at AS TIMESTAMPTZ) IS NULL OR a.start < CAST(:end_at AS TIMESTAMPTZ))
 )
 SELECT
     c.name,

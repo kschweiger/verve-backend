@@ -1,14 +1,15 @@
 import math
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import structlog
-from geo_track_analyzer import GeoJsonTrack
-from geo_track_analyzer.exceptions import GeoJsonWithoutGeometryError
 from sqlmodel import Session, select
 
 from verve_backend import crud
+from verve_backend.api.common.track import parse_track
+from verve_backend.core.date_utils import to_utc_with_default_timezone
 from verve_backend.exceptions import VerveImportError
 from verve_backend.models import (
     Activity,
@@ -48,8 +49,10 @@ def convert_verve_file_to_activity(
     session: Session,
     user_id: UUID,
     data: VerveFeature,
+    timezone: ZoneInfo,
     overwrite_type_id: int | None = None,
     overwrite_sub_type_id: int | None = None,
+    timezone_name: str | None = None,
 ) -> Activity:
     logger.debug("Starting verve file conversion")
     match crud.get_by_name(
@@ -88,17 +91,27 @@ def convert_verve_file_to_activity(
     else:
         _sub_type_id = activity_sub_type.id if activity_sub_type else None
 
+    parsed = parse_track(
+        file_name="verve.json",
+        file_content=data.to_json().encode(),
+        fallback_timezone=timezone,
+        timezone_name=timezone_name,
+        verve_timezone=data.properties.timezone,
+    )
+    timezone = parsed.timezone
+    track = parsed.track
     meta_data = data.properties.metadata
     if isinstance(meta_data, KnownMetaDataEnvelope):
-        meta_data = meta_data.to_core_meta_data().model_dump(mode="json")
+        meta_data = meta_data.to_core_meta_data(timezone).model_dump(mode="json")
 
     activity = Activity(
         user_id=user_id,
-        created_at=datetime.now(),
+        timezone=timezone.key,
+        created_at=datetime.now(UTC),
         name=data.properties.name,
         type_id=_type_id,
         sub_type_id=_sub_type_id,
-        start=data.properties.start_time,
+        start=to_utc_with_default_timezone(data.properties.start_time, timezone),
         duration=timedelta(seconds=data.properties.duration),
         distance=None
         if data.properties.distance is None
@@ -143,30 +156,13 @@ def convert_verve_file_to_activity(
     session.commit()
     session.refresh(activity)
 
-    logger.debug("Converting Verve track to GeoJsonTrack")
-    _data = data.model_dump(by_alias=True)
-
-    empty_spatial_flag = False
-    try:
-        track = GeoJsonTrack(source=_data, max_speed_percentile=99)
-    except GeoJsonWithoutGeometryError:
-        track = GeoJsonTrack(
-            source=_data, allow_empty_spatial=True, max_speed_percentile=99
-        )
-        empty_spatial_flag = True
-    except Exception as e:
-        logger.error("Error parsing GeoJsonTrack: %s", e)
-        logger.debug("Removing Activity ID: %s", activity.id)
-        session.delete(activity)
-        session.commit()
-        raise VerveImportError("Error parsing track data") from e
     logger.debug("Inserting track data into DB")
     crud.insert_track(
         session=session,
         track=track,
         activity_id=activity.id,
         user_id=user_id,
-        no_geometry=empty_spatial_flag,
+        no_geometry=parsed.no_geometry,
     )
 
     if (

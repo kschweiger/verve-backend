@@ -2,6 +2,7 @@ import datetime
 import math
 import uuid
 from typing import Type, TypeVar
+from zoneinfo import ZoneInfo
 
 import structlog
 from fastapi import HTTPException
@@ -18,6 +19,7 @@ from verve_backend.models import (
     ActivityType,
     DistanceRequirement,
     LocationSubType,
+    UserSettings,
 )
 
 logger = structlog.getLogger(__name__)
@@ -104,3 +106,9 @@ def update_activity_with_track(activity: Activity, track: Track) -> None:
     if overview.heartrate:
         activity.avg_heartrate = overview.heartrate.avg
         activity.max_heartrate = overview.heartrate.max
+
+
+def get_user_timezone(session: Session, user_id: uuid.UUID) -> ZoneInfo:
+    settings = session.get(UserSettings, user_id)
+    assert settings is not None
+    return ZoneInfo(settings.timezone)
