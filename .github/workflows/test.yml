@@ -16,6 +16,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     services:
       postgres:
         image: postgis/postgis:17-3.4@sha256:d0b5a6ecab18997637f55a83cb4a9467391de5645916cfa1b6f2a8d19eee7be5
@@ -107,8 +110,12 @@ jobs:
       - name: Install main and test dependencies from lock file
         run: uv sync --locked --group test --no-dev
 
-      - name: Run pytest
-        run: uv run pytest
+      - name: Run pytest with coverage
+        run: |
+          uv run pytest \
+            --cov=verve_backend \
+            --cov-report=term-missing \
+            --cov-report=xml
         env:
           # Application Settings
           FRONTEND_HOST: "http://localhost:3000"
@@ -145,3 +152,10 @@ jobs:
           BOTO3_ENDPOINT: "http://localhost:9000"
           BOTO3_ACCESS: minioadmin
           BOTO3_SECRET: minioadmin
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          files: coverage.xml
+          use_oidc: true
+          fail_ci_if_error: false
