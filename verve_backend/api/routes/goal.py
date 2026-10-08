@@ -13,6 +13,7 @@ from starlette.status import (
 )
 
 from verve_backend import crud
+from verve_backend.api.common.utils import get_user_timezone
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import UserSession
 from verve_backend.core.date_utils import (
@@ -41,12 +42,15 @@ def get_public_goal(goal: Goal) -> GoalPublic:
 @router.get("/", response_model=GoalsPublic)
 def get_goals(
     user_session: UserSession,
-    year: Annotated[int, Query(ge=2000, default_factory=lambda: datetime.now().year)],
+    year: Annotated[int | None, Query(ge=2000)] = None,
     month: Annotated[int | None, Query(ge=1, lt=13)] = None,
     week: Annotated[int | None, Query(ge=1, lt=54)] = None,
 ) -> Any:
     _user_id, session = user_session
     user_id = uuid.UUID(_user_id)
+    timezone = get_user_timezone(session, user_id)
+    if year is None:
+        year = datetime.now(timezone).year
 
     if week is not None and month is not None:
         raise HTTPException(
@@ -63,7 +67,12 @@ def get_goals(
     _data = session.exec(stmt).all()
     data = []
     for goal in _data:
-        goal = update_goal_state(session=session, user_id=user_id, goal=goal)
+        goal = update_goal_state(
+            session=session,
+            user_id=user_id,
+            goal=goal,
+            timezone=timezone,
+        )
 
         progress = goal.current / goal.target
         reached = progress >= 1
@@ -99,6 +108,10 @@ def _add_single_goal(user_id: str, session: Session, data: GoalCreate) -> GoalPu
 @router.put("/", response_model=ListResponse[GoalPublic])
 def add_goal(user_session: UserSession, data: GoalCreate) -> Any:
     user_id, session = user_session
+    year = data.year
+    if year is None:
+        year = datetime.now(get_user_timezone(session, uuid.UUID(user_id))).year
+        data.year = year
 
     if data.temporal_type == TemporalType.MONTHLY and data.month is None:
         _goals = []
@@ -110,11 +123,9 @@ def add_goal(user_session: UserSession, data: GoalCreate) -> Any:
     elif data.temporal_type == TemporalType.WEEKLY and data.week is None:
         _goals = []
         if data.month is None:
-            week_numbers = list(
-                range(1, datetime(data.year, 12, 28).isocalendar()[1] + 1)
-            )
+            week_numbers = list(range(1, datetime(year, 12, 28).isocalendar()[1] + 1))
         else:
-            _dates = get_all_dates_in_month(data.year, data.month)
+            _dates = get_all_dates_in_month(year, data.month)
             week_numbers = get_week_numbers_between_dates(_dates[0], _dates[-1])
         for week_num in week_numbers:
             _data = data.model_copy()

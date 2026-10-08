@@ -1,9 +1,10 @@
+import asyncio
 import json
 import os
 import random
 from datetime import datetime, timedelta
 from importlib import resources
-from typing import Any, Generator
+from typing import TYPE_CHECKING, Any, Generator
 from uuid import UUID
 
 import pytest
@@ -19,6 +20,9 @@ from verve_backend.models import (
     LocationType,
     User,
 )
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3.client import S3Client
 
 
 # This runs right after cmd arg parsing but after imports
@@ -87,6 +91,23 @@ def user1_id(client: TestClient, user1_token: str) -> UUID:
     assert response.status_code == 200
     data = response.json()
     return UUID(data["id"])
+
+
+@pytest.fixture(scope="session")
+def timezone_user_tokens(client: TestClient) -> dict[str, str]:
+    tokens = {}
+    for timezone, email in [
+        ("America/Los_Angeles", "user3@mail.com"),
+        ("Europe/Berlin", "user4@mail.com"),
+    ]:
+        response = client.post(
+            "/login/access-token",
+            data={"username": email, "password": "12345678"},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        assert response.status_code == 200
+        tokens[timezone] = response.json()["access_token"]
+    return tokens
 
 
 @pytest.fixture(scope="session")
@@ -172,7 +193,7 @@ def celery_eager(monkeypatch) -> None:
 
 @pytest.fixture
 def dummy_track() -> PyTrack:
-    start_time = datetime(2024, 1, 15, 10, 0, 0)
+    start_time = datetime(2024, 1, 15, 10, 0, 0).astimezone()
     # Generate 122 points (one every 30 seconds for 61 minutes)
     num_points = 122
     points = []
@@ -211,10 +232,14 @@ def dummy_track() -> PyTrack:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def object_store():  # noqa: ANN201
+def object_store() -> Generator["S3Client", None, None]:
     from verve_backend.api.deps import get_and_init_s3_client
 
-    return get_and_init_s3_client()
+    store = asyncio.run(get_and_init_s3_client())
+    try:
+        yield store
+    finally:
+        store.close()
 
 
 @pytest.fixture(scope="session")
@@ -250,6 +275,7 @@ def create_dummy_activity(
     from verve_backend.models import Activity
 
     activity = Activity(
+        timezone="Europe/Berlin",
         user_id=user_id,
         start=start,
         distance=distance,
@@ -321,11 +347,32 @@ def generate_data(session: Session) -> None:
             ).unwrap()
         )
 
+    # Persistent fixture owners for file-based timezone integration tests.
+    for name, email, timezone in [
+        ("username3", "user3@mail.com", "America/Los_Angeles"),
+        ("username4", "user4@mail.com", "Europe/Berlin"),
+    ]:
+        user = crud.create_user(
+            session=session,
+            user_create=models.UserCreate(
+                name=name,
+                password="12345678",
+                email=email,
+                full_name=f"Timezone fixtures: {timezone}",
+            ),
+        ).unwrap()
+        user_settings = session.get(models.UserSettings, user.id)
+        assert user_settings is not None
+        user_settings.timezone = timezone
+        user_settings.locale = "en"
+        session.add(user_settings)
+    session.commit()
+
     # -------------------- ACTIVITIES ---------------------------
     activity_1 = crud.create_activity(
         session=session,
         create=models.ActivityCreate(
-            start=datetime(year=2025, month=1, day=1, hour=12),
+            start=datetime(year=2025, month=1, day=1, hour=12).astimezone(),
             duration=timedelta(days=0, seconds=60 * 60 * 2),
             distance=10.0,
             type_id=1,
@@ -355,7 +402,7 @@ def generate_data(session: Session) -> None:
     activity_2 = crud.create_activity(  # noqa: F841
         session=session,
         create=models.ActivityCreate(
-            start=datetime(year=2025, month=1, day=2, hour=13),
+            start=datetime(year=2025, month=1, day=2, hour=13).astimezone(),
             duration=timedelta(days=0, seconds=60 * 60 * 1),
             distance=30.0,
             type_id=1,
@@ -368,7 +415,7 @@ def generate_data(session: Session) -> None:
     activity_3 = crud.create_activity(  # noqa: F841
         session=session,
         create=models.ActivityCreate(
-            start=datetime(year=2025, month=1, day=2, hour=13),
+            start=datetime(year=2025, month=1, day=2, hour=13).astimezone(),
             duration=timedelta(days=0, seconds=60 * 60 * 1),
             distance=30.0,
             type_id=4,  # Should be swimming
@@ -383,10 +430,15 @@ def generate_data(session: Session) -> None:
                         index=0,
                         start_time=datetime(
                             year=2025, month=1, day=2, hour=13, minute=10
-                        ),
+                        ).astimezone(),
                         end_time=datetime(
-                            year=2025, month=1, day=2, hour=13, minute=12, second=30
-                        ),
+                            year=2025,
+                            month=1,
+                            day=2,
+                            hour=13,
+                            minute=12,
+                            second=30,
+                        ).astimezone(),
                         durations=timedelta(minutes=2),
                         distance_meters=100,
                         style=SwimStyle.FREESTYLE,
@@ -401,10 +453,10 @@ def generate_data(session: Session) -> None:
                         index=0,
                         start_time=datetime(
                             year=2025, month=1, day=2, hour=13, minute=10
-                        ),
+                        ).astimezone(),
                         end_time=datetime(
                             year=2025, month=1, day=2, hour=13, minute=11
-                        ),
+                        ).astimezone(),
                         durations=timedelta(minutes=1),
                         distance_meters=50,
                         style=SwimStyle.FREESTYLE,
@@ -414,11 +466,21 @@ def generate_data(session: Session) -> None:
                     LapData(
                         index=1,
                         start_time=datetime(
-                            year=2025, month=1, day=2, hour=13, minute=11, second=30
-                        ),
+                            year=2025,
+                            month=1,
+                            day=2,
+                            hour=13,
+                            minute=11,
+                            second=30,
+                        ).astimezone(),
                         end_time=datetime(
-                            year=2025, month=1, day=2, hour=13, minute=12, second=30
-                        ),
+                            year=2025,
+                            month=1,
+                            day=2,
+                            hour=13,
+                            minute=12,
+                            second=30,
+                        ).astimezone(),
                         durations=timedelta(minutes=1),
                         distance_meters=50,
                         style=SwimStyle.FREESTYLE,
@@ -433,7 +495,7 @@ def generate_data(session: Session) -> None:
     activity_4 = crud.create_activity(
         session=session,
         create=models.ActivityCreate(
-            start=datetime(year=2025, month=7, day=9, hour=10),
+            start=datetime(year=2025, month=7, day=9, hour=10).astimezone(),
             duration=timedelta(days=0, seconds=60 * 60 * 2),
             distance=10.0,
             type_id=1,
@@ -446,7 +508,7 @@ def generate_data(session: Session) -> None:
     activity_5 = crud.create_activity(
         session=session,
         create=models.ActivityCreate(
-            start=datetime(year=2025, month=1, day=2, hour=13),
+            start=datetime(year=2025, month=1, day=2, hour=13).astimezone(),
             duration=timedelta(days=0, seconds=60 * 60 * 1),
             distance=None,
             type_id=5,  # Should be Strengh training
@@ -468,7 +530,7 @@ def generate_data(session: Session) -> None:
     crud.create_activity(
         session=session,
         create=models.ActivityCreate(
-            start=datetime(year=2025, month=2, day=1, hour=13),
+            start=datetime(year=2025, month=2, day=1, hour=13).astimezone(),
             duration=timedelta(days=0, seconds=60 * 60 * 1),
             distance=None,
             type_id=strength_training_id,
@@ -481,7 +543,7 @@ def generate_data(session: Session) -> None:
     activity_5 = crud.create_activity(
         session=session,
         create=models.ActivityCreate(
-            start=datetime(year=2025, month=3, day=2, hour=13),
+            start=datetime(year=2025, month=3, day=2, hour=13).astimezone(),
             duration=timedelta(days=0, seconds=60 * 60 * 1),
             distance=None,
             type_id=strength_training_id,
@@ -533,7 +595,7 @@ def generate_data(session: Session) -> None:
     activity_6 = crud.create_activity(
         session=session,
         create=models.ActivityCreate(
-            start=datetime(year=2026, month=1, day=1, hour=13),
+            start=datetime(year=2026, month=1, day=1, hour=13).astimezone(),
             duration=timedelta(days=0, seconds=60 * 60 * 1),
             distance=None,
             type_id=1,
@@ -598,7 +660,7 @@ def generate_data(session: Session) -> None:
     activity_collection_1 = crud.create_activity(
         session=session,
         create=models.ActivityCreate(
-            start=datetime(year=2026, month=1, day=1, hour=13),
+            start=datetime(year=2026, month=1, day=1, hour=13).astimezone(),
             duration=timedelta(days=0, seconds=60 * 60 * 1),
             distance=None,
             type_id=1,
@@ -624,7 +686,7 @@ def generate_data(session: Session) -> None:
     activity_collection_2 = crud.create_activity(
         session=session,
         create=models.ActivityCreate(
-            start=datetime(year=2026, month=1, day=1, hour=13),
+            start=datetime(year=2026, month=1, day=1, hour=13).astimezone(),
             duration=timedelta(days=0, seconds=60 * 60 * 1),
             distance=None,
             type_id=1,
@@ -668,7 +730,7 @@ def generate_data(session: Session) -> None:
     activity_collection_3 = crud.create_activity(
         session=session,
         create=models.ActivityCreate(
-            start=datetime(year=2026, month=4, day=1, hour=13),
+            start=datetime(year=2026, month=4, day=1, hour=13).astimezone(),
             duration=timedelta(days=0, seconds=60 * 60 * 1),
             moving_duration=timedelta(days=0, seconds=(60 * 60 * 1) - 20),
             distance=20,
@@ -682,7 +744,7 @@ def generate_data(session: Session) -> None:
     activity_collection_4 = crud.create_activity(
         session=session,
         create=models.ActivityCreate(
-            start=datetime(year=2026, month=4, day=1, hour=13),
+            start=datetime(year=2026, month=4, day=1, hour=13).astimezone(),
             duration=timedelta(days=0, seconds=60 * 60 * 1),
             distance=None,
             type_id=5,  # Should be Strengh training
@@ -788,7 +850,7 @@ def create_activity_with_gpx_track(db: Session):  # noqa: ANN201
         name: str | None = None,
         type_id: int = 1,
         sub_type_id: int | None = 1,
-        start: datetime = datetime(year=2026, month=1, day=1, hour=13),
+        start: datetime = datetime(year=2026, month=1, day=1, hour=13).astimezone(),
     ) -> Activity:
         activity = crud.create_activity(
             session=db,

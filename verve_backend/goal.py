@@ -1,13 +1,18 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
+from zoneinfo import ZoneInfo
 
 import structlog
 from pydantic import BaseModel
 from sqlmodel import Session, col, func, select
 
 from verve_backend.core.config import settings
-from verve_backend.core.date_utils import get_week_date_range
+from verve_backend.core.date_utils import (
+    get_local_date_range_utc_bounds,
+    get_local_period_utc_bounds,
+    get_week_date_range,
+)
 from verve_backend.core.timing import log_timing
 from verve_backend.enums import GoalAggregation, GoalType, TemporalType
 from verve_backend.models import (
@@ -198,6 +203,7 @@ def _build_activity_stmt(
     last_updated: datetime | None,
     possible_activity_ids: list[UUID] | None,
     filter_distance: bool,
+    timezone: ZoneInfo,
 ):
     stmt = select(Activity).where(Activity.user_id == user_id)
 
@@ -206,17 +212,16 @@ def _build_activity_stmt(
     if contraints.sub_type_id:
         stmt = stmt.where(Activity.sub_type_id == contraints.sub_type_id)
 
-    if month is not None:
-        stmt = stmt.where(func.extract("year", col(Activity.start)) == year).where(
-            func.extract("month", col(Activity.start)) == month
-        )
-    elif week is not None:
+    if month is None and week is not None:
         start_date, end_date = get_week_date_range(year, week)
-        stmt = stmt.where(col(Activity.start) >= start_date).where(
-            col(Activity.start) < end_date
+        start_at, end_at = get_local_date_range_utc_bounds(
+            start_date, end_date, timezone
         )
     else:
-        stmt = stmt.where(func.extract("year", col(Activity.start)) == year)
+        start_at, end_at = get_local_period_utc_bounds(year, month, timezone)
+    stmt = stmt.where(col(Activity.start) >= start_at).where(
+        col(Activity.start) < end_at
+    )
 
     if contraints.equipment_ids:
         stmt = (
@@ -244,7 +249,9 @@ def _build_activity_stmt(
 
 
 @log_timing
-def update_goal_state(*, session: Session, user_id: UUID, goal: Goal) -> Goal:
+def update_goal_state(
+    *, session: Session, user_id: UUID, goal: Goal, timezone: ZoneInfo
+) -> Goal:
     from verve_backend import crud
 
     contraints = GoalContraints.model_validate(goal.constraints)
@@ -272,6 +279,7 @@ def update_goal_state(*, session: Session, user_id: UUID, goal: Goal) -> Goal:
                 match_distance=settings.LOCATION_MATCH_RADIUS_METERS,
             ),
             filter_distance=False,
+            timezone=timezone,
         )
 
         activities = session.exec(stmt).all()
@@ -303,6 +311,7 @@ def update_goal_state(*, session: Session, user_id: UUID, goal: Goal) -> Goal:
             else None,
             possible_activity_ids=None,
             filter_distance=goal.aggregation in distance_aggregations,
+            timezone=timezone,
         )
 
         activities = session.exec(stmt).all()
@@ -330,7 +339,7 @@ def update_goal_state(*, session: Session, user_id: UUID, goal: Goal) -> Goal:
         else:
             raise NotImplementedError(f"Aggregation {goal.aggregation} not implemented")
 
-    goal.current_updated = datetime.now()
+    goal.current_updated = datetime.now(UTC)
     session.add(goal)
     session.commit()
     session.refresh(goal)

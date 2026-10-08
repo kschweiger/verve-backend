@@ -3,6 +3,7 @@ from typing import Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic.alias_generators import to_camel
+from pydantic_extra_types.timezone_name import TimeZoneName
 
 from verve_backend.schema.meta_data import KnownMetaDataEnvelope
 
@@ -88,6 +89,7 @@ class LineFeature(VerveBaseModel):
 
 
 class VerveProperties(VerveBaseModel):
+    timezone: TimeZoneName | None = None
     # -- Identification --
     verve_version: Literal["1.0"] = "1.0"
     generator: str = "VerveBackend"

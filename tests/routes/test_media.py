@@ -17,7 +17,8 @@ def activity_fixture(
 ) -> Activity:
     """Create a test activity for image uploads."""
     activity = Activity(
-        start=datetime.now(),
+        timezone="Europe/Berlin",
+        start=datetime.now().astimezone(),
         duration=timedelta(minutes=30),
         distance=10.0,
         type_id=1,

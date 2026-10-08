@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import pytest
@@ -13,13 +13,16 @@ from verve_backend.models import (
     HighlightMetric,
     HighlightTimeScope,
     ListResponse,
+    UserSettings,
 )
+from verve_backend.tasks import process_activity_highlights
 
 
 def valid_activity_id(db: Session, user_id) -> UUID:
     activity = Activity(
+        timezone="Europe/Berlin",
         user_id=user_id,
-        start=datetime.now(),
+        start=datetime.now().astimezone(),
         distance=100,
         duration=timedelta(minutes=60),
         type_id=1,
@@ -31,6 +34,54 @@ def valid_activity_id(db: Session, user_id) -> UUID:
     db.refresh(activity)
 
     return activity.id
+
+
+def test_yearly_highlight_uses_user_local_year(
+    client: TestClient,
+    db: Session,
+    temp_user_id: UUID,
+    temp_user_token: str,
+) -> None:
+    settings = db.get(UserSettings, temp_user_id)
+    assert settings is not None
+    settings.timezone = "America/Los_Angeles"  # type: ignore
+    db.add(settings)
+
+    activity = Activity(
+        timezone="Europe/Berlin",
+        user_id=temp_user_id,
+        start=datetime(2025, 1, 1, 7, 30, tzinfo=UTC),
+        duration=timedelta(minutes=30),
+        distance=1.0,
+        type_id=1,
+        sub_type_id=None,
+        name="Local 2024 activity",
+    )
+    db.add(activity)
+    db.commit()
+
+    process_activity_highlights(activity_id=activity.id, user_id=temp_user_id)
+
+    headers = {"Authorization": f"Bearer {temp_user_token}"}
+    for path in (
+        "/highlights/",
+        "/highlights/metric/distance",
+        f"/highlights/activity/{activity.id}",
+    ):
+        response = client.get(path, headers=headers, params={"year": 2024})
+        assert response.status_code == 200
+        data = response.json()["data"]
+        highlights = (
+            data[HighlightMetric.DISTANCE.value] if isinstance(data, dict) else data
+        )
+        distance_highlights = [
+            highlight
+            for highlight in highlights
+            if highlight["metric"] == HighlightMetric.DISTANCE.value
+        ]
+        assert len(distance_highlights) == 1
+        assert distance_highlights[0]["activity_id"] == str(activity.id)
+        assert distance_highlights[0]["year"] == 2024
 
 
 def test_get_highlights_for_activity_nothing_in_db(

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import pytest
@@ -97,6 +97,50 @@ def test_get_collections(
     assert len(data.data) == exp_count
 
 
+def test_get_collections_filters_by_user_local_period(
+    db: Session, client: TestClient, temp_user_token: str, temp_user_id: UUID
+) -> None:
+    headers = {"Authorization": f"Bearer {temp_user_token}"}
+    response = client.patch(
+        "/users/me/timezone",
+        headers=headers,
+        params={"timezone_name": "America/Los_Angeles"},
+    )
+    assert response.status_code == 200
+
+    starts = {
+        "previous_year": datetime(2025, 1, 1, 7, 30, tzinfo=UTC),
+        "march_end": datetime(2025, 4, 1, 6, 30, tzinfo=UTC),
+        "april_start": datetime(2025, 4, 1, 7, 30, tzinfo=UTC),
+    }
+    for name, start in starts.items():
+        activity = Activity(
+            timezone="Europe/Berlin",
+            start=start,
+            duration=timedelta(minutes=30),
+            distance=1.0,
+            moving_duration=timedelta(minutes=30),
+            type_id=1,
+            sub_type_id=None,
+            name=name,
+            user_id=temp_user_id,
+        )
+        collection = ActivityCollection(name=name, user_id=temp_user_id)
+        collection.activities.append(activity)
+        db.add(collection)
+    db.commit()
+
+    for params, expected_names in [
+        ({"year": 2024}, {"previous_year"}),
+        ({"year": 2025, "month": 3}, {"march_end"}),
+        ({"year": 2025, "month": 4}, {"april_start"}),
+    ]:
+        response = client.get("/collection", headers=headers, params=params)
+        assert response.status_code == 200
+        collections = CollectionListResponse.model_validate(response.json())
+        assert {collection.name for collection in collections.data} == expected_names
+
+
 def test_update_collection(
     db: Session,
     client: TestClient,
@@ -116,7 +160,7 @@ def test_update_collection(
     activity_1 = crud.create_activity(
         session=db,
         create=ActivityCreate(
-            start=datetime(year=2026, month=4, day=1, hour=13),
+            start=datetime(year=2026, month=4, day=1, hour=13).astimezone(),
             name="Collection Activity 1",
             **common_data,  # type: ignore
         ),
@@ -125,7 +169,7 @@ def test_update_collection(
     activity_2 = crud.create_activity(
         session=db,
         create=ActivityCreate(
-            start=datetime(year=2026, month=4, day=2, hour=13),
+            start=datetime(year=2026, month=4, day=2, hour=13).astimezone(),
             name="Collection Activity 2",
             **common_data,  # type: ignore
         ),
@@ -134,7 +178,7 @@ def test_update_collection(
     activity_3 = crud.create_activity(
         session=db,
         create=ActivityCreate(
-            start=datetime(year=2026, month=4, day=3, hour=13),
+            start=datetime(year=2026, month=4, day=3, hour=13).astimezone(),
             name="Collection Activity 3",
             **common_data,  # type: ignore
         ),
@@ -242,7 +286,7 @@ def test_delete_collection(
     activity_1 = crud.create_activity(
         session=db,
         create=ActivityCreate(
-            start=datetime(year=2026, month=4, day=1, hour=13),
+            start=datetime(year=2026, month=4, day=1, hour=13).astimezone(),
             name="Collection Activity 1",
             **common_data,  # type: ignore
         ),
@@ -251,7 +295,7 @@ def test_delete_collection(
     activity_2 = crud.create_activity(
         session=db,
         create=ActivityCreate(
-            start=datetime(year=2026, month=4, day=2, hour=13),
+            start=datetime(year=2026, month=4, day=2, hour=13).astimezone(),
             name="Collection Activity 2",
             **common_data,  # type: ignore
         ),

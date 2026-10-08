@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 from uuid import uuid4
 
@@ -99,7 +99,7 @@ class PasswordResetPayload(BaseModel):
 
 @router.post("/login/reset-password")
 def reset_password(session: SessionDep, data: PasswordResetPayload) -> Any:
-    _now = datetime.now()
+    _now = datetime.now(UTC)
 
     valid_reset_token = session.exec(
         select(PasswordResetToken).where(

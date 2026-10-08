@@ -2,11 +2,13 @@ import importlib.resources
 import uuid
 from enum import StrEnum, auto
 from typing import Any, Literal, Self
+from zoneinfo import ZoneInfo
 
 import structlog
 from fastapi import APIRouter, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, model_validator
+from pydantic_extra_types.timezone_name import TimeZoneName
 from sqlmodel import select, text
 from starlette.status import (
     HTTP_200_OK,
@@ -22,7 +24,9 @@ from verve_backend.api.common.track import (
 )
 from verve_backend.api.common.track import (
     get_track_points_response,
+    parse_track,
 )
+from verve_backend.api.common.utils import get_user_timezone
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import ObjectStoreClient, UserSession
 from verve_backend.models import (
@@ -47,14 +51,28 @@ def add_track(
     obj_store_client: ObjectStoreClient,
     activity_id: uuid.UUID,
     file: UploadFile,
+    timezone_name: TimeZoneName | None = None,
 ) -> Any:
     _user_id, session = user_session
     user_id = uuid.UUID(_user_id)
+    activity = session.get(Activity, activity_id)
+    if activity is None:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST, detail="Activity id not found"
+        )
 
     file_name = file.filename
     assert file_name is not None
     file_content = file.file.read()
     file_content_type = file.content_type
+    parsed = parse_track(
+        file_name=file_name,
+        file_content=file_content,
+        fallback_timezone=ZoneInfo(activity.timezone)
+        if activity.timezone
+        else get_user_timezone(session, user_id),
+        timezone_name=timezone_name,
+    )
 
     track, n_points = upload_track(
         activity_id=activity_id,
@@ -64,6 +82,7 @@ def add_track(
         file_name=file_name,
         file_content=file_content,
         file_content_type=file_content_type,
+        parsed=parsed,
     )
 
     try:

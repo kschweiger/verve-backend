@@ -1,5 +1,35 @@
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
+
+
+def to_utc_with_default_timezone(value: datetime, timezone: ZoneInfo) -> datetime:
+    """Interpret offsetless input in the user's timezone and return UTC."""
+    if value.utcoffset() is None:
+        value = value.replace(tzinfo=timezone)
+    return value.astimezone(UTC)
+
+
+def get_local_date_range_utc_bounds(
+    start_date: date, end_date: date, timezone: ZoneInfo
+) -> tuple[datetime, datetime]:
+    """Convert an inclusive local start and exclusive local end to UTC."""
+    start = datetime(start_date.year, start_date.month, start_date.day, tzinfo=timezone)
+    end = datetime(end_date.year, end_date.month, end_date.day, tzinfo=timezone)
+    return start.astimezone(UTC), end.astimezone(UTC)
+
+
+def get_local_period_utc_bounds(
+    year: int, month: int | None, timezone: ZoneInfo
+) -> tuple[datetime, datetime]:
+    """Return UTC bounds for a year or month in the user's timezone."""
+    start_month = month if month is not None else 1
+    start_date = date(year, start_month, 1)
+    if month is None or month == 12:
+        end_year, end_month = year + 1, 1
+    else:
+        end_year, end_month = year, month + 1
+    end_date = date(end_year, end_month, 1)
+    return get_local_date_range_utc_bounds(start_date, end_date, timezone)
 
 
 def get_week_date_range(year: int, week: int) -> tuple[date, date]:
@@ -93,14 +123,16 @@ def get_week_numbers_between_dates(start_date: date, end_date: date) -> list[int
     return weeks
 
 
-def iso_week_date_weeks_ago_berlin(weeks_back: int, iso_weekday: int = 1) -> date:
+def iso_week_date_weeks_ago(
+    weeks_back: int, timezone: ZoneInfo, iso_weekday: int = 1
+) -> date:
     if weeks_back < 0:
         raise ValueError("weeks_back must be >= 0")
 
     if not 1 <= iso_weekday <= 7:
         raise ValueError("iso_weekday must be in range 1..7")
 
-    today = datetime.now(ZoneInfo("Europe/Berlin")).date()
+    today = datetime.now(timezone).date()
     target = today - timedelta(weeks=weeks_back)
     iso = target.isocalendar()
 

@@ -69,7 +69,7 @@ def test_reset_password(
     assert temp_user is not None
     orig_pw_hash = temp_user.hashed_password
 
-    now = datetime.now()
+    now = datetime.now().astimezone()
     for i in range(5):
         with freeze_time(now - timedelta(minutes=i)):
             crud.add_reset_token(session=db, user_id=temp_user_id)
@@ -115,7 +115,7 @@ def test_reset_password(
 def test_reset_password_token_expired(
     db: Session, client: TestClient, temp_user_token: str, temp_user_id: UUID
 ) -> None:
-    now = datetime.now()
+    now = datetime.now().astimezone()
     with freeze_time(now - timedelta(minutes=120)):
         token, _ = crud.add_reset_token(session=db, user_id=temp_user_id)
 

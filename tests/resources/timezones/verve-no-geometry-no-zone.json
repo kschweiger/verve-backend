@@ -1,0 +1,25 @@
+{
+  "type": "FeatureCollection",
+  "properties": {
+    "verveVersion": "1.0",
+    "name": "verve-no-geometry-no-zone",
+    "activityType": "Strength Training",
+    "activitySubType": "Weight Training",
+    "startTime": "2026-08-10T09:00:00",
+    "durationSeconds": 600
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "heartRates": [96, 108, 120],
+        "coordTimes": [
+          "2026-08-10T09:00:00",
+          "2026-08-10T09:05:00",
+          "2026-08-10T09:10:00"
+        ]
+      }
+    }
+  ]
+}

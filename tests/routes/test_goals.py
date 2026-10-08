@@ -1,18 +1,23 @@
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
+from freezegun import freeze_time
 from sqlmodel import Session
 
 from verve_backend import crud
 from verve_backend.enums import GoalAggregation, GoalType, TemporalType
 from verve_backend.models import (
+    ActivityCreate,
     GoalCreate,
     GoalPublic,
     GoalsPublic,
     ListResponse,
     LocationPublic,
+    User,
+    UserPublic,
 )
 
 
@@ -50,6 +55,42 @@ def test_get_goals(
     assert goals.count == exp_count
 
 
+@freeze_time("2024-12-31 23:30:00")
+def test_get_goals_defaults_to_user_local_year(
+    client: TestClient, temp_user_token: str
+) -> None:
+    headers = {"Authorization": f"Bearer {temp_user_token}"}
+    response = client.patch(
+        "/users/me/timezone",
+        headers=headers,
+        params={"timezone_name": "Europe/Berlin"},
+    )
+    assert response.status_code == 200
+
+    response = client.put(
+        "/goal",
+        headers=headers,
+        json={
+            "name": "New year goal",
+            "year": 2025,
+            "target": 1,
+            "type": GoalType.ACTIVITY,
+            "aggregation": GoalAggregation.COUNT,
+        },
+    )
+    assert response.status_code == 200
+
+    response = client.get("/goal", headers=headers)
+    assert response.status_code == 200
+    goals = GoalsPublic.model_validate(response.json())
+    assert goals.count == 1
+    assert goals.data[0].year == 2025
+
+    response = client.get("/goal", headers=headers, params={"year": 2024})
+    assert response.status_code == 200
+    assert GoalsPublic.model_validate(response.json()).count == 0
+
+
 def test_add_goal(
     client: TestClient,
     temp_user_token: str,
@@ -71,6 +112,40 @@ def test_add_goal(
     assert response.status_code == 200
     added_goals = ListResponse[GoalPublic].model_validate(response.json())
     assert len(added_goals.data) == 1
+
+
+@pytest.mark.parametrize(
+    ("requested_year", "expected_year"), [(None, 2025), (2023, 2023)]
+)
+@freeze_time("2024-12-31 23:30:00")
+def test_add_goal_year_uses_user_timezone(
+    client: TestClient,
+    temp_user_token: str,
+    requested_year: int | None,
+    expected_year: int,
+) -> None:
+    headers = {"Authorization": f"Bearer {temp_user_token}"}
+    response = client.patch(
+        "/users/me/timezone",
+        headers=headers,
+        params={"timezone_name": "Europe/Berlin"},
+    )
+    assert response.status_code == 200
+
+    goal_data = {
+        "name": "New Goal",
+        "target": 15,
+        "type": GoalType.ACTIVITY,
+        "aggregation": GoalAggregation.DURATION,
+    }
+    if requested_year is not None:
+        goal_data["year"] = requested_year
+
+    response = client.put("/goal", headers=headers, json=goal_data)
+
+    assert response.status_code == 200
+    added_goals = ListResponse[GoalPublic].model_validate(response.json())
+    assert added_goals.data[0].year == expected_year
 
 
 def test_add_multiple_goals_month(
@@ -350,3 +425,96 @@ def test_modify_manual_goal_floor(
     assert response.status_code == 200
     _response_goal = GoalPublic.model_validate(response.json())
     assert _response_goal.current == 0
+
+
+@pytest.mark.parametrize(
+    ("aggregation", "expected_current"),
+    [
+        (GoalAggregation.COUNT, 1),
+        (GoalAggregation.DURATION, 1800),
+        (GoalAggregation.TOTAL_DISTANCE, 2),
+        (GoalAggregation.AVG_DISTANCE, 2),
+        (GoalAggregation.MAX_DISTANCE, 2),
+    ],
+)
+def test_goal_progress_recalculates_after_timezone_change(
+    client: TestClient,
+    db: Session,
+    temp_user_id: UUID,
+    temp_user_token: str,
+    aggregation: GoalAggregation,
+    expected_current: float,
+) -> None:
+    headers = {"Authorization": f"Bearer {temp_user_token}"}
+    user = db.get(User, temp_user_id)
+    assert user is not None
+    start = datetime(2026, 1, 1, 0, 30, tzinfo=UTC)
+    with freeze_time(datetime(2026, 1, 2, 12, tzinfo=UTC)):
+        activity = crud.create_activity(
+            session=db,
+            user=UserPublic.model_validate(user),
+            create=ActivityCreate(
+                name="January boundary ride",
+                start=start,
+                duration=timedelta(minutes=30),
+                distance=2,
+                type_id=1,
+                sub_type_id=1,
+            ),
+        ).unwrap()
+        display_timezone = activity.timezone
+        response = client.put(
+            "/goal",
+            headers=headers,
+            json={
+                "name": "January progress",
+                "year": 2026,
+                "month": 1,
+                "temporal_type": TemporalType.MONTHLY,
+                "type": GoalType.ACTIVITY,
+                "aggregation": aggregation,
+                "target": 10,
+                "constraints": {"type_id": 1},
+            },
+        )
+        assert response.status_code == 200
+
+        response = client.get(
+            "/goal/", headers=headers, params={"year": 2026, "month": 1}
+        )
+        assert response.status_code == 200
+        goals = GoalsPublic.model_validate(response.json())
+        assert goals.count == 1
+        assert goals.data[0].current == expected_current
+
+        response = client.patch(
+            "/users/me/timezone",
+            headers=headers,
+            params={"timezone_name": "America/Los_Angeles"},
+        )
+        assert response.status_code == 200
+        response = client.get(
+            "/goal/", headers=headers, params={"year": 2026, "month": 1}
+        )
+        assert response.status_code == 200
+        january_goal = GoalsPublic.model_validate(response.json()).data[0]
+        assert january_goal.current == 0
+        assert january_goal.progress == 0
+        assert january_goal.reached is False
+
+        response = client.patch(
+            "/users/me/timezone",
+            headers=headers,
+            params={"timezone_name": "Europe/Berlin"},
+        )
+        assert response.status_code == 200
+        for _ in range(2):
+            response = client.get(
+                "/goal/", headers=headers, params={"year": 2026, "month": 1}
+            )
+            assert response.status_code == 200
+            january_goal = GoalsPublic.model_validate(response.json()).data[0]
+            assert january_goal.current == expected_current
+        db.refresh(activity)
+        assert activity.start == start
+        assert activity.timezone == display_timezone
