@@ -1,10 +1,12 @@
-# Backend for Verve Outdoors
+# Backend for VerveA Active
+
+[![Run Pytest Suite](https://github.com/kschweiger/verve-backend/actions/workflows/test.yml/badge.svg)](https://github.com/kschweiger/verve-backend/actions/workflows/test.yml)
+[![codecov](https://codecov.io/github/kschweiger/verve-backend/graph/badge.svg?token=OWYZ5HSCEU)](https://codecov.io/github/kschweiger/verve-backend)
 
 ## Reference
 
 - [How timezones work in the backend](docs/activity-timezone.md)
 - [Admin maintenance jobs](docs/admin-maintenance.md)
-
 
 ## Dependencies
 
@@ -13,22 +15,21 @@
 
 ## Database setup
 
-Create a user for the *RLS policies* on your database instance
+Create a user for the _RLS policies_ on your database instance
 
 ```sql
 CREATE ROLE verve_user LOGIN PASSWORD 'changeme' NOINHERIT;
 ```
 
-Initialize the database using *alembic*
+Initialize the database using _alembic_
 
 ```bash
 alembic upgrade head
 ```
 
-This also create the relevant schema and *initializes the RLS policy for the tables*.
+This also create the relevant schema and _initializes the RLS policy for the tables_.
 
-You can verify the *RLS policies* with the script `./scripts/verify_rls.py`
-
+You can verify the _RLS policies_ with the script `./scripts/verify_rls.py`
 
 ### Notes on the RLS setup
 
@@ -55,10 +56,9 @@ and in the beginning of the db session something like this has to be done (when 
 SET verve_user.curr_user = '{user.id}'`
 ```
 
-
 ## Running the docker container:
 
- addition to setting the config variables (`verve_backen.core.config`), the container read the following variables
+addition to setting the config variables (`verve_backen.core.config`), the container read the following variables
 
 - `UVICORN_WORKERS`: Number of workers for the uvicorn running the backend (default: 1)
 - `UVICORN_TIMEOUT`: Timeout of the uvicorn works (default: 30)
