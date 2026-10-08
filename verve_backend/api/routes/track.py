@@ -506,7 +506,7 @@ class SupportedTrackExtension(StrEnum):
 
 
 @router.patch(
-    "/clear-track-extension-data/{activity_id}", status_code=HTTP_204_NO_CONTENT
+    "/clear_track_extension_data/{activity_id}", status_code=HTTP_204_NO_CONTENT
 )
 def remove_track_extension_data(
     user_session: UserSession,

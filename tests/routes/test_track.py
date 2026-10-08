@@ -593,7 +593,7 @@ def test_clear_extension_data(
     assert not any(v is None for v in values_pre)
 
     response = client.patch(
-        f"/track/clear-track-extension-data/{activity.id}/",
+        f"/track/clear_track_extension_data/{activity.id}/",
         headers={"Authorization": f"Bearer {temp_user_token}"},
         params={"extension": extension},
     )
@@ -621,7 +621,7 @@ def test_clear_extension_data_usupported_extenstion(
         sub_type_id=1,
     )
     response = client.patch(
-        f"/track/clear-track-extension-data/{activity.id}/",
+        f"/track/clear_track_extension_data/{activity.id}/",
         headers={"Authorization": f"Bearer {temp_user_token}"},
         params={"extension": "blubb"},
     )

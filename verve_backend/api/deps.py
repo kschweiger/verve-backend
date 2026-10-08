@@ -23,7 +23,7 @@ from verve_backend.models import SupportedLocale, TokenPayload, User
 
 logger = structlog.getLogger(__name__)
 reusable_oauth2 = OAuth2PasswordBearer(
-    tokenUrl=f"{settings.API_V1_STR}/login/access-token"
+    tokenUrl=f"{settings.API_V1_STR}/login/access_token"
 )
 
 
