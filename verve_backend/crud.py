@@ -248,9 +248,18 @@ def get_points(
             }
             for extension in avail_track_ext:
                 try:
-                    value = float(get_extension_value(point, extension))
+                    raw_value = get_extension_value(point, extension)
                 except GPXPointExtensionError:
                     value = None
+                else:
+                    try:
+                        value = float(raw_value)
+                    except ValueError:
+                        if extension in extension_fields:
+                            raise
+                        # FIT developer fields can contain dictionary or text
+                        # values. Keep their parser representation in JSON.
+                        value = raw_value
                 if extension in extension_fields:
                     point_model_data[extension] = value
                 else:

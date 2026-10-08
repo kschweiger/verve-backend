@@ -29,6 +29,13 @@ Selection uses the database's `raw_track_data` records. Each activity gets its o
 background task, which downloads the existing S3 object and parses it with the
 installed geo-track-analyzer. The original object and source mapping are preserved.
 
+To rebuild just one activity, use
+`POST /admin/reprocess-track?activity_id=<activity UUID>`. This returns the same
+job structure with one track job and a completion job for its owner. Missing
+activities or source mappings return HTTP 404. If the S3 file is missing, the
+worker logs a clear error containing the activity ID, bucket, and object key;
+the job result includes the same file location and existing activity data is kept.
+
 The rebuild replaces track points, geometry, sensor values, and extensions;
 updates distance, duration, elevation changes, and available speed, power, and
 heart-rate summaries; and resolves timestamps and the activity timezone using the

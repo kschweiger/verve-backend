@@ -93,8 +93,10 @@ converts instants back to Berlin wall times.
 Equipment purchase timestamps become `DATE`, preserving the recorded calendar
 date. This discards their time of day; downgrading restores midnight.
 
-Historical file reprocessing, activity timezone corrections, JSON metadata
-conversion, and rebuilding derived data remain a separate data migration.
+Historical file reprocessing, activity timezone corrections, and rebuilding
+track-derived data run separately through the
+[admin maintenance routes](admin-maintenance.md). General JSON metadata conversion
+remains separate from both the schema revision and track reprocessing.
 
 ## Current limits
 
