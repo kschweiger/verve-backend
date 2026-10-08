@@ -2,6 +2,7 @@ import contextvars
 import logging
 
 import structlog
+from structlog.typing import EventDict, Processor
 
 from verve_backend.core.config import settings
 
@@ -14,7 +15,7 @@ def get_request_id() -> str:
     return request_id_context.get() or "-"
 
 
-def add_logger_name_safe(logger, method_name, event_dict: dict) -> dict:
+def add_logger_name_safe(logger, method_name, event_dict: EventDict) -> EventDict:
     """
     Safely adds the logger name to the event dict.
     """
@@ -35,7 +36,7 @@ def setup_logging(log_level: str | int = logging.INFO) -> None:
     """
 
     # 1. Define Processors
-    shared_processors = [
+    shared_processors: list[Processor] = [
         # structlog.stdlib.filter_by_level,
         structlog.contextvars.merge_contextvars,
         add_logger_name_safe,

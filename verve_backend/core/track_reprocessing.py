@@ -119,7 +119,7 @@ def reprocess_activity_track(
                 select(TrackPoint.id, TrackPoint.time).where(
                     TrackPoint.activity_id == activity_id,
                     TrackPoint.user_id == user_id,
-                    TrackPoint.id.in_([cut.point_id for cut in cuts]),
+                    col(TrackPoint.id).in_([cut.point_id for cut in cuts]),
                 )
             ).all()
         )

@@ -19,7 +19,7 @@ def remove_object_from_store(
         object_exists = True
         logger.debug("Object %s exists in storage", obj_path)
     except ClientError as e:
-        if e.response["Error"]["Code"] == "404":  # type: ignore
+        if e.response["Error"]["Code"] == "404":
             object_exists = False
             logger.warning("Image %s exists in DB but not in storage", obj_path)
         else:

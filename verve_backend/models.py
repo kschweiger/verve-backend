@@ -116,7 +116,7 @@ class PhraseCandidate(BaseModel, Generic[W]):
 
 
 class ActivityEquipment(SQLModel, table=True):
-    __tablename__: str = "activity_equipment"  # type: ignore
+    __tablename__: str = "activity_equipment"
 
     activity_id: uuid.UUID = Field(
         foreign_key="activities.id",
@@ -133,7 +133,7 @@ class ActivityEquipment(SQLModel, table=True):
 
 
 class ActivityTagLink(SQLModel, table=True):
-    __tablename__: str = "activity_tag_links"  # type: ignore
+    __tablename__: str = "activity_tag_links"
 
     activity_id: uuid.UUID = Field(
         foreign_key="activities.id",
@@ -150,7 +150,7 @@ class ActivityTagLink(SQLModel, table=True):
 
 
 class LocationActivityLink(SQLModel, table=True):
-    __tablename__: str = "location_activity_links"  # type: ignore
+    __tablename__: str = "location_activity_links"
 
     location_id: uuid.UUID = Field(
         foreign_key="locations.id", primary_key=True, ondelete="CASCADE"
@@ -161,7 +161,7 @@ class LocationActivityLink(SQLModel, table=True):
 
 
 class ActivityCollectionLink(SQLModel, table=True):
-    __tablename__: str = "activity_collection_links"  # type: ignore
+    __tablename__: str = "activity_collection_links"
     activity_id: uuid.UUID = Field(
         foreign_key="activities.id",
         nullable=False,
@@ -195,7 +195,7 @@ class UserPublic(UserBase):
 
 # Database model, database table inferred from class name
 class User(UserBase, table=True):
-    __tablename__: str = "users"  # type: ignore
+    __tablename__: str = "users"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     is_active: bool = True
@@ -232,7 +232,7 @@ class ActivityTypePublic(ActivityTypeBase):
 
 
 class ActivityType(ActivityTypeBase, table=True):
-    __tablename__: str = "activity_type"  # type: ignore
+    __tablename__: str = "activity_type"
 
     id: int | None = Field(default=None, primary_key=True)
 
@@ -251,7 +251,7 @@ class ActivitySubTypePublic(ActivitySubTypeBase):
 
 
 class ActivitySubType(ActivitySubTypeBase, table=True):
-    __tablename__: str = "sub_activity_type"  # type: ignore
+    __tablename__: str = "sub_activity_type"
 
     id: int | None = Field(default=None, primary_key=True)
 
@@ -314,7 +314,7 @@ class ActivityBase(ActivityCore):
 
 
 class ActivityCreate(ActivityBase):
-    name: str | None  # type: ignore
+    name: str | None
 
 
 class ActivityPublic(ActivityBase):
@@ -334,7 +334,7 @@ class ActivityCorePublic(ActivityCore):
 
 
 class Activity(ActivityBase, table=True):
-    __tablename__: str = "activities"  # type: ignore
+    __tablename__: str = "activities"
 
     timezone: TimeZoneName = Field(
         nullable=False, description="Activity display IANA timezone"
@@ -391,8 +391,8 @@ class EquipmentCreate(EquipmentBase):
 
 
 class EquipmentUpdate(EquipmentBase):
-    name: str | None = None  # type: ignore
-    equipment_type: EquipmentType | None = None  # type: ignore
+    name: str | None = None
+    equipment_type: EquipmentType | None = None
 
 
 class EquipmentPublic(EquipmentBase):
@@ -400,7 +400,7 @@ class EquipmentPublic(EquipmentBase):
 
 
 class DefaultEquipmentSet(SQLModel, table=True):
-    __tablename__: str = "default_equipment_sets"  # type: ignore
+    __tablename__: str = "default_equipment_sets"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(
@@ -416,7 +416,7 @@ class DefaultEquipmentSet(SQLModel, table=True):
 
 
 class EquipmentSetLink(SQLModel, table=True):
-    __tablename__: str = "equipment_set_links"  # type: ignore
+    __tablename__: str = "equipment_set_links"
 
     set_id: uuid.UUID = Field(
         foreign_key="equipment_sets.id", primary_key=True, ondelete="CASCADE"
@@ -457,7 +457,7 @@ class EquipmentSetPublic(EquipmentSetBase):
 
 
 class EquipmentSet(EquipmentSetBase, table=True):
-    __tablename__: str = "equipment_sets"  # type: ignore
+    __tablename__: str = "equipment_sets"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(
@@ -475,7 +475,7 @@ class ActivitiesPublic(SQLModel):
 
 
 class TrackPoint(SQLModel, table=True):
-    __tablename__ = "track_points"  # type: ignore
+    __tablename__ = "track_points"
 
     id: int = Field(primary_key=True)
     activity_id: uuid.UUID = Field(
@@ -550,7 +550,7 @@ class CollectionTrackPointResponse(TrackPointResponse):
 
 
 class RawTrackData(SQLModel, table=True):
-    __tablename__: str = "raw_track_data"  # type: ignore
+    __tablename__: str = "raw_track_data"
 
     activity_id: uuid.UUID = Field(foreign_key="activities.id", primary_key=True)
     user_id: uuid.UUID = Field(
@@ -591,7 +591,7 @@ class GoalBase(SQLModel):
 
 
 class GoalCreate(GoalBase):
-    year: int | None = None  # type: ignore
+    year: int | None = None
 
 
 class GoalPublic(GoalBase):
@@ -601,7 +601,7 @@ class GoalPublic(GoalBase):
 
 
 class Goal(GoalBase, table=True):
-    __tablename__: str = "goals"  # type: ignore
+    __tablename__: str = "goals"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(
@@ -616,14 +616,14 @@ class GoalsPublic(SQLModel):
 
 
 class LocationType(SQLModel, table=True):
-    __tablename__: str = "location_type"  # type: ignore
+    __tablename__: str = "location_type"
 
     name: str = Field(unique=True)
     id: int = Field(primary_key=True)
 
 
 class LocationSubType(SQLModel, table=True):
-    __tablename__: str = "location_sub_type"  # type: ignore
+    __tablename__: str = "location_sub_type"
 
     id: int = Field(primary_key=True)
     name: str
@@ -659,7 +659,7 @@ class LocationPublic(LocationBase):
 
 
 class Location(LocationBase, table=True):
-    __tablename__: str = "locations"  # type: ignore
+    __tablename__: str = "locations"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
 
@@ -729,7 +729,7 @@ class ZoneIntervalPublic(ZoneIntervalBase):
 
 
 class ZoneInterval(ZoneIntervalBase, table=True):
-    __tablename__: str = "zone_intervals"  # type: ignore
+    __tablename__: str = "zone_intervals"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(
@@ -762,7 +762,7 @@ class UserSettingsPublic(UserSettingsBase):
 
 
 class UserSettings(UserSettingsBase, table=True):
-    __tablename__: str = "user_settings"  # type: ignore
+    __tablename__: str = "user_settings"
 
     user_id: uuid.UUID = Field(
         foreign_key="users.id", primary_key=True, ondelete="CASCADE"
@@ -804,11 +804,11 @@ class ActivityHighlightBase(SQLModel):
 
 
 class ActivityHighlightPublic(ActivityHighlightBase):
-    value: float | int | timedelta  # type: ignore
+    value: float | int | timedelta
 
 
 class ActivityHighlight(ActivityHighlightBase, table=True):
-    __tablename__: str = "activity_highlights"  # type: ignore
+    __tablename__: str = "activity_highlights"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(
@@ -840,7 +840,7 @@ class ActivityTagCategoryPublic(ActivityTagCategoryBase):
 
 
 class ActivityTagCategory(ActivityTagCategoryBase, table=True):
-    __tablename__: str = "activity_tag_categories"  # type: ignore
+    __tablename__: str = "activity_tag_categories"
 
     id: int | None = Field(default=None, primary_key=True)
     user_id: uuid.UUID = Field(
@@ -892,7 +892,7 @@ class ActivityTagPublic(ActivityTagBase):
 
 
 class ActivityTag(ActivityTagBase, table=True):
-    __tablename__: str = "activity_tags"  # type: ignore
+    __tablename__: str = "activity_tags"
 
     id: int | None = Field(default=None, primary_key=True)
     user_id: uuid.UUID = Field(
@@ -926,7 +926,7 @@ class ActivityTag(ActivityTagBase, table=True):
 
 
 class SegmentSet(SQLModel, table=True):
-    __tablename__: str = "segment_sets"  # type: ignore
+    __tablename__: str = "segment_sets"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid7, primary_key=True)
     user_id: uuid.UUID = Field(
@@ -943,7 +943,7 @@ class SegmentSet(SQLModel, table=True):
 
 
 class SegmentCut(SQLModel, table=True):
-    __tablename__: str = "segment_cuts"  # type: ignore
+    __tablename__: str = "segment_cuts"
 
     id: int | None = Field(default=None, primary_key=True)
     user_id: uuid.UUID = Field(
@@ -964,7 +964,7 @@ class SegmentCut(SQLModel, table=True):
 
 
 class PasswordResetToken(SQLModel, table=True):
-    __tablename__: str = "password_reset_tokens"  # type: ignore
+    __tablename__: str = "password_reset_tokens"
 
     id: int | None = Field(default=None, primary_key=True)
     user_id: uuid.UUID = Field(
@@ -994,7 +994,7 @@ class ActivityCollectionPublic(ActivityCollectionBase):
 
 
 class ActivityCollection(ActivityCollectionBase, table=True):
-    __tablename__: str = "activity_collections"  # type: ignore
+    __tablename__: str = "activity_collections"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid7, primary_key=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

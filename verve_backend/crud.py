@@ -2,7 +2,7 @@ import importlib.resources
 import uuid
 from collections import defaultdict
 from datetime import UTC, datetime
-from typing import Generator, Type, TypeVar
+from typing import Generator, Type, TypeVar, cast
 from zoneinfo import ZoneInfo
 
 import structlog
@@ -573,8 +573,8 @@ def get_activities_for_location(
     match_distance: int,
 ) -> list[uuid.UUID]:
     point = to_shape(location.loc)
-    latitude = point.y  # type: ignore
-    longitude = point.x  # type: ignore
+    latitude = point.y
+    longitude = point.x
 
     stmt = (
         importlib.resources.files("verve_backend.queries")
@@ -582,8 +582,8 @@ def get_activities_for_location(
         .read_text()
     )
 
-    data = session.exec(
-        text(stmt),  # type: ignore
+    data = session.exec(  # type: ignore
+        text(stmt),
         params={
             "longitude": longitude,
             "latitude": latitude,
@@ -625,8 +625,8 @@ def get_location_activity_map(
         .joinpath("join_locations_to_tracks.sql")
         .read_text()
     )
-    data_match = session.exec(
-        text(stmt),  # type: ignore
+    data_match = session.exec(  # type: ignore
+        text(stmt),
         params={
             "match_distance_meters": match_distance,
             "location_type_id": location_type_id,
@@ -641,8 +641,8 @@ def get_location_activity_map(
         .joinpath("get_manual_activity_location_map.sql")
         .read_text()
     )
-    data_manual = session.exec(
-        text(stmt),  # type: ignore
+    data_manual = session.exec(  # type: ignore
+        text(stmt),
         params={
             "location_type_id": location_type_id,
             "location_sub_type_id": location_sub_type_id,
@@ -672,8 +672,8 @@ def get_activity_locations(
         .joinpath("locations_by_activity_id.sql")
         .read_text()
     )
-    data = session.exec(
-        text(stmt),  # type: ignore
+    data = session.exec(  # type: ignore
+        text(stmt),
         params={"match_distance_meters": match_distance, "activity_id": activity_id},
     ).all()
 
@@ -714,7 +714,7 @@ def create_default_tags(
     name_db_map = {}
     for category_name in categories:
         _name = get_tag_name(category_name, locale, "tag_category")
-        _cat = ActivityTagCategory(name=_name, user_id=user_id)  # type: ignore
+        _cat = ActivityTagCategory(name=_name, user_id=user_id)
         session.add(_cat)
         session.commit()
         session.refresh(_cat)
@@ -724,8 +724,8 @@ def create_default_tags(
         _name = get_tag_name(tag_name, locale, "tag")
         _tag = ActivityTag(
             name=_name,
-            user_id=user_id,  # type: ignore
-            category_id=name_db_map[category_name],
+            user_id=user_id,
+            category_id=name_db_map[cast(str, category_name)],
         )
         session.add(_tag)
         session.commit()
@@ -744,8 +744,8 @@ def search_by_name(
         return []
 
     stmt = get_search_query(table_name=table_name)
-    result = session.exec(
-        text(stmt),  # type: ignore
+    result = session.exec(  # type: ignore
+        text(stmt),
         params={
             "query": query,
             "limit": limit,
@@ -760,7 +760,7 @@ def search_by_name(
             row.score,
         )
         for row in result.mappings().all()
-    ]  # type: ignore
+    ]
 
 
 def validate_point_ids(
@@ -892,8 +892,8 @@ def clear_track_extension_data(
     )
     stmt = template.replace("{__extension_name__}", extension_name)
     try:
-        session.exec(
-            text(stmt),  # type: ignore
+        session.exec(  # type: ignore
+            text(stmt),
             params={
                 "user_id": user_id,
                 "activity_id": activity_id,

@@ -1,6 +1,7 @@
 import functools
 import time
-from typing import Callable, ParamSpec, TypeVar
+from types import FunctionType
+from typing import Callable, ParamSpec, TypeVar, cast
 
 import structlog
 
@@ -22,6 +23,8 @@ def log_timing(func: Callable[P, T]) -> Callable[P, T]:
         finally:
             end_time = time.perf_counter()
             elapsed_time = end_time - start_time
-            logger.debug(f"{func.__name__} took {elapsed_time:.4f} seconds")
+            logger.debug(
+                f"{cast(FunctionType, func).__name__} took {elapsed_time:.4f} seconds"
+            )
 
     return wrapper

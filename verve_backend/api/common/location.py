@@ -11,7 +11,7 @@ def to_public_location(location: Location) -> LocationPublic:
     return LocationPublic.model_validate(
         location,
         update={
-            "latitude": point.y,  # type: ignore
-            "longitude": point.x,  # type: ignore
+            "latitude": point.y,
+            "longitude": point.x,
         },
     )
