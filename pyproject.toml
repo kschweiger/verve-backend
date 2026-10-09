@@ -24,7 +24,7 @@ dependencies = [
   "redis==7.4.1",
   "shapely==2.1.2",
   "sqlalchemy==2.1.2",
-  "sqlmodel==0.0.47",
+  "sqlmodel==0.0.48",
   "structlog==26.1.0",
   "timezonefinder==9.0.0",
   "timezonefinder-data==3.2026.4",
