@@ -1,4 +1,19 @@
 <!-- insertion marker -->
+<a name="2.0.0"></a>
+
+## [2.0.0](https://github.com/kschweiger/verve-backend/compare/1.16.2...2.0.0) (2026-10-09)
+
+### Features
+
+- make backend timezone aware (#242) ([fdc01b4](https://github.com/kschweiger/verve-backend/commit/fdc01b466cedf020c442580de86238c8c5f71efa))
+- **equipment:** add patch and delete routes (#232) ([e03d5ec](https://github.com/kschweiger/verve-backend/commit/e03d5ecd5dd4ad3858a75bfdf855084df79bd218))
+- **track:** clear extension route (#229) ([dbc4fad](https://github.com/kschweiger/verve-backend/commit/dbc4fad58b6851701f75fa500c707c0fc0e3f149))
+
+### Code Refactoring
+
+- consitent route names with underscore (#246) ([ae67131](https://github.com/kschweiger/verve-backend/commit/ae671318fb3f34673661b5e7a314f9b490aa2d6a))
+- fix all ty errors ([7f8e9e4](https://github.com/kschweiger/verve-backend/commit/7f8e9e4537eec91e33819452eef90f42960ea4ad))
+
 <a name="1.16.2"></a>
 
 ## [1.16.2](https://github.com/kschweiger/verve-backend/compare/1.16.1...1.16.2) (2026-08-31)
