@@ -1,16 +1,23 @@
 #!/bin/sh
 
-OLD_VERSION=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+set -eu
+
+OLD_VERSION=$(uv run --no-sync python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
 
 echo "Bumping Version"
 
-uv run python bump.py . $1 --init --version-file --package verve_backend
-if [[ $? != 0 ]]; then
-  echo "Bumping version failed. Exiting..."
+if ! uv run --no-sync python bump.py . "$1" --version-file --init --package verve_backend; then
+  echo "Bumping version failed. Exiting..." >&2
   exit 1
 fi
 
-VERSION=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+uv lock
+
+VERSION=$(uv run --no-sync python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+if [ -z "$VERSION" ]; then
+  echo "Could not determine the new version. Exiting..." >&2
+  exit 1
+fi
 
 echo $VERSION
 
