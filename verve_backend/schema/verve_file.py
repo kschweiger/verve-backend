@@ -89,7 +89,6 @@ class LineFeature(VerveBaseModel):
 
 
 class VerveProperties(VerveBaseModel):
-    timezone: TimeZoneName | None = None
     # -- Identification --
     verve_version: Literal["1.0"] = "1.0"
     generator: str = "VerveBackend"
@@ -142,6 +141,8 @@ class VerveProperties(VerveBaseModel):
         default_factory=dict,
         union_mode="left_to_right",
     )  # The arbitrary JSON blob from DB
+
+    timezone: TimeZoneName | None = None
 
 
 class VerveFeature(VerveBaseModel):

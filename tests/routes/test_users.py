@@ -20,6 +20,65 @@ from verve_backend.models import (
 
 
 @pytest.mark.parametrize(
+    ("email", "is_admin"),
+    [
+        pytest.param("user1@mail.com", False, id="regular-user"),
+        pytest.param("admin@mail.com", True, id="admin-user"),
+    ],
+)
+def test_read_user_me_admin_status(
+    client: TestClient, email: str, is_admin: bool
+) -> None:
+    login = client.post(
+        "/login/access_token",
+        data={"username": email, "password": "12345678"},
+    )
+    assert login.status_code == 200
+
+    response = client.get(
+        "/users/me",
+        headers={"Authorization": f"Bearer {login.json()['access_token']}"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["email"] == email
+    assert data["is_admin"] is is_admin
+    assert "hashed_password" not in data
+
+
+def test_read_user_me_requires_authentication(client: TestClient) -> None:
+    response = client.get("/users/me")
+
+    assert response.status_code == 401
+    assert "is_admin" not in response.json()
+
+
+def test_update_user_details_cannot_grant_admin(
+    client: TestClient, temp_user_token: str
+) -> None:
+    headers = {"Authorization": f"Bearer {temp_user_token}"}
+    response = client.patch("/users/me", headers=headers, json={"is_admin": True})
+    assert response.status_code == 200
+    assert "is_admin" not in response.json()
+
+    response = client.get("/users/me", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["is_admin"] is False
+
+    response = client.post(
+        "/users/create",
+        headers=headers,
+        json={
+            "name": "UnauthorizedUser",
+            "email": "unauthorized@mail.com",
+            "password": "12345678",
+        },
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize(
     ("update_data", "diff_attr"),
     [
         ({"full_name": "New Full Name"}, {"full_name"}),

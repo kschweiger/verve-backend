@@ -27,6 +27,7 @@ from verve_backend.models import (
     RecordsSettings,
     User,
     UserCreate,
+    UserMe,
     UserPassword,
     UserPublic,
     UserSettings,
@@ -74,7 +75,7 @@ def create_user(
             )
 
 
-@router.get("/me", response_model=UserPublic)
+@router.get("/me", response_model=UserMe)
 def read_user_me(current_user: CurrentUser) -> Any:
     """
     Get current user.

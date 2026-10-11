@@ -193,6 +193,10 @@ class UserPublic(UserBase):
     id: uuid.UUID
 
 
+class UserMe(UserPublic):
+    is_admin: bool
+
+
 # Database model, database table inferred from class name
 class User(UserBase, table=True):
     __tablename__: str = "users"
