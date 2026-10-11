@@ -16,3 +16,11 @@ repos:
     rev: a34afbe181aa96a616bb17e6ede65e079d5d198d
     hooks:
       - id: comment-keywords
+  - repo: local
+    hooks:
+      - id: timezone-fixtures
+        name: check timezone fixture digest and archive
+        entry: python scripts/timezone_fixtures.py --check
+        language: system
+        pass_filenames: false
+        files: ^(tests/resources/timezones/|tests/resources/timezones\.(sha256|zip)$|scripts/timezone_fixtures\.py$|\.pre-commit-config\.yaml$)

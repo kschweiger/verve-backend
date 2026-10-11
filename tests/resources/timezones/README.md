@@ -2,6 +2,22 @@
 
 Copy this entire folder to reuse these files in another client. No Python code or generation step is required.
 
+The backend publishes a SHA-256 digest at `tests/resources/timezones.sha256` and
+a reproducible ZIP at `tests/resources/timezones.zip`. The digest covers every
+file in this folder using sorted relative paths and file bytes. A frontend sync
+script can compare its saved digest with the published digest, download the ZIP
+when they differ, replace its fixture copy, and save the new digest. A digest
+change is a cue to review frontend behavior against the updated scenarios.
+
+For the `main` branch, the raw download URLs are:
+
+- Digest: `https://raw.githubusercontent.com/kschweiger/verve-backend/main/tests/resources/timezones.sha256`
+- Archive: `https://raw.githubusercontent.com/kschweiger/verve-backend/main/tests/resources/timezones.zip`
+
+After changing fixtures, regenerate the published files with
+`python scripts/timezone_fixtures.py --write`. Check them with
+`python scripts/timezone_fixtures.py --check`; pre-commit runs the same check.
+
 `cases.json` gives each scenario's user timezone, optional request override, upload routes, and expected activity/track instants. `expected.local_start` is the local time a frontend should display using `expected.timezone`; it is not a timestamp to send to the API.
 
 All tracks contain three points, five minutes apart, with heart rates of 96, 108, and 120 bpm. Expected heart rates and elapsed seconds are in the manifest, aligned with `point_times`, so clients can check plot values and their positions. GPX uses a `heartrate` extension; Verve uses `heartRates`.
