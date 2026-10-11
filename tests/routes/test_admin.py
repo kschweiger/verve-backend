@@ -23,8 +23,37 @@ from verve_backend.models import (
     SegmentCut,
     SegmentSet,
     TrackPoint,
+    User,
     UserSettings,
 )
+
+
+def test_list_other_users(client: TestClient, admin_token: str, db: Session) -> None:
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    current_user = client.get("/users/me", headers=headers).json()
+
+    response = client.get("/admin/users", headers=headers)
+
+    assert response.status_code == 200
+    users = response.json()
+    expected_ids = {
+        str(user.id)
+        for user in db.exec(select(User)).all()
+        if str(user.id) != current_user["id"]
+    }
+    assert {user["id"] for user in users} == expected_ids
+    assert len(users) == len(expected_ids)
+    assert [user["name"] for user in users] == sorted(user["name"] for user in users)
+    for user in users:
+        assert set(user) == {"id", "name", "email", "full_name"}
+
+
+def test_list_users_requires_admin(client: TestClient, user1_token: str) -> None:
+    response = client.get(
+        "/admin/users", headers={"Authorization": f"Bearer {user1_token}"}
+    )
+
+    assert response.status_code == 403
 
 
 @pytest.fixture

@@ -21,6 +21,7 @@ from verve_backend.models import (
     Activity,
     RawTrackData,
     User,
+    UserPublic,
 )
 from verve_backend.tasks import (
     finish_track_reprocessing,
@@ -29,6 +30,19 @@ from verve_backend.tasks import (
 )
 
 router = APIRouter(prefix="/admin", tags=[Tag.ADMIN])
+
+
+@router.get("/users", response_model=list[UserPublic])
+def list_other_users(*, session: SessionDep, user: CurrentUser) -> Any:
+    """List every user except the requesting admin."""
+    if not user.is_admin:
+        raise HTTPException(
+            status_code=HTTP_403_FORBIDDEN,
+            detail="Operation only allowed for admin users",
+        )
+    return session.exec(
+        select(User).where(User.id != user.id).order_by(col(User.name))
+    ).all()
 
 
 class TrackReprocessingJob(BaseModel):
