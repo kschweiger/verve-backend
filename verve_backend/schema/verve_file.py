@@ -1,7 +1,16 @@
 from datetime import datetime
 from typing import Any, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializationInfo,
+    SerializerFunctionWrapHandler,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 from pydantic.alias_generators import to_camel
 from pydantic_extra_types.timezone_name import TimeZoneName
 
@@ -49,11 +58,11 @@ class EquipmentExport(VerveBaseModel):
 
 class LineStringGeometry(VerveBaseModel):
     type: Literal["LineString"] = "LineString"
-    coordinates: list[Coordinates]
+    coordinates: list[Coordinates] = Field(min_length=2)
 
 
 class LineProperties(VerveBaseModel):
-    coord_times: list[datetime] = Field(default_factory=list)
+    coord_times: list[datetime]
     heart_rates: list[int | None] | None = None
     cadences: list[int | None] | None = None
     powers: list[float | None] | None = None
@@ -62,8 +71,17 @@ class LineProperties(VerveBaseModel):
 
 class LineFeature(VerveBaseModel):
     type: Literal["Feature"] = "Feature"
-    geometry: LineStringGeometry | None = None
+    geometry: LineStringGeometry | None
     properties: LineProperties
+
+    @model_serializer(mode="wrap")
+    def serialize_geometry(
+        self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
+    ) -> dict:
+        result = handler(self)
+        if self.geometry is None and not (info.exclude and "geometry" in info.exclude):
+            result["geometry"] = None
+        return result
 
     @model_validator(mode="after")
     def validate_array_length(self) -> Self:
