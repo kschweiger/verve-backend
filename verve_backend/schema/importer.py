@@ -122,8 +122,8 @@ def convert_verve_file_to_activity(
         elevation_change_up=data.properties.elevation_gain,
         elevation_change_down=data.properties.elevation_loss,
         energy=data.properties.energy,
-        avg_speed=data.properties.stats.speed.avg
-        if data.properties.stats.speed
+        avg_speed=data.properties.stats.speed.avg * 3.6
+        if data.properties.stats.speed and data.properties.stats.speed.avg is not None
         else None,
         avg_heartrate=data.properties.stats.heart_rate.avg
         if data.properties.stats.heart_rate
@@ -131,8 +131,8 @@ def convert_verve_file_to_activity(
         avg_power=data.properties.stats.power.avg
         if data.properties.stats.power
         else None,
-        max_speed=data.properties.stats.speed.max
-        if data.properties.stats.speed
+        max_speed=data.properties.stats.speed.max * 3.6
+        if data.properties.stats.speed and data.properties.stats.speed.max is not None
         else None,
         max_heartrate=data.properties.stats.heart_rate.max
         if data.properties.stats.heart_rate
