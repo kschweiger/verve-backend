@@ -132,7 +132,10 @@ def _cast(session: Session, activity_id: UUID) -> VerveFeature:
         elevation_gain=activity.elevation_change_up,
         elevation_loss=activity.elevation_change_down,
         stats=ActivityStats(
-            speed=MetricSummary(avg=activity.avg_speed, max=activity.max_speed),
+            speed=MetricSummary(
+                avg=None if activity.avg_speed is None else activity.avg_speed / 3.6,
+                max=None if activity.max_speed is None else activity.max_speed / 3.6,
+            ),
             heart_rate=MetricSummary(
                 avg=activity.avg_heartrate, max=activity.max_heartrate
             ),
