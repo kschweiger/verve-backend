@@ -29,8 +29,14 @@ def test_geometry_and_timestamps_must_be_present(
     feature = geometry_payload["features"][0]
     container = feature if member == "geometry" else feature["properties"]
     del container[member]
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValidationError) as exc_info:
         VerveFeature.model_validate(geometry_payload)
+    expected_location = (
+        ("features", 0, "geometry")
+        if member == "geometry"
+        else ("features", 0, "properties", "coordTimes")
+    )
+    assert exc_info.value.errors()[0]["loc"] == expected_location
 
 
 def test_summary_only_serialization_keeps_explicit_null_geometry(
@@ -73,9 +79,49 @@ def test_two_position_lines_preserve_sensor_nulls_and_zero(
 
 
 @pytest.mark.parametrize("sensor", ["heartRates", "cadences", "powers", "temperatures"])
-def test_nonspatial_sensor_arrays_must_match_timestamps(
-    geometry_payload: dict, sensor: str
+@pytest.mark.parametrize("spatial", [False, True], ids=["nonspatial", "spatial"])
+def test_sensor_arrays_must_match_timestamps(
+    geometry_payload: dict, sensor: str, spatial: bool
 ) -> None:
-    geometry_payload["features"][0]["properties"][sensor] = [None]
+    feature = geometry_payload["features"][0]
+    if spatial:
+        feature["geometry"] = {
+            "type": "LineString",
+            "coordinates": [[11, 48, -5], [11.001, 48.001, 0]],
+        }
+    feature["properties"]["coordTimes"] = [
+        "2026-10-13T08:00:00Z",
+        "2026-10-13T08:01:00Z",
+    ]
+    feature["properties"][sensor] = [None]
     with pytest.raises(ValidationError):
         VerveFeature.model_validate(geometry_payload)
+
+
+def test_feature_collection_requires_a_feature(geometry_payload: dict) -> None:
+    geometry_payload["features"] = []
+    with pytest.raises(ValidationError):
+        VerveFeature.model_validate(geometry_payload)
+
+
+def test_spatial_coordinates_must_match_timestamps(geometry_payload: dict) -> None:
+    feature = geometry_payload["features"][0]
+    feature["geometry"] = {
+        "type": "LineString",
+        "coordinates": [[11, 48, -5], [11.001, 48.001, 0]],
+    }
+    feature["properties"]["coordTimes"] = ["2026-10-13T08:00:00Z"]
+    with pytest.raises(ValidationError):
+        VerveFeature.model_validate(geometry_payload)
+
+
+@pytest.mark.parametrize("sensor", ["heartRates", "cadences", "powers", "temperatures"])
+def test_summary_only_accepts_empty_sensor_arrays(
+    geometry_payload: dict, sensor: str
+) -> None:
+    geometry_payload["features"][0]["properties"][sensor] = []
+    exported = json.loads(VerveFeature.model_validate(geometry_payload).to_json())
+    feature = exported["features"][0]
+    assert feature["geometry"] is None
+    assert feature["properties"]["coordTimes"] == []
+    assert feature["properties"][sensor] == []
