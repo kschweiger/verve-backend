@@ -1,8 +1,10 @@
 from datetime import datetime
-from typing import Any, Literal, Self
+from typing import Annotated, Any, Literal, Self
 
 from pydantic import (
+    AwareDatetime,
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Field,
     SerializationInfo,
@@ -17,6 +19,18 @@ from pydantic_extra_types.timezone_name import TimeZoneName
 from verve_backend.schema.meta_data import KnownMetaDataEnvelope
 
 Coordinates = tuple[float, float, float]  # NOTE: Lon, Lat, Ele
+
+
+def _parse_file_timestamp(value: Any) -> datetime:
+    """Accept timestamp strings or datetimes without coercing epoch values."""
+    if isinstance(value, str):
+        return datetime.fromisoformat(value)
+    if isinstance(value, datetime):
+        return value
+    raise ValueError("File timestamps must be datetime strings or datetime values")
+
+
+FileTimestamp = Annotated[AwareDatetime, BeforeValidator(_parse_file_timestamp)]
 
 
 def check_length(data: list | None, exp_length: int) -> bool:
@@ -62,7 +76,7 @@ class LineStringGeometry(VerveBaseModel):
 
 
 class LineProperties(VerveBaseModel):
-    coord_times: list[datetime]
+    coord_times: list[FileTimestamp]
     heart_rates: list[int | None] | None = None
     cadences: list[int | None] | None = None
     powers: list[float | None] | None = None
@@ -117,7 +131,7 @@ class VerveProperties(VerveBaseModel):
 
     activity_type: str  # e.g. "Cycling"
     activity_sub_type: str | None = None
-    start_time: datetime
+    start_time: FileTimestamp
 
     # -- Dimensions --
     duration: float = Field(
