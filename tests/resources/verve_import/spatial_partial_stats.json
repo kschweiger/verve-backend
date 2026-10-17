@@ -1,0 +1,121 @@
+{
+  "type": "FeatureCollection",
+  "properties": {
+    "verveVersion": "1.0",
+    "generator": "Verve WP2 review fixtures",
+    "name": "WP2: spatial partial statistics",
+    "activityType": "Cycling",
+    "startTime": "2026-10-17T08:00:00Z",
+    "durationSeconds": 180,
+    "timezone": "UTC",
+    "stats": {
+      "speed": {
+        "avg": 10
+      },
+      "heartRate": {},
+      "power": null
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            11.0,
+            48.0,
+            500.0
+          ],
+          [
+            11.001,
+            48.0,
+            500.0
+          ],
+          [
+            11.002,
+            48.0,
+            500.0
+          ]
+        ]
+      },
+      "properties": {
+        "coordTimes": [
+          "2026-10-17T08:00:00Z",
+          "2026-10-17T08:00:30Z",
+          "2026-10-17T08:01:00Z"
+        ],
+        "heartRates": [
+          100,
+          100,
+          100
+        ],
+        "cadences": [
+          80,
+          80,
+          80
+        ],
+        "powers": [
+          150,
+          150,
+          150
+        ],
+        "temperatures": [
+          20.0,
+          20.0,
+          20.0
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            11.003,
+            48.0,
+            500.0
+          ],
+          [
+            11.004,
+            48.0,
+            500.0
+          ],
+          [
+            11.005,
+            48.0,
+            500.0
+          ]
+        ]
+      },
+      "properties": {
+        "coordTimes": [
+          "2026-10-17T08:02:00Z",
+          "2026-10-17T08:02:30Z",
+          "2026-10-17T08:03:00Z"
+        ],
+        "heartRates": [
+          100,
+          100,
+          100
+        ],
+        "cadences": [
+          80,
+          80,
+          80
+        ],
+        "powers": [
+          150,
+          150,
+          150
+        ],
+        "temperatures": [
+          20.0,
+          20.0,
+          20.0
+        ]
+      }
+    }
+  ]
+}

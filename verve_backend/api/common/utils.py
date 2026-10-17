@@ -1,7 +1,7 @@
 import datetime
 import math
 import uuid
-from typing import Type, TypeVar
+from typing import TYPE_CHECKING, Type, TypeVar
 from zoneinfo import ZoneInfo
 
 import structlog
@@ -13,6 +13,7 @@ from starlette.status import (
     HTTP_404_NOT_FOUND,
 )
 
+from verve_backend.core.date_utils import to_utc_with_default_timezone
 from verve_backend.models import (
     Activity,
     ActivitySubType,
@@ -21,6 +22,9 @@ from verve_backend.models import (
     LocationSubType,
     UserSettings,
 )
+
+if TYPE_CHECKING:
+    from verve_backend.schema.verve_file import VerveFeature
 
 logger = structlog.getLogger(__name__)
 
@@ -106,6 +110,52 @@ def update_activity_with_track(activity: Activity, track: Track) -> None:
     if overview.heartrate:
         activity.avg_heartrate = overview.heartrate.avg
         activity.max_heartrate = overview.heartrate.max
+
+
+def apply_verve_activity_data(
+    activity: Activity, data: VerveFeature, track: Track
+) -> None:
+    """Calculate missing summaries, then preserve the validated file's values."""
+    props = data.properties
+    stats = props.stats
+    activity.avg_speed = activity.max_speed = None
+    activity.avg_heartrate = activity.max_heartrate = None
+    activity.avg_power = activity.max_power = None
+    activity.moving_duration = None
+    activity.elevation_change_up = activity.elevation_change_down = None
+
+    if any(segment.points for segment in track.track.segments) and (
+        stats.speed is None
+        or stats.heart_rate is None
+        or stats.power is None
+        or props.moving_duration is None
+        or props.elevation_gain is None
+        or props.elevation_loss is None
+    ):
+        update_activity_with_track(activity, track)
+
+    activity.start = to_utc_with_default_timezone(
+        props.start_time, ZoneInfo(activity.timezone)
+    )
+    activity.duration = datetime.timedelta(seconds=props.duration)
+    activity.distance = None if props.distance is None else props.distance / 1000
+    activity.energy = props.energy
+    if props.moving_duration is not None:
+        activity.moving_duration = datetime.timedelta(seconds=props.moving_duration)
+    if props.elevation_gain is not None:
+        activity.elevation_change_up = props.elevation_gain
+    if props.elevation_loss is not None:
+        activity.elevation_change_down = props.elevation_loss
+
+    if stats.speed is not None:
+        activity.avg_speed = None if stats.speed.avg is None else stats.speed.avg * 3.6
+        activity.max_speed = None if stats.speed.max is None else stats.speed.max * 3.6
+    if stats.heart_rate is not None:
+        activity.avg_heartrate = stats.heart_rate.avg
+        activity.max_heartrate = stats.heart_rate.max
+    if stats.power is not None:
+        activity.avg_power = stats.power.avg
+        activity.max_power = stats.power.max
 
 
 def get_user_timezone(session: Session, user_id: uuid.UUID) -> ZoneInfo:

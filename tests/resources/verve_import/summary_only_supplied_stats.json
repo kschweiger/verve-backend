@@ -1,0 +1,40 @@
+{
+  "type": "FeatureCollection",
+  "properties": {
+    "verveVersion": "1.0",
+    "generator": "Verve WP2 review fixtures",
+    "name": "WP2: summary only supplied statistics",
+    "activityType": "Cycling",
+    "startTime": "2026-10-17T08:00:00Z",
+    "durationSeconds": 180,
+    "timezone": "UTC",
+    "totalDistanceMeters": 1800,
+    "movingDurationSeconds": 180,
+    "elevationGain": 0,
+    "elevationLoss": 0,
+    "totalEnergyKcal": 42,
+    "stats": {
+      "speed": {
+        "avg": 10,
+        "max": 12
+      },
+      "heartRate": {
+        "avg": 100,
+        "max": 120
+      },
+      "power": {
+        "avg": 150,
+        "max": 180
+      }
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "coordTimes": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,94 @@
+{
+  "type": "FeatureCollection",
+  "properties": {
+    "verveVersion": "1.0",
+    "generator": "Verve WP2 review fixtures",
+    "name": "WP2: nonspatial supplied zero statistics",
+    "activityType": "Strength Training",
+    "startTime": "2026-10-17T08:00:00Z",
+    "durationSeconds": 180,
+    "timezone": "UTC",
+    "movingDurationSeconds": 0,
+    "elevationGain": 0,
+    "elevationLoss": 0,
+    "totalEnergyKcal": 0,
+    "stats": {
+      "speed": {
+        "avg": 0,
+        "max": 0
+      },
+      "heartRate": {
+        "avg": 0,
+        "max": 0
+      },
+      "power": {
+        "avg": 0,
+        "max": 0
+      }
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "coordTimes": [
+          "2026-10-17T08:00:00Z",
+          "2026-10-17T08:00:30Z",
+          "2026-10-17T08:01:00Z"
+        ],
+        "heartRates": [
+          0,
+          null,
+          120
+        ],
+        "cadences": [
+          0,
+          null,
+          80
+        ],
+        "powers": [
+          0,
+          null,
+          150
+        ],
+        "temperatures": [
+          0,
+          null,
+          18.5
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "coordTimes": [
+          "2026-10-17T08:02:00Z",
+          "2026-10-17T08:02:30Z",
+          "2026-10-17T08:03:00Z"
+        ],
+        "heartRates": [
+          130,
+          0,
+          null
+        ],
+        "cadences": [
+          90,
+          0,
+          null
+        ],
+        "powers": [
+          180,
+          0,
+          null
+        ],
+        "temperatures": [
+          19.5,
+          0,
+          null
+        ]
+      }
+    }
+  ]
+}

@@ -1,4 +1,3 @@
-import math
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
@@ -9,6 +8,7 @@ from sqlmodel import Session, select
 
 from verve_backend import crud
 from verve_backend.api.common.track import parse_track
+from verve_backend.api.common.utils import apply_verve_activity_data
 from verve_backend.core.date_utils import to_utc_with_default_timezone
 from verve_backend.exceptions import VerveImportError
 from verve_backend.models import (
@@ -100,6 +100,9 @@ def convert_verve_file_to_activity(
     )
     timezone = parsed.timezone
     track = parsed.track
+    track.track.segments = [
+        segment for segment in track.track.segments if segment.points
+    ]
     meta_data = data.properties.metadata
     if isinstance(meta_data, KnownMetaDataEnvelope):
         meta_data = meta_data.to_core_meta_data(timezone).model_dump(mode="json")
@@ -113,35 +116,10 @@ def convert_verve_file_to_activity(
         sub_type_id=_sub_type_id,
         start=to_utc_with_default_timezone(data.properties.start_time, timezone),
         duration=timedelta(seconds=data.properties.duration),
-        distance=None
-        if data.properties.distance is None
-        else data.properties.distance / 1000,
-        moving_duration=timedelta(seconds=data.properties.moving_duration)
-        if data.properties.moving_duration
-        else None,
-        elevation_change_up=data.properties.elevation_gain,
-        elevation_change_down=data.properties.elevation_loss,
-        energy=data.properties.energy,
-        avg_speed=data.properties.stats.speed.avg * 3.6
-        if data.properties.stats.speed and data.properties.stats.speed.avg is not None
-        else None,
-        avg_heartrate=data.properties.stats.heart_rate.avg
-        if data.properties.stats.heart_rate
-        else None,
-        avg_power=data.properties.stats.power.avg
-        if data.properties.stats.power
-        else None,
-        max_speed=data.properties.stats.speed.max * 3.6
-        if data.properties.stats.speed and data.properties.stats.speed.max is not None
-        else None,
-        max_heartrate=data.properties.stats.heart_rate.max
-        if data.properties.stats.heart_rate
-        else None,
-        max_power=data.properties.stats.power.max
-        if data.properties.stats.power
-        else None,
+        distance=None,
         meta_data=meta_data,
     )
+    apply_verve_activity_data(activity, data, track)
 
     if data.properties.equipment:
         for import_equipment in data.properties.equipment:
@@ -164,37 +142,5 @@ def convert_verve_file_to_activity(
         user_id=user_id,
         no_geometry=parsed.no_geometry,
     )
-
-    if (
-        data.properties.stats.speed is None
-        or data.properties.stats.power is None
-        or data.properties.stats.heart_rate is None
-        or data.properties.elevation_gain is None
-        or data.properties.moving_duration is None
-    ):
-        overview = track.get_track_overview()
-        is_stationary = math.isclose(overview.total_distance, 0)
-        if (
-            data.properties.stats.speed is None
-            and overview.velocity_kmh
-            and not is_stationary
-        ):
-            activity.avg_speed = overview.velocity_kmh.avg
-            activity.max_speed = overview.velocity_kmh.max
-        if data.properties.stats.power is None and overview.power:
-            activity.avg_power = overview.power.avg
-            activity.max_power = overview.power.max
-        if data.properties.stats.heart_rate is None and overview.heartrate:
-            activity.avg_heartrate = overview.heartrate.avg
-            activity.max_heartrate = overview.heartrate.max
-        if data.properties.elevation_gain is None:
-            activity.elevation_change_up = overview.uphill_elevation
-            activity.elevation_change_down = overview.downhill_elevation
-        if data.properties.moving_duration is None and not is_stationary:
-            activity.moving_duration = timedelta(
-                days=0, seconds=overview.moving_time_seconds
-            )
-
-    session.commit()
 
     return activity

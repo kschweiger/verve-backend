@@ -10,7 +10,11 @@ from sqlmodel import Session, col, delete, select, update
 
 from verve_backend import crud
 from verve_backend.api.common.track import parse_track
-from verve_backend.api.common.utils import get_user_timezone, update_activity_with_track
+from verve_backend.api.common.utils import (
+    apply_verve_activity_data,
+    get_user_timezone,
+    update_activity_with_track,
+)
 from verve_backend.core.config import settings
 from verve_backend.enums import GoalType
 from verve_backend.exceptions import StoredTrackFileUnavailableError
@@ -23,6 +27,7 @@ from verve_backend.models import (
     TrackPoint,
 )
 from verve_backend.schema.importer import sniff_verve_format
+from verve_backend.schema.verve_file import VerveFeature
 
 RAW_SEGMENTS_NAME = "Raw track segments"
 
@@ -69,11 +74,13 @@ def reprocess_activity_track(
     file_type = file_type.lower().lstrip(".")
     if file_type not in {"fit", "gpx", "json"}:
         raise ValueError("Stored source metadata has no supported file type")
+    verve_data = None
     verve_timezone = None
     if file_type == "json":
         data = json.loads(content)
         if sniff_verve_format(data):
-            verve_timezone = data["properties"].get("timezone")
+            verve_data = VerveFeature.model_validate(data)
+            verve_timezone = verve_data.properties.timezone
     parsed = parse_track(
         file_name=f"track.{file_type}",
         file_content=content,
@@ -84,7 +91,7 @@ def reprocess_activity_track(
     track.track.segments = [
         segment for segment in track.track.segments if segment.points
     ]
-    if not track.track.segments:
+    if not track.track.segments and verve_data is None:
         raise ValueError("Stored source contains no track points")
 
     new_times = [
@@ -183,10 +190,13 @@ def reprocess_activity_track(
             )
 
     activity.timezone = parsed.timezone.key
-    activity.avg_speed = activity.max_speed = None
-    activity.avg_power = activity.max_power = None
-    activity.avg_heartrate = activity.max_heartrate = None
-    update_activity_with_track(activity, track)
+    if verve_data is None:
+        activity.avg_speed = activity.max_speed = None
+        activity.avg_power = activity.max_power = None
+        activity.avg_heartrate = activity.max_heartrate = None
+        update_activity_with_track(activity, track)
+    else:
+        apply_verve_activity_data(activity, verve_data, track)
     session.add(activity)
     session.exec(
         update(Goal)
