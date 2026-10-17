@@ -79,7 +79,7 @@ class LineProperties(VerveBaseModel):
     coord_times: list[FileTimestamp]
     heart_rates: list[int | None] | None = None
     cadences: list[int | None] | None = None
-    powers: list[float | None] | None = None
+    powers: list[int | None] | None = None
     temperatures: list[float | None] | None = None
 
 
@@ -187,6 +187,10 @@ class VerveFeature(VerveBaseModel):
     def check_length(cls, value: list) -> list:
         if len(value) == 0:
             raise ValueError("At least one feature must be provided")
+        if any(feature.geometry is None for feature in value) and any(
+            feature.geometry is not None for feature in value
+        ):
+            raise ValueError("Spatial and non-spatial features cannot be combined")
         return value
 
     def to_json(self) -> str:
