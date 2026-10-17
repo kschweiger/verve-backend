@@ -1,4 +1,3 @@
-import json
 from collections.abc import Callable, Generator
 from datetime import UTC, datetime, timedelta
 from importlib import resources
@@ -9,7 +8,7 @@ from fastapi.testclient import TestClient
 from mypy_boto3_s3.client import S3Client
 from pytest_mock import MockerFixture
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, select, text
+from sqlmodel import Session, col, select, text
 from structlog.testing import capture_logs
 
 from verve_backend.core.config import settings
@@ -170,7 +169,7 @@ def test_reprocess_fit_rebuilds_renamed_extensions_and_raw_segments(
         points = db.exec(
             select(TrackPoint)
             .where(TrackPoint.activity_id == activity.id)
-            .order_by(TrackPoint.id)
+            .order_by(col(TrackPoint.id))
         ).all()
         assert len(points) == 2070
         assert points[0].time == datetime(2025, 2, 14, 18, 55, 57, tzinfo=UTC)
@@ -186,7 +185,9 @@ def test_reprocess_fit_rebuilds_renamed_extensions_and_raw_segments(
             select(SegmentCut.point_id).where(SegmentCut.set_id == segment_sets[0].id)
         ).all() == [599]
 
-    assert db.get(RawTrackData, activity.id).store_path == path
+    raw = db.get(RawTrackData, activity.id)
+    assert raw is not None
+    assert raw.store_path == path
     stored = object_store.get_object(Bucket=settings.BOTO3_BUCKET, Key=path)
     try:
         assert stored["Body"].read() == content
@@ -590,18 +591,16 @@ def test_admin_recalculates_highlights_without_stored_tracks(
 
 
 @pytest.mark.parametrize(
-    ("declared_zone", "expected_zone", "expected_start"),
+    ("file_name", "expected_zone"),
     [
         pytest.param(
-            None,
+            "nonspatial_no_timezone.json",
             "Europe/Berlin",
-            datetime(2026, 8, 10, 7, tzinfo=UTC),
             id="user-timezone-fallback",
         ),
         pytest.param(
+            "nonspatial_declared_timezone.json",
             "America/Los_Angeles",
-            "America/Los_Angeles",
-            datetime(2026, 8, 10, 16, tzinfo=UTC),
             id="declared-verve-timezone",
         ),
     ],
@@ -610,31 +609,29 @@ def test_reprocess_nonspatial_json_resolves_timezone(
     db: Session,
     temp_user_id: UUID,
     stored_track: Callable[[str, bytes], Activity],
-    declared_zone: str | None,
+    file_name: str,
     expected_zone: str,
-    expected_start: datetime,
 ) -> None:
     from verve_backend.tasks import reprocess_stored_track
 
     user_settings = db.get(UserSettings, temp_user_id)
+    assert user_settings is not None
     user_settings.timezone = "Europe/Berlin"
     db.add(user_settings)
     db.commit()
-    data = json.loads(
-        resources.files("tests.resources.timezones")
-        .joinpath("verve-no-geometry-no-zone.json")
+    content = (
+        resources.files("tests.resources")
+        .joinpath("verve_import", file_name)
         .read_bytes()
     )
-    if declared_zone is not None:
-        data["properties"]["timezone"] = declared_zone
-    activity = stored_track("nonspatial.json", json.dumps(data).encode())
+    activity = stored_track(file_name, content)
 
     result = reprocess_stored_track(activity_id=activity.id, user_id=temp_user_id)
     assert result["error"] is None
     assert result["number_of_points"] == 3
     db.refresh(activity)
     assert activity.timezone == expected_zone
-    assert activity.start == expected_start
+    assert activity.start == datetime(2026, 10, 17, 8, tzinfo=UTC)
     assert activity.duration == timedelta(minutes=10)
     assert activity.distance is None
     points = db.exec(

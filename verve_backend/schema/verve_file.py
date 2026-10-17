@@ -1,13 +1,36 @@
 from datetime import datetime
-from typing import Any, Literal, Self
+from typing import Annotated, Any, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    SerializationInfo,
+    SerializerFunctionWrapHandler,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 from pydantic.alias_generators import to_camel
 from pydantic_extra_types.timezone_name import TimeZoneName
 
 from verve_backend.schema.meta_data import KnownMetaDataEnvelope
 
 Coordinates = tuple[float, float, float]  # NOTE: Lon, Lat, Ele
+
+
+def _parse_file_timestamp(value: Any) -> datetime:
+    """Accept timestamp strings or datetimes without coercing epoch values."""
+    if isinstance(value, str):
+        return datetime.fromisoformat(value)
+    if isinstance(value, datetime):
+        return value
+    raise ValueError("File timestamps must be datetime strings or datetime values")
+
+
+FileTimestamp = Annotated[AwareDatetime, BeforeValidator(_parse_file_timestamp)]
 
 
 def check_length(data: list | None, exp_length: int) -> bool:
@@ -49,21 +72,30 @@ class EquipmentExport(VerveBaseModel):
 
 class LineStringGeometry(VerveBaseModel):
     type: Literal["LineString"] = "LineString"
-    coordinates: list[Coordinates]
+    coordinates: list[Coordinates] = Field(min_length=2)
 
 
 class LineProperties(VerveBaseModel):
-    coord_times: list[datetime] = Field(default_factory=list)
+    coord_times: list[FileTimestamp]
     heart_rates: list[int | None] | None = None
     cadences: list[int | None] | None = None
-    powers: list[float | None] | None = None
+    powers: list[int | None] | None = None
     temperatures: list[float | None] | None = None
 
 
 class LineFeature(VerveBaseModel):
     type: Literal["Feature"] = "Feature"
-    geometry: LineStringGeometry | None = None
+    geometry: LineStringGeometry | None
     properties: LineProperties
+
+    @model_serializer(mode="wrap")
+    def serialize_geometry(
+        self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
+    ) -> dict:
+        result = handler(self)
+        if self.geometry is None and not (info.exclude and "geometry" in info.exclude):
+            result["geometry"] = None
+        return result
 
     @model_validator(mode="after")
     def validate_array_length(self) -> Self:
@@ -99,7 +131,7 @@ class VerveProperties(VerveBaseModel):
 
     activity_type: str  # e.g. "Cycling"
     activity_sub_type: str | None = None
-    start_time: datetime
+    start_time: FileTimestamp
 
     # -- Dimensions --
     duration: float = Field(
@@ -155,6 +187,10 @@ class VerveFeature(VerveBaseModel):
     def check_length(cls, value: list) -> list:
         if len(value) == 0:
             raise ValueError("At least one feature must be provided")
+        if any(feature.geometry is None for feature in value) and any(
+            feature.geometry is not None for feature in value
+        ):
+            raise ValueError("Spatial and non-spatial features cannot be combined")
         return value
 
     def to_json(self) -> str:
