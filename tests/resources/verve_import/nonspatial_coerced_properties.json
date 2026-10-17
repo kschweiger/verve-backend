@@ -1,0 +1,84 @@
+{
+  "type": "FeatureCollection",
+  "properties": {
+    "verveVersion": "1.0",
+    "generator": "Verve WP2 compatibility regression",
+    "name": "WP2: accepted property coercions and empty segments",
+    "activityType": "Cycling",
+    "start_time": "2026-10-17T07:59:30Z",
+    "duration": "240",
+    "distance": "1234",
+    "moving_duration": "0",
+    "energy": "42",
+    "elevation_gain": "0",
+    "elevation_loss": "0",
+    "timezone": "UTC",
+    "stats": {
+      "speed": {
+        "avg": "10",
+        "max": "12"
+      },
+      "heart_rate": {
+        "avg": "90",
+        "max": "110"
+      },
+      "power": {
+        "avg": "200",
+        "max": "250"
+      }
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "coordTimes": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "coordTimes": [
+          "2026-10-17T08:00:00Z",
+          "2026-10-17T08:00:30Z",
+          "2026-10-17T08:01:00Z"
+        ],
+        "heartRates": [100, 100, 100],
+        "cadences": [80, 80, 80],
+        "powers": [150, 150, 150],
+        "temperatures": [20, 20, 20]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "coordTimes": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "coordTimes": [
+          "2026-10-17T08:02:00Z",
+          "2026-10-17T08:02:30Z",
+          "2026-10-17T08:03:00Z"
+        ],
+        "heartRates": [100, 100, 100],
+        "cadences": [80, 80, 80],
+        "powers": [150, 150, 150],
+        "temperatures": [20, 20, 20]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "coordTimes": []
+      }
+    }
+  ]
+}

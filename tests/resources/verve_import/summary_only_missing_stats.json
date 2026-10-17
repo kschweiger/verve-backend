@@ -1,0 +1,21 @@
+{
+  "type": "FeatureCollection",
+  "properties": {
+    "verveVersion": "1.0",
+    "generator": "Verve WP2 review fixtures",
+    "name": "WP2: summary only missing statistics",
+    "activityType": "Cycling",
+    "startTime": "2026-10-17T08:00:00Z",
+    "durationSeconds": 180,
+    "timezone": "UTC"
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "coordTimes": []
+      }
+    }
+  ]
+}
