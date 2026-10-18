@@ -12,7 +12,7 @@ Requirements: [release checklist](../../../backend-release-changes.md) and
 - Import subtracts the EGM2008 geoid offset; export adds it.
 - Grid validation is mandatory at backend startup. Missing, corrupt, or unreadable
   files are fatal; no skipping, identity fallback, or request-time download.
-- Docker/runtime-image installation and architecture verification move to WP6.
+- Docker/runtime-image installation and architecture verification belong to WP7.
 - Integration tests use one Verve file and the already-tested converter for
   expected stored heights. Independent numeric control points stay in the
   existing converter tests.
@@ -41,7 +41,7 @@ Requirements: [release checklist](../../../backend-release-changes.md) and
 - Full suite: **583 passed, 15 failed**, with 255 warnings, in 101.31 seconds.
   The failures match the documented WP1/WP2 baseline: no new failing tests.
 - Independent read-only review: no substantive findings.
-- Docker/image verification remains deferred to WP6.
+- Docker/image verification remains deferred to WP7; WP6 consumes its release evidence.
 
 Focused command:
 

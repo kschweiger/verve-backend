@@ -79,7 +79,7 @@ Each package is a separate tracking unit with its own deliverable and acceptance
 - Backend startup fails explicitly without a verified grid.
 - Other file formats retain their existing behavior.
 
-**Boundary:** Verve files only. No FIT, GPX, non-Verve GeoJSON, generic attachment, provenance schema, migration, or storage changes. Dockerfile changes and runtime-image deployment/verification belong to WP6.
+**Boundary:** Verve files only. No FIT, GPX, non-Verve GeoJSON, generic attachment, provenance schema, migration, or storage changes. Dockerfile changes and runtime-image deployment/verification belong to WP7.
 
 **Completion:** [x] Boundary decision settled · [x] Integration verified · [x] Checks recorded
 
@@ -147,16 +147,41 @@ Each package is a separate tracking unit with its own deliverable and acceptance
 - Verify actual import/export endpoints, reprocessing, and relevant RLS behavior.
 - Record every release requirement as complete, blocked, or explicitly deferred with evidence.
 - Document supported behavior, compatibility changes, source conventions, and elevation grid deployment.
-- Install the checksum-verified EGM2008 grid in the Docker runtime image and verify offline operation as the normal runtime user on both release architectures.
 
 **Acceptance:**
 
-- WP1–WP5 have recorded acceptance results.
+- WP1–WP5 and WP7 have recorded acceptance results.
 - Required checks pass; unresolved failures are identified and explained.
 - Documentation describes the delivered code and deployment requirements.
-- The deployed runtime contains the required EGM2008 grid and passes the mandatory startup validation.
+- WP7 provides evidence that the runtime image satisfies the mandatory elevation-grid startup requirement.
 - Unrelated untracked files and generated artifacts remain outside release changes.
 
-**Dependencies:** Final completion follows WP1–WP5. Establish a test baseline early.
+**Dependencies:** Final completion follows WP1–WP5 and WP7. Establish a test baseline early.
 
 **Completion:** [ ] Integration verified · [ ] Full checks recorded · [ ] Release documentation reconciled
+
+## WP7 — Docker elevation grid deployment
+
+**Goal:** Ship runtime images containing the verified EGM2008 grid required by WP3, ready for offline Verve elevation conversion.
+
+**Work:**
+
+- Install the existing pinned grid during the Docker build using the checksum-verifying downloader; fail the build on download or checksum errors.
+- Copy the verified artifact into the runtime image, configure `VERVE_EGM2008_GRID`, and ensure the normal runtime user can read it.
+- Exclude local `data/proj/` artifacts from the build context so developer files cannot replace the reproducible installation.
+- Verify conversion using the built image without network access; retain explicit startup failures for missing, corrupt, or unreadable grids.
+- Verify the release images for both `linux/amd64` and `linux/arm64`, and include image verification in the build/release workflow.
+- Document the image grid path, configuration overrides, and deployment prerequisites.
+
+**Acceptance:**
+
+- Both release architectures contain the checksum-pinned grid and perform a known conversion as the normal runtime user without downloading anything at startup or during requests.
+- A missing or corrupt build artifact cannot produce a successful release image.
+- An invalid runtime grid override aborts backend startup explicitly.
+- Local unverified grid files cannot enter the runtime image through the build context.
+
+**Boundary:** Container packaging and verification only. Reuse WP3's converter, downloader, and startup validation. No changes to storage, file-format behavior, or conversion semantics. Local and pytest CI grid installation already belong to WP3.
+
+**Dependencies:** WP3. Complete before WP6's final release sign-off.
+
+**Completion:** [ ] Verified artifact packaged · [ ] Both architectures verified offline · [ ] Deployment documented

@@ -47,7 +47,9 @@ original Verve source. WP3 does not run a bulk rewrite or change database schema
 or storage semantics.
 
 Dockerfile changes, runtime-image installation, offline image verification, and
-release-architecture checks are deferred to WP6. The grid startup requirement is
+release-architecture checks are tracked in
+[WP7 — Docker elevation grid deployment](superpowers/plans/2026-10-17-geojson-release-work-packages.md#wp7--docker-elevation-grid-deployment).
+The grid startup requirement is
 already mandatory; release images must satisfy it before deployment.
 
 Broader Verve export support remains a separate follow-up. WP3 changes elevation
