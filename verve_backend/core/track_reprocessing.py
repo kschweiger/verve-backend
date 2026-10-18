@@ -86,6 +86,7 @@ def reprocess_activity_track(
         file_content=content,
         fallback_timezone=get_user_timezone(session, user_id),
         verve_timezone=verve_timezone,
+        verve_data=verve_data,
     )
     track = parsed.track
     track.track.segments = [

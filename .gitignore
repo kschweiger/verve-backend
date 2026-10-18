@@ -141,3 +141,4 @@ cov.xml
 scripts/tracks/
 *.png
 digest.txt
+data/proj/

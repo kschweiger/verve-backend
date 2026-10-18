@@ -58,30 +58,32 @@ Each package is a separate tracking unit with its own deliverable and acceptance
 
 **Results:** [WP2 implementation and verification](2026-10-17-geojson-wp2-import.md).
 
-## WP3 — Elevation semantics and deployment
+## WP3 — Verve file elevation conversion
 
-**Goal:** Ensure exported heights use the WGS 84 ellipsoid through justified conversion.
+**Goal:** Convert Verve file ellipsoidal heights to existing sea-level storage on import and reverse the conversion on export.
 
 **Work:**
 
-- Trace elevation handling in the locked source parsers, storage, Verve import, and export.
-- Separate established datum facts from unknown source conventions.
-- Resolve conversion boundaries from that evidence.
-- Review and integrate the existing EGM2008 converter where appropriate.
-- Provide a reproducible, checksum-verified grid installation for runtime and verification.
-- Define explicit handling for heights whose reference cannot be established.
+- Apply the existing EGM2008 converter exclusively at validated Verve file import/export boundaries.
+- Preserve internal sea-level storage, supplied summaries, and original source bytes.
+- Convert before calculated statistics or writes; reprocess original Verve sources without accumulating conversions.
+- Require the checksum-verified local grid at backend startup; missing, corrupt, or unreadable grids abort startup.
+- Install the pinned grid locally and in CI for verification; do not skip real-grid tests.
 
 **Acceptance:**
 
-- Known source references produce independently verified ellipsoidal heights.
+- Verve imports store sea-level heights; Verve exports restore ellipsoidal heights.
 - Negative heights and already converted values remain correct.
 - Repeated import/export and reprocessing do not double-convert.
 - Missing or corrupt required grids cause explicit failures.
-- The deployed runtime has the required grid.
+- Backend startup fails explicitly without a verified grid.
+- Other file formats retain their existing behavior.
 
-**Boundary:** No blanket sea-level assumption, provenance schema, or migration is inherited from the ledger.
+**Boundary:** Verve files only. No FIT, GPX, non-Verve GeoJSON, generic attachment, provenance schema, migration, or storage changes. Dockerfile changes and runtime-image deployment/verification belong to WP6.
 
-**Completion:** [ ] Datum evidence recorded · [ ] Boundary decision settled · [ ] Integration and deployment verified
+**Completion:** [x] Boundary decision settled · [x] Integration verified · [x] Checks recorded
+
+**Results:** [WP3 implementation and verification](2026-10-18-geojson-wp3-elevation.md). Full-suite failures remain the 15 existing WP1/WP2 offsetless-Verve expectations assigned to WP6.
 
 ## WP4 — Cadence semantics
 
@@ -145,12 +147,14 @@ Each package is a separate tracking unit with its own deliverable and acceptance
 - Verify actual import/export endpoints, reprocessing, and relevant RLS behavior.
 - Record every release requirement as complete, blocked, or explicitly deferred with evidence.
 - Document supported behavior, compatibility changes, source conventions, and elevation grid deployment.
+- Install the checksum-verified EGM2008 grid in the Docker runtime image and verify offline operation as the normal runtime user on both release architectures.
 
 **Acceptance:**
 
 - WP1–WP5 have recorded acceptance results.
 - Required checks pass; unresolved failures are identified and explained.
 - Documentation describes the delivered code and deployment requirements.
+- The deployed runtime contains the required EGM2008 grid and passes the mandatory startup validation.
 - Unrelated untracked files and generated artifacts remain outside release changes.
 
 **Dependencies:** Final completion follows WP1–WP5. Establish a test baseline early.
