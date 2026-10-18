@@ -87,28 +87,32 @@ Each package is a separate tracking unit with its own deliverable and acceptance
 
 ## WP4 — Cadence semantics
 
-**Goal:** Export the required cadence meaning without incorrectly doubling values.
+**Goal:** Store cadence consistently as RPM and return activity-appropriate cadence without incorrectly doubling values.
 
 **Work:**
 
 - Trace cadence from FIT, GPX, and Verve through the locked parser and backend.
 - Establish which sources provide total steps, two-step strides, or crank revolutions.
 - Resolve normalization ownership from actual behavior.
-- Normalize demonstrably stride-based running values exactly once.
+- Store nullable fractional RPM for every activity; the user generates the model's migration afterward.
+- Convert Verve running steps/min to RPM on import, then convert stored RPM to total steps/min in backend responses and Verve export.
+- Apply response conversion to track samples, collection samples, and segment statistics using the current stored activity type.
 - Preserve cycling RPM and other sports’ cadence; document their counted motion.
 - Cover samples and supplied summaries within existing storage capabilities.
 
 **Acceptance:**
 
-- Known stride-based running values become total steps/min.
-- Already normalized running values remain unchanged.
+- Running Verve steps/min become stored RPM and return as total steps/min; repeated processing does not accumulate conversion.
+- FIT/GPX parser values retain the existing RPM convention; known parser gaps remain upstream follow-ups.
 - Cycling RPM remains unchanged.
 - Other sports’ cadence is retained.
 - Nulls, zeros, and repeated round trips remain correct.
 
 **Boundary:** No new cadence summary storage or blanket source conversion is assumed. Any required upstream change is identified explicitly.
 
-**Completion:** [ ] Source behavior established · [ ] Normalization decision settled · [ ] Regression cases verified
+**Completion:** [x] Source behavior established · [x] Normalization decision settled · [x] Regression cases verified
+
+**Results:** [WP4 implementation and verification](2026-10-18-geojson-wp4-cadence.md). No migration file is generated; cadence summaries retain existing storage limitations.
 
 ## WP5 — Swimming metadata 1.0
 

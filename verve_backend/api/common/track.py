@@ -17,6 +17,7 @@ from geo_track_analyzer.exceptions import (
     UnsupportedGeoJsonTypeError,
 )
 from geo_track_analyzer.track import GeoJsonTrack
+from pydantic import ValidationError
 from sqlmodel import Session, select, text
 from starlette.status import (
     HTTP_400_BAD_REQUEST,
@@ -27,13 +28,25 @@ from starlette.status import (
 from verve_backend import crud
 from verve_backend.api.common.timezone import resolve_activity_timezone
 from verve_backend.api.deps import ObjectStoreClient
+from verve_backend.core.cadence import (
+    cadence_for_activity,
+    cadence_from_verve,
+    is_running_activity,
+)
 from verve_backend.core.config import settings
 from verve_backend.core.date_utils import to_utc_with_default_timezone
 from verve_backend.core.elevation import (
     ElevationConversionError,
     get_elevation_converter,
 )
-from verve_backend.models import Activity, RawTrackData, TrackPoint, TrackPointResponse
+from verve_backend.models import (
+    Activity,
+    ActivitySubType,
+    ActivityType,
+    RawTrackData,
+    TrackPoint,
+    TrackPointResponse,
+)
 
 if TYPE_CHECKING:
     from verve_backend.schema.verve_file import VerveFeature
@@ -123,6 +136,20 @@ def parse_track(
     verve_data: VerveFeature | None = None,
 ) -> ParsedTrack:
     """Parse and select a display zone before any database or object-store writes."""
+    cadence_data = verve_data
+    if cadence_data is None and file_name.endswith(".json"):
+        source = json.loads(file_content)
+        props = source.get("properties", {})
+        if isinstance(props, dict) and props.get("verveVersion") == "1.0":
+            from verve_backend.schema.verve_file import VerveFeature
+
+            try:
+                cadence_data = VerveFeature.model_validate(source)
+            except ValidationError as exc:
+                raise HTTPException(
+                    status_code=HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="Invalid Verve track file",
+                ) from exc
     declared = timezone_name if timezone_name is not None else verve_timezone
     initial_timezone = (
         resolve_activity_timezone(
@@ -179,6 +206,18 @@ def parse_track(
         for point in segment.points
     ):
         track, file_type, no_geometry = _parse_track(file_name, file_content, timezone)
+    if cadence_data is not None:
+        running = is_running_activity(
+            cadence_data.properties.activity_type,
+            cadence_data.properties.activity_sub_type,
+        )
+        for segment in track.track.segments:
+            for point in segment.points:
+                for extension in point.extensions:
+                    if extension.tag == "cadence" and extension.text is not None:
+                        extension.text = str(
+                            cadence_from_verve(int(extension.text), running=running)
+                        )
     # Normalize before processing caches metrics: local subtraction uses wall time.
     for segment in track.track.segments:
         for point in segment.points:
@@ -256,6 +295,19 @@ def add_track(
     return parsed.track, n_points
 
 
+def activity_is_running(session: Session, activity: Activity) -> bool:
+    """Resolve the current activity classification once per response."""
+    activity_type = session.get(ActivityType, activity.type_id)
+    sub_type = (
+        session.get(ActivitySubType, activity.sub_type_id)
+        if activity.sub_type_id is not None
+        else None
+    )
+    return activity_type is not None and is_running_activity(
+        activity_type.name, sub_type.name if sub_type is not None else None
+    )
+
+
 def get_track_points_response(
     session: Session,
     activity_id: uuid.UUID,
@@ -272,6 +324,10 @@ def get_track_points_response(
     )
     if not session.exec(check_stmt).first():
         return []
+
+    activity = session.get(Activity, activity_id)
+    assert activity is not None
+    running = activity_is_running(session, activity)
 
     stmt = (
         importlib.resources.files("verve_backend.queries")
@@ -299,7 +355,7 @@ def get_track_points_response(
             else row.cumulative_distance_m,
             speed=row.speed_m_s,
             heartrate=row.heartrate,
-            cadence=row.cadence,
+            cadence=cadence_for_activity(row.cadence, running=running),
             power=row.power,
         )
         for i, row in enumerate(rows)

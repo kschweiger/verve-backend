@@ -5,6 +5,7 @@ from uuid import UUID
 from geoalchemy2 import Geometry
 from sqlmodel import Session, col, func, select
 
+from verve_backend.core.cadence import cadence_for_activity, is_running_activity
 from verve_backend.core.elevation import (
     ElevationConversionError,
     get_elevation_converter,
@@ -121,6 +122,10 @@ def _cast(session: Session, activity_id: UUID) -> VerveFeature:
         _sub_type = session.get(ActivitySubType, activity.sub_type_id)
         assert _type_name is not None
 
+    running = is_running_activity(
+        _type_name.name, _sub_type.name if _sub_type is not None else None
+    )
+
     props = VerveProperties(
         timezone=activity.timezone,
         name=activity.name,
@@ -198,7 +203,8 @@ def _cast(session: Session, activity_id: UUID) -> VerveFeature:
 
             _times.append(point.time)
             _heart_rates.append(point.heartrate)
-            _cadences.append(point.cadence)
+            cadence = cadence_for_activity(point.cadence, running=running)
+            _cadences.append(None if cadence is None else round(cadence))
             _powers.append(point.power)
 
         _features.append(
@@ -210,7 +216,9 @@ def _cast(session: Session, activity_id: UUID) -> VerveFeature:
                     {
                         "coord_times": _times,
                         "heart_rates": _heart_rates if any(_heart_rates) else None,
-                        "cadences": _cadences if any(_cadences) else None,
+                        "cadences": _cadences
+                        if any(value is not None for value in _cadences)
+                        else None,
                         "powers": _powers if any(_powers) else None,
                     }
                 ),

@@ -8,6 +8,7 @@
 - [How timezones work in the backend](docs/activity-timezone.md)
 - [Admin maintenance jobs](docs/admin-maintenance.md)
 - [Verve elevation conversion and required grid](docs/verve-elevation.md)
+- [Cadence storage and response units](docs/verve-cadence.md)
 
 ## Dependencies
 

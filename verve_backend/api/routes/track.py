@@ -20,15 +20,17 @@ from starlette.status import (
 
 from verve_backend import crud
 from verve_backend.api.common.track import (
-    add_track as upload_track,
-)
-from verve_backend.api.common.track import (
+    activity_is_running,
     get_track_points_response,
     parse_track,
+)
+from verve_backend.api.common.track import (
+    add_track as upload_track,
 )
 from verve_backend.api.common.utils import get_user_timezone
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import ObjectStoreClient, UserSession
+from verve_backend.core.cadence import cadence_for_activity
 from verve_backend.models import (
     Activity,
     ActivityType,
@@ -310,7 +312,8 @@ class SegmentResponse(BaseModel):
         default=None, description="Power metrics for the segment in W"
     )
     cadence: SegmentMetrics | None = Field(
-        default=None, description="Cadence metrics for the segment in rpm"
+        default=None,
+        description="Cadence metrics: running steps/min, cycling RPM, other counts/min",
     )
     pace: SegmentMetrics | None = Field(
         default=None, description="Pace of the segment in sec/km"
@@ -361,6 +364,8 @@ def segment_statistics(
         raise HTTPException(
             status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Activity not found"
         )
+
+    running = activity_is_running(session, activitiy)
 
     _cuts = session.exec(
         select(SegmentCut.point_id)
@@ -420,10 +425,12 @@ def segment_statistics(
         cadence = None
         if row["max_cadence"] is not None:
             has_cadence = True
+            avg_cadence = cadence_for_activity(row["avg_cadence"], running=running)
+            assert avg_cadence is not None
             cadence = SegmentMetrics(
-                min=row["min_cadence"],
-                max=row["max_cadence"],
-                avg=row["avg_cadence"],
+                min=cadence_for_activity(row["min_cadence"], running=running),
+                max=cadence_for_activity(row["max_cadence"], running=running),
+                avg=avg_cadence,
             )
 
         pace = None
