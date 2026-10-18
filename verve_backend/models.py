@@ -501,7 +501,9 @@ class TrackPoint(SQLModel, table=True):
     time: datetime | None = Field(default=None)
 
     heartrate: Annotated[int | None, "is_extension"] = Field(default=None)
-    cadence: Annotated[int | None, "is_extension"] = Field(default=None)
+    cadence: Annotated[float | None, "is_extension"] = Field(
+        default=None, description="Cadence in revolutions per minute (RPM)"
+    )
     power: Annotated[int | None, "is_extension"] = Field(default=None)
 
     extensions: dict = Field(sa_column=Column(JSON), default_factory=dict)
@@ -540,7 +542,9 @@ class TrackPointResponse(BaseModel):
 
     speed: float | None = Field(description="Speed in m/s")
     heartrate: int | None = Field(description="Heartrate in bpm")
-    cadence: int | None = Field(description="Cadence in 1/min")
+    cadence: float | None = Field(
+        description="Cadence: running steps/min, cycling RPM, other counts/min"
+    )
     power: int | None = Field(description="Power in W")
 
     add_extensions: dict[str, int | float] | None = None
