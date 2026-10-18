@@ -153,7 +153,7 @@ def test_swimming_patch_interprets_new_times_in_effective_activity_zone(
                 {
                     "index": 0,
                     "start_time": "2026-07-01T10:00:00",
-                    "end_time": "2026-07-01T08:10:00Z",
+                    "end_time": "2026-07-01T18:10:00Z",
                 },
             ],
         }
@@ -174,7 +174,7 @@ def test_swimming_patch_interprets_new_times_in_effective_activity_zone(
         2026, 7, 1, expected_hour, tzinfo=UTC
     )
     assert datetime.fromisoformat(lap["end_time"]) == datetime(
-        2026, 7, 1, 8, 10, tzinfo=UTC
+        2026, 7, 1, 18, 10, tzinfo=UTC
     )
 
 

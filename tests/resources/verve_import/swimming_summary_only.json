@@ -1,0 +1,15 @@
+{
+  "type": "FeatureCollection",
+  "properties": {
+    "verveVersion": "1.0",
+    "name": "Synthetic summary-only swimming",
+    "activityType": "Swimming",
+    "startTime": "2026-10-13T09:00:00Z",
+    "durationSeconds": 600,
+    "totalDistanceMeters": 182.88,
+    "metadata": {"target": "SwimmingMetaData", "version": "1.0", "data": {
+      "poolLengthMeters": 22.86, "lapCount": 8, "setCount": 2, "totalStrokeCount": 0, "strokeStyles": ["kickboard"]
+    }}
+  },
+  "features": [{"type": "Feature", "geometry": null, "properties": {"coordTimes": []}}]
+}

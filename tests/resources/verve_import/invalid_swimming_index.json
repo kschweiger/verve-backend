@@ -1,0 +1,9 @@
+{
+  "type": "FeatureCollection",
+  "properties": {
+    "verveVersion": "1.0", "name": "Invalid swimming lap index", "activityType": "Swimming",
+    "startTime": "2026-10-13T09:00:00Z", "durationSeconds": 600,
+    "metadata": {"target": "SwimmingMetaData", "version": "1.0", "data": {"laps": [{"index": 1}]}}
+  },
+  "features": [{"type": "Feature", "geometry": null, "properties": {"coordTimes": []}}]
+}

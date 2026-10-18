@@ -1,0 +1,9 @@
+{
+  "type": "FeatureCollection",
+  "properties": {
+    "verveVersion": "1.0", "name": "Invalid swimming extension version", "activityType": "Swimming",
+    "startTime": "2026-10-13T09:00:00Z", "durationSeconds": 600,
+    "metadata": {"target": "SwimmingMetaData", "version": "2.0", "data": {"lapCount": 8}}
+  },
+  "features": [{"type": "Feature", "geometry": null, "properties": {"coordTimes": []}}]
+}

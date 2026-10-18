@@ -37,7 +37,7 @@ def test_swimming_metadata_envelope_exports_camel_case() -> None:
                 "strokeStyles": ["breaststroke"],
                 "laps": [
                     {
-                        "index": 1,
+                        "index": 0,
                         "durationSeconds": 54.3,
                         "strokeStyle": "breaststroke",
                     }
@@ -56,7 +56,7 @@ def test_swimming_metadata_envelope_exports_camel_case() -> None:
             "strokeStyles": ["breaststroke"],
             "laps": [
                 {
-                    "index": 1,
+                    "index": 0,
                     "durationSeconds": 54.3,
                     "strokeStyle": "breaststroke",
                 }
@@ -132,7 +132,7 @@ def test_exporter_converts_core_swimming_metadata_to_envelope() -> None:
         {
             "target": "SwimmingMetaData",
             "pool_length_meters": 50,
-            "lap_count": 2,
+            "lap_count": 1,
             "set_count": 1,
             "styles": ["freestyle"],
             "laps": [
@@ -155,12 +155,13 @@ def test_exporter_converts_core_swimming_metadata_to_envelope() -> None:
             ],
         }
     )
+    assert isinstance(metadata, SwimmingMetaDataEnvelopeV1)
     dumped = metadata.model_dump(mode="json", by_alias=True, exclude_none=True)
 
     assert dumped["target"] == "SwimmingMetaData"
     assert dumped["version"] == "1.0"
     assert dumped["data"]["poolLengthMeters"] == 50.0
-    assert dumped["data"]["lapCount"] == 2
+    assert dumped["data"]["lapCount"] == 1
     assert dumped["data"]["setCount"] == 1
     assert dumped["data"]["laps"][0]["durationSeconds"] == 60.0
     assert dumped["data"]["laps"][0]["strokeStyle"] == "freestyle"
