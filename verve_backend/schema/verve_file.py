@@ -1,10 +1,7 @@
-from datetime import datetime
-from typing import Annotated, Any, Literal, Self
+from typing import Any, Literal, Self
 
 from pydantic import (
-    AwareDatetime,
     BaseModel,
-    BeforeValidator,
     ConfigDict,
     Field,
     SerializationInfo,
@@ -17,20 +14,9 @@ from pydantic.alias_generators import to_camel
 from pydantic_extra_types.timezone_name import TimeZoneName
 
 from verve_backend.schema.meta_data import KnownMetaDataEnvelope
+from verve_backend.schema.timestamps import FileTimestamp
 
 Coordinates = tuple[float, float, float]  # NOTE: Lon, Lat, Ele
-
-
-def _parse_file_timestamp(value: Any) -> datetime:
-    """Accept timestamp strings or datetimes without coercing epoch values."""
-    if isinstance(value, str):
-        return datetime.fromisoformat(value)
-    if isinstance(value, datetime):
-        return value
-    raise ValueError("File timestamps must be datetime strings or datetime values")
-
-
-FileTimestamp = Annotated[AwareDatetime, BeforeValidator(_parse_file_timestamp)]
 
 
 def check_length(data: list | None, exp_length: int) -> bool:
@@ -121,6 +107,22 @@ class LineFeature(VerveBaseModel):
 
 
 class VerveProperties(VerveBaseModel):
+    @field_validator("metadata", mode="before")
+    @classmethod
+    def validate_known_metadata(cls, value: Any) -> Any:
+        if isinstance(value, dict) and value.get("target") == "SwimmingMetaData":
+            return KnownMetaDataEnvelope.model_validate(value)
+        return value
+
+    @model_validator(mode="after")
+    def validate_metadata_activity(self) -> Self:
+        if (
+            isinstance(self.metadata, KnownMetaDataEnvelope)
+            and self.activity_type != "Swimming"
+        ):
+            raise ValueError("Swimming metadata requires the Swimming activity type")
+        return self
+
     # -- Identification --
     verve_version: Literal["1.0"] = "1.0"
     generator: str = "VerveBackend"

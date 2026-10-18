@@ -497,6 +497,7 @@ def test_auto_activity(
     activity = ActivityPublic.model_validate(response.json())
 
     # Verify that activity was created with data from the FIT file
+    assert activity.distance is not None
     assert activity.distance > 0
     assert activity.duration.total_seconds() > 0
 
@@ -784,6 +785,7 @@ def test_update_swimming_metadata_resolves_times_and_preserves_other_fields(
     swimming = db.exec(
         select(ActivityType).where(ActivityType.name == "Swimming")
     ).one()
+    assert swimming.id is not None
     activity = Activity(
         timezone="Europe/Berlin",
         start=datetime(2025, 1, 1, tzinfo=UTC),
@@ -810,7 +812,7 @@ def test_update_swimming_metadata_resolves_times_and_preserves_other_fields(
                     {
                         "index": 0,
                         "start_time": "2025-01-01T00:30:00",
-                        "end_time": "2025-01-01T00:40:00+02:00",
+                        "end_time": "2025-01-01T01:40:00+02:00",
                         "custom": "keep this too",
                     }
                 ],
@@ -825,7 +827,7 @@ def test_update_swimming_metadata_resolves_times_and_preserves_other_fields(
         2024, 12, 31, 23, 30, tzinfo=UTC
     )
     assert datetime.fromisoformat(metadata["laps"][0]["end_time"]) == datetime(
-        2024, 12, 31, 22, 40, tzinfo=UTC
+        2024, 12, 31, 23, 40, tzinfo=UTC
     )
 
 
@@ -1406,8 +1408,8 @@ def test_import_activity_swimming_verve_file_stores_core_metadata(
         json_content = f.read()
     data = json.loads(json_content)
     swim_data = data["properties"]["metadata"]["data"]
-    swim_data["laps"][0]["startTime"] = "2026-05-31T14:11:33"
-    swim_data["sets"][0]["endTime"] = "2026-05-31T14:13:30+02:00"
+    swim_data["laps"][0]["startTime"] = "2026-05-31T14:11:33Z"
+    swim_data["sets"][0]["endTime"] = "2026-05-31T16:13:30+02:00"
 
     response = client.post(
         "/activity/import/",
@@ -1439,10 +1441,10 @@ def test_import_activity_swimming_verve_file_stores_core_metadata(
     assert imported_activity.meta_data["sets"][0]["avg_swofl"] == 83.65062963962555
     assert datetime.fromisoformat(
         imported_activity.meta_data["laps"][0]["start_time"].replace("Z", "+00:00")
-    ) == datetime(2026, 5, 31, 21, 11, 33, tzinfo=UTC)
+    ) == datetime(2026, 5, 31, 14, 11, 33, tzinfo=UTC)
     assert datetime.fromisoformat(
         imported_activity.meta_data["sets"][0]["end_time"].replace("Z", "+00:00")
-    ) == datetime(2026, 5, 31, 12, 13, 30, tzinfo=UTC)
+    ) == datetime(2026, 5, 31, 14, 13, 30, tzinfo=UTC)
 
 
 def test_import_invalid_json_file(

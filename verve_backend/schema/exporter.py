@@ -39,9 +39,25 @@ MetaDataExport = KnownMetaDataEnvelope | dict[str, Any]
 MetaDataExporter = Callable[[dict], MetaDataExport]
 
 
-def _swimming_metadata_for_verve_export(meta_data: dict) -> SwimmingMetaDataEnvelopeV1:
+def _swimming_metadata_for_verve_export(meta_data: dict) -> MetaDataExport:
+    if all(
+        meta_data.get(field) is None
+        for field in (
+            "pool_length_meters",
+            "total_stroke_count",
+            "avg_swofl",
+            "lap_count",
+            "set_count",
+        )
+    ) and all(
+        meta_data.get(field) is None or meta_data[field] == []
+        for field in ("styles", "laps", "sets")
+    ):
+        return {}
     core_meta_data = SwimmingMetaData.model_validate(meta_data)
     return SwimmingMetaDataEnvelopeV1(
+        target="SwimmingMetaData",
+        version="1.0",
         data=SwimmingMetaDataV1(
             pool_length_meters=core_meta_data.pool_length_meters,
             total_stroke_count=core_meta_data.total_stroke_count,
@@ -67,7 +83,8 @@ def _swimming_metadata_for_verve_export(meta_data: dict) -> SwimmingMetaDataEnve
                 )
                 for lap in core_meta_data.laps or []
             ]
-            or None,
+            if core_meta_data.laps is not None
+            else None,
             sets=[
                 SwimSetDataV1(
                     index=set_data.index,
@@ -89,8 +106,9 @@ def _swimming_metadata_for_verve_export(meta_data: dict) -> SwimmingMetaDataEnve
                 )
                 for set_data in core_meta_data.sets or []
             ]
-            or None,
-        )
+            if core_meta_data.sets is not None
+            else None,
+        ),
     )
 
 

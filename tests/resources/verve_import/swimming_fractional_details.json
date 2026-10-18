@@ -1,0 +1,32 @@
+{
+  "type": "FeatureCollection",
+  "properties": {
+    "verveVersion": "1.0",
+    "name": "Synthetic fractional swimming lengths",
+    "activityType": "Swimming",
+    "startTime": "2026-10-13T08:00:00Z",
+    "durationSeconds": 115,
+    "totalDistanceMeters": 45.72,
+    "metadata": {
+      "target": "SwimmingMetaData",
+      "version": "1.0",
+      "data": {
+        "poolLengthMeters": 22.86,
+        "totalStrokeCount": 42,
+        "averageSwolf": 73.5,
+        "laps": [
+          {"index": 0, "startTime": "2026-10-13T10:00:00+02:00", "endTime": "2026-10-13T08:00:50Z", "durationSeconds": 50, "distanceMeters": 22.86, "strokeCount": 20, "swolf": 70, "restAfterSeconds": 10},
+          {"index": 1, "startTime": "2026-10-13T08:01:00Z", "endTime": "2026-10-13T08:01:55Z", "durationSeconds": 55, "distanceMeters": 22.86, "strokeCount": 22, "swolf": 77}
+        ],
+        "sets": [
+          {"index": 0, "startTime": "2026-10-13T08:00:00Z", "endTime": "2026-10-13T08:01:55Z", "durationSeconds": 115, "distanceMeters": 45.72, "lapStartIndex": 0, "lapEndIndex": 1, "lapCount": 2, "averageSwolf": 73.5}
+        ]
+      }
+    }
+  },
+  "features": [{
+    "type": "Feature",
+    "geometry": {"type": "LineString", "coordinates": [[11.5, 48, 100], [11.501, 48, 100]]},
+    "properties": {"coordTimes": ["2026-10-13T08:00:00Z", "2026-10-13T08:01:55Z"]}
+  }]
+}

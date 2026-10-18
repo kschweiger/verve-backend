@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from importlib import resources
 from typing import Any
 from uuid import UUID, uuid4
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient
@@ -39,6 +40,8 @@ VALID_FILES = [
     "summary_only_missing_stats.json",
 ]
 INVALID_FILES = [
+    "invalid_swimming_version.json",
+    "invalid_swimming_index.json",
     "invalid_mixed_geometry.json",
     "invalid_sensor_alignment.json",
     "unsupported_fractional_power.json",
@@ -117,6 +120,70 @@ def read_source(file_name: str) -> tuple[bytes, dict[str, Any]]:
         .read_bytes()
     )
     return content, json.loads(content)
+
+
+@pytest.mark.parametrize(
+    "file_name", ["swimming_fractional_details.json", "swimming_summary_only.json"]
+)
+@pytest.mark.parametrize("upload_path", UPLOAD_PATHS)
+def test_swimming_import_preserves_metadata_and_reprocessing(
+    db: Session,
+    upload_client: TestClient,
+    temp_user_id: UUID,
+    temp_user_token: str,
+    object_store: S3Client,
+    file_name: str,
+    upload_path: str,
+) -> None:
+    from verve_backend.schema.exporter import _cast, _metadata_for_verve_export
+    from verve_backend.schema.meta_data import SwimmingMetaDataEnvelopeV1
+    from verve_backend.tasks import reprocess_stored_track
+
+    content, source = read_source(file_name)
+    response = upload_client.post(
+        upload_path,
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        files={"file": (file_name, content, "application/json")},
+    )
+    assert response.status_code == 200, response.text
+    activity_id = UUID(response.json()["id"])
+    db.expire_all()
+    activity = db.get(Activity, activity_id)
+    assert activity is not None
+    expected = (
+        SwimmingMetaDataEnvelopeV1.model_validate(source["properties"]["metadata"])
+        .to_core_meta_data(ZoneInfo(activity.timezone))
+        .model_dump(mode="json")
+    )
+    assert activity.meta_data == expected
+    assert activity.meta_data["pool_length_meters"] == pytest.approx(22.86)
+    if file_name == "swimming_summary_only.json":
+        assert activity.meta_data["lap_count"] == 8
+        assert activity.meta_data["total_stroke_count"] == 0
+        assert activity.meta_data["laps"] is None
+    else:
+        assert activity.meta_data["laps"][0]["distance_meters"] == pytest.approx(22.86)
+        assert activity.meta_data["sets"][0]["durations"] == "PT1M55S"
+        assert activity.meta_data["sets"][0]["avg_swofl"] == 73.5
+        assert datetime.fromisoformat(
+            activity.meta_data["laps"][0]["start_time"]
+        ) == datetime(2026, 10, 13, 8, tzinfo=UTC)
+        exported = VerveFeature.model_validate_json(_cast(db, activity.id).to_json())
+        assert isinstance(exported.properties.metadata, SwimmingMetaDataEnvelopeV1)
+        assert exported.properties.metadata.data.sets is not None
+        assert exported.properties.metadata.data.sets[0].duration_seconds == 115
+    converted = _metadata_for_verve_export(activity.meta_data)
+    assert isinstance(converted, SwimmingMetaDataEnvelopeV1)
+    assert (
+        converted.to_core_meta_data(ZoneInfo("UTC")).model_dump(mode="json") == expected
+    )
+    for _ in range(2):
+        result = reprocess_stored_track(activity_id=activity.id, user_id=temp_user_id)
+        assert result["error"] is None, result
+        db.expire_all()
+        db.refresh(activity)
+        assert activity.meta_data == expected
+        assert_source_bytes(db, object_store, activity, file_name)
 
 
 @pytest.fixture

@@ -116,30 +116,6 @@ def test_parse_meta_data(
             "sets": [{"index": 0, "style": "freestyle"}],
             "laps": [{"style": "freestyle"}],
         },
-        # lap count missing with set laps
-        {
-            "target": "SwimmingMetaData",
-            "pool_length_meters": 50,
-            "laps": [{"index": 0, "style": "freestyle"}],
-        },
-        # lap count set but laps missing
-        {
-            "target": "SwimmingMetaData",
-            "pool_length_meters": 50,
-            "lap_count": 1,
-        },
-        # set count missing with set sets
-        {
-            "target": "SwimmingMetaData",
-            "pool_length_meters": 50,
-            "sets": [{"index": 0, "style": "freestyle"}],
-        },
-        # set count set but sets missing
-        {
-            "target": "SwimmingMetaData",
-            "pool_length_meters": 50,
-            "set_count": 1,
-        },
         # Invaild enum type
         {
             "target": "SwimmingMetaData",

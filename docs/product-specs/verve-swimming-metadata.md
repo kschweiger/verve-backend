@@ -17,6 +17,9 @@ Swimming metadata is stored in the root Verve GeoJSON properties object under th
   "type": "FeatureCollection",
   "properties": {
     "verveVersion": "1.0",
+    "name": "Summary-only swimming example",
+    "startTime": "2026-10-13T08:00:00Z",
+    "durationSeconds": 600,
     "activityType": "Swimming",
     "activitySubType": "Outdoor Pool",
     "metadata": {
@@ -28,13 +31,11 @@ Swimming metadata is stored in the root Verve GeoJSON properties object under th
         "averageSwolf": 97.1,
         "lapCount": 10,
         "setCount": 8,
-        "strokeStyles": ["breaststroke", "freestyle"],
-        "laps": [],
-        "sets": []
+        "strokeStyles": ["breaststroke", "freestyle"]
       }
     }
   },
-  "features": []
+  "features": [{"type": "Feature", "geometry": null, "properties": {"coordTimes": []}}]
 }
 ```
 
@@ -49,6 +50,10 @@ This envelope is the Verve file transfer representation. Backend activity APIs e
 | `data` | object | yes | Source-neutral swimming metadata payload. |
 
 Importers must use `target` and `version` to decide how to parse `data`.
+All three envelope members must be explicit and non-null. The backend rejects
+missing or unsupported versions for the reserved `SwimmingMetaData` target;
+invalid swimming envelopes cannot fall back to arbitrary metadata dictionaries.
+Other metadata targets remain supported as arbitrary core metadata.
 
 ## Backend/API Representation
 
@@ -64,9 +69,7 @@ The backend representation uses Python/backend field names and is shaped like `S
   "avg_swofl": 97.1,
   "lap_count": 10,
   "set_count": 8,
-  "styles": ["breaststroke", "freestyle"],
-  "laps": [],
-  "sets": []
+  "styles": ["breaststroke", "freestyle"]
 }
 ```
 
@@ -77,7 +80,7 @@ The backend representation is intended for Verve API consumers and internal pers
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `target` | string | yes | Metadata target. Swimming metadata uses `"SwimmingMetaData"`. |
-| `pool_length_meters` | integer | no | Pool length in meters. |
+| `pool_length_meters` | number | no | Pool length in meters, preserving fractional values. |
 | `total_stroke_count` | integer | no | Total counted swim strokes for the whole workout. |
 | `avg_swofl` | number | no | Average swim efficiency score across the workout or imported laps. This is the current backend field name. |
 | `lap_count` | integer | no | Number of lap objects stored or reported by the source. |
@@ -94,7 +97,7 @@ The backend representation is intended for Verve API consumers and internal pers
 | `start_time` | string | no | ISO-8601 lap start time. |
 | `end_time` | string | no | ISO-8601 lap end time. |
 | `durations` | string | no | Lap duration encoded as an ISO-8601 duration string. |
-| `distance_meters` | integer | no | Lap distance in meters. |
+| `distance_meters` | number | no | Lap distance in meters, preserving fractional values. |
 | `style` | string | no | Stroke style enum value. |
 | `stroke_count` | integer | no | Stroke count for this lap. |
 | `swolf` | number | no | SWOLF score for this lap. |
@@ -127,7 +130,7 @@ Example:
 | `lap_start_index` | integer | no | Index of the first included lap. |
 | `lap_end_index` | integer | no | Index of the last included lap. |
 | `lap_count` | integer | no | Number of laps in the set. |
-| `distance_meters` | integer | no | Set distance in meters. |
+| `distance_meters` | number | no | Set distance in meters, preserving fractional values. |
 | `style` | string | no | Single style if all included laps agree; `mixed` if styles differ. |
 | `stroke_count` | integer | no | Total stroke count for the set. |
 | `avg_swofl` | number | no | Average SWOLF for the set. This is the current backend field name. |
@@ -203,7 +206,49 @@ Meaningful swim fields are:
 - non-empty `laps`
 - non-empty `sets`
 
-Exporters must omit swimming metadata when `data` would be empty. Importers may accept and ignore an empty `data` object for tolerance, but empty swim metadata is not meaningful Verve swimming metadata.
+Each recognized non-null scalar qualifies, including zero. Unknown fields, nulls,
+and empty arrays alone are insufficient. The backend rejects empty/unavailable-only
+swimming input and omits the swimming envelope when exporting unavailable legacy
+metadata.
+
+Counts and detail arrays are independently optional. When both are non-null,
+the count must equal the array length, including empty arrays. An absent or null
+array means details are unavailable; `[]` means no detail records were reported.
+Every lap/set index equals its zero-based array position. Each supplied set lap
+reference must address a supplied lap. Either boundary may appear alone; when both
+are supplied, the range is ordered and any set lap count equals its inclusive size.
+
+Defined numerical values must be finite JSON numbers. Counts and indices must be
+nonnegative integers. The backend rejects boolean and string coercion for these
+fields. Positivity recommendations for lengths, distances, durations, rest, and
+SWOLF do not add rejection rules.
+
+### Timing and API validation
+
+Wire lap/set timestamps require explicit offsets. Interval end must not precede
+start when compared as UTC instants. File imports never apply a local timezone
+fallback to offsetless swimming timestamps.
+
+Activity creation and PATCH accept the existing backend representation and retain
+application timezone fallback for local timestamps. Both normalize to UTC and
+validate the resulting interval. PATCH uses request timezone, payload timezone,
+stored activity timezone, then owner timezone, in that order. Custom fields are
+preserved, but do not themselves make swimming metadata meaningful. Invalid
+creation metadata returns HTTP 400; invalid recognized PATCH metadata returns
+HTTP 422 without saving other requested changes. Arbitrary PATCH metadata and
+clearing metadata with `{}` remain supported.
+
+Lap/set duration means elapsed interval time. A set containing 50- and 55-second
+lengths separated by 10 seconds of rest has a 115-second duration. Rest after the
+set is separate. Reported durations, rest, SWOLF, and averages are preserved;
+the backend does not derive missing values or require exact arithmetic agreement
+with timestamp boundaries. This accommodates rounded timestamps and source
+precision. Duration conversion uses Python timedelta microsecond precision.
+
+Stricter structural validation can reject previously accepted malformed metadata.
+There is no automatic repair, reindexing, or database migration. Reprocessing
+validates original Verve sources but retains existing activity metadata. General
+non-spatial activity export remains a separate follow-up.
 
 ## Stroke Styles
 
@@ -299,8 +344,8 @@ For sets, `averageSwolf` should represent the average of the included lap SWOLF 
 
 ## Derivation Rules
 
-- `lapCount` should equal `laps.length` when laps are exported.
-- `setCount` should equal `sets.length` when sets are exported.
+- A supplied non-null `lapCount` must equal `laps.length` when the array is non-null.
+- A supplied non-null `setCount` must equal `sets.length` when the array is non-null.
 - `strokeStyles` should be derived from available lap and set styles, excluding `unknown` unless all available styles are unknown.
 - `strokeCount` for a lap may be inferred from `swolf - durationSeconds` only when the source definition is known to use standard SWOLF for that pool length.
 - `strokeCount` for a set may be summed from included laps when direct set stroke count is unavailable.
@@ -308,6 +353,9 @@ For sets, `averageSwolf` should represent the average of the included lap SWOLF 
 - `distanceMeters` for a set may be computed as the sum of included lap distances.
 - `restAfterSeconds` should be computed from adjacent interval boundaries, not inferred from pauses unless interval boundaries are unavailable.
 - If a source provides only set-level data, omit `lapStartIndex` and `lapEndIndex`.
+
+These derivations describe exporter recommendations. The backend preserves
+supplied values and does not synthesize missing swimming metrics.
 
 ## Non-Goals
 

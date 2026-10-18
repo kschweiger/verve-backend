@@ -23,8 +23,6 @@ from verve_backend.core.date_utils import to_utc_with_default_timezone
 from verve_backend.core.db import get_search_query
 from verve_backend.core.meta_data import (
     ActivityMetaData,
-    SwimmingMetaData,
-    normalize_swimming_times_to_utc,
     validate_meta_data,
 )
 from verve_backend.core.security import (
@@ -161,11 +159,10 @@ def create_activity(
             activity_type=activity_type,
             sub_activity_type=session.get(ActivitySubType, create.sub_type_id),
             data=create.meta_data,
+            timezone=timezone,
         )
         if not isinstance(validation_result, ActivityMetaData):
             return Err(validation_result)
-        if isinstance(validation_result, SwimmingMetaData):
-            normalize_swimming_times_to_utc(validation_result, timezone)
         create.meta_data = validation_result.model_dump(mode="json")
 
     db_obj = Activity.model_validate(

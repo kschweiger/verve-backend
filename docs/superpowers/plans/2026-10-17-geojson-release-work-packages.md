@@ -126,6 +126,7 @@ Each package is a separate tracking unit with its own deliverable and acceptance
 - Accept non-null scalar zeros; reject metadata containing only unknown, null, or empty values.
 - Require offset-qualified wire timestamps and compare interval boundaries as instants.
 - Validate recognized swimming envelopes directly, preventing arbitrary-dictionary fallback.
+- Validate recognized core swimming metadata on activity creation and PATCH while preserving application timezone fallback and custom fields.
 - Preserve elapsed interval durations, separate rest, and length-based SWOLF meaning without enforcing exact arithmetic beyond source precision.
 
 **Acceptance:**
@@ -137,7 +138,9 @@ Each package is a separate tracking unit with its own deliverable and acceptance
 
 **Boundary:** Arbitrary core metadata remains supported. Core timestamp validation is owned by WP1.
 
-**Completion:** [ ] Wire contract tested · [ ] Internal conversion tested · [ ] Checks passed
+**Completion:** [x] Wire contract tested · [x] Internal conversion tested · [x] Checks passed
+
+**Results:** [WP5 implementation and verification](2026-10-18-geojson-wp5-swimming.md). Final full suite: 686 passed and the same 15 existing WP1/WP2 offsetless-Verve failures assigned to WP6. Validation lives in the Pydantic models; the existing untracked swimming validation helper remains unused and untouched.
 
 ## WP6 — Release verification and documentation
 
