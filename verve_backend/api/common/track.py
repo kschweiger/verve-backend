@@ -5,6 +5,7 @@ import uuid
 from dataclasses import dataclass
 from io import BytesIO
 from time import perf_counter
+from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 import structlog
@@ -28,7 +29,14 @@ from verve_backend.api.common.timezone import resolve_activity_timezone
 from verve_backend.api.deps import ObjectStoreClient
 from verve_backend.core.config import settings
 from verve_backend.core.date_utils import to_utc_with_default_timezone
+from verve_backend.core.elevation import (
+    ElevationConversionError,
+    get_elevation_converter,
+)
 from verve_backend.models import Activity, RawTrackData, TrackPoint, TrackPointResponse
+
+if TYPE_CHECKING:
+    from verve_backend.schema.verve_file import VerveFeature
 
 logger = structlog.getLogger(__name__)
 
@@ -112,6 +120,7 @@ def parse_track(
     fallback_timezone: ZoneInfo,
     timezone_name: str | None = None,
     verve_timezone: str | None = None,
+    verve_data: VerveFeature | None = None,
 ) -> ParsedTrack:
     """Parse and select a display zone before any database or object-store writes."""
     declared = timezone_name if timezone_name is not None else verve_timezone
@@ -175,6 +184,17 @@ def parse_track(
         for point in segment.points:
             if point.time is not None:
                 point.time = to_utc_with_default_timezone(point.time, timezone)
+    # Only validated Verve imports use ellipsoidal file heights. Other formats
+    # and generic track attachments retain their existing elevation behavior.
+    if verve_data is not None and file_type == "json" and not no_geometry:
+        converter = get_elevation_converter()
+        for segment in track.track.segments:
+            for point in segment.points:
+                if point.elevation is None:
+                    raise ElevationConversionError("Spatial Verve point has no height")
+                point.elevation = converter.to_sea_level(
+                    point.longitude, point.latitude, point.elevation
+                )
     return ParsedTrack(track, timezone, file_type, no_geometry)
 
 

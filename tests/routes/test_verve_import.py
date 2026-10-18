@@ -1,4 +1,4 @@
-"""File-based acceptance tests for WP2; production behavior is not changed here."""
+"""File-based acceptance tests for Verve import and reprocessing."""
 
 import json
 from collections.abc import Callable, Generator
@@ -16,6 +16,7 @@ from pydantic import ValidationError
 from sqlmodel import Session, col, select
 
 from verve_backend.core.config import settings
+from verve_backend.core.elevation import get_elevation_converter
 from verve_backend.models import (
     Activity,
     RawTrackData,
@@ -28,6 +29,7 @@ from verve_backend.schema.verve_file import VerveFeature
 pytestmark = pytest.mark.usefixtures("celery_eager", "source_keys")
 
 VALID_FILES = [
+    "elevation_grid_node.json",
     "spatial_supplied_stats.json",
     "spatial_missing_stats.json",
     "spatial_partial_stats.json",
@@ -43,6 +45,14 @@ INVALID_FILES = [
 ]
 UPLOAD_PATHS = ["/activity/import/", "/activity/auto/"]
 EXPECTED_STATISTICS = {
+    "elevation_grid_node.json": {
+        "avg_speed": 36,
+        "max_speed": 43.2,
+        "avg_heartrate": None,
+        "max_heartrate": None,
+        "avg_power": None,
+        "max_power": None,
+    },
     "spatial_supplied_stats.json": {
         "avg_speed": 36,
         "max_speed": 43.2,
@@ -272,7 +282,9 @@ def assert_samples(db: Session, activity: Activity, source: dict[str, Any]) -> N
     assert [point.extensions.get("temperature") for point in points] == [
         value
         for feature in features
-        for value in feature["properties"].get("temperatures", [])
+        for value in feature["properties"].get(
+            "temperatures", [None] * len(feature["properties"]["coordTimes"])
+        )
     ]
 
     expected_coordinates = [
@@ -283,7 +295,8 @@ def assert_samples(db: Session, activity: Activity, source: dict[str, Any]) -> N
     ]
     if expected_coordinates:
         assert len(points) == len(expected_coordinates)
-        for point, (longitude, latitude, _) in zip(
+        converter = get_elevation_converter()
+        for point, (longitude, latitude, height) in zip(
             points, expected_coordinates, strict=True
         ):
             assert point.geography is not None
@@ -291,6 +304,9 @@ def assert_samples(db: Session, activity: Activity, source: dict[str, Any]) -> N
             location = to_shape(point.geography)
             assert location.x == pytest.approx(longitude)
             assert location.y == pytest.approx(latitude)
+            assert point.elevation == pytest.approx(
+                converter.to_sea_level(longitude, latitude, height)
+            )
     else:
         assert all(
             point.geography is None and point.geometry is None for point in points
@@ -339,7 +355,7 @@ def assert_activity(db: Session, activity: Activity, file_name: str) -> None:
         if member in props:
             assert value == props[member], field
         elif source["features"][0]["geometry"] is not None:
-            # Datum conversion is WP3; only require an available calculation.
+            # Missing summaries are calculated from the converted track.
             assert value is not None, field
             assert value >= 0, field
         else:

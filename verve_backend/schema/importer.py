@@ -97,6 +97,7 @@ def convert_verve_file_to_activity(
         fallback_timezone=timezone,
         timezone_name=timezone_name,
         verve_timezone=data.properties.timezone,
+        verve_data=data,
     )
     timezone = parsed.timezone
     track = parsed.track

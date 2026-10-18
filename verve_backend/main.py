@@ -10,6 +10,7 @@ from fastapi.routing import APIRoute
 
 from verve_backend.api.main import api_router
 from verve_backend.core.config import settings
+from verve_backend.core.elevation import get_elevation_converter
 from verve_backend.core.logging_utils import request_id_context, setup_logging
 
 access_logger = structlog.getLogger("verve_backend.access")
@@ -19,6 +20,9 @@ logger = structlog.getLogger("verve_backend.main")
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     setup_logging(settings.LOG_LEVEL)
+    # A verified local grid is mandatory before this process accepts requests.
+    get_elevation_converter.cache_clear()
+    get_elevation_converter()
     logger.info("Verve Backend started and logging initialized")
     yield
     logger.info("Verve Backend shutting down")

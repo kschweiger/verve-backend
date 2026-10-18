@@ -1,0 +1,44 @@
+{
+  "type": "FeatureCollection",
+  "properties": {
+    "verveVersion": "1.0",
+    "generator": "Verve WP3 grid-node fixture",
+    "name": "Negative, zero, and positive Verve heights",
+    "activityType": "Cycling",
+    "startTime": "2026-10-17T08:00:00Z",
+    "durationSeconds": 180,
+    "timezone": "UTC",
+    "movingDurationSeconds": 120,
+    "elevationGain": 0,
+    "elevationLoss": 0,
+    "stats": {"speed": {"avg": 10, "max": 12}, "heartRate": {}, "power": {}}
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[11.5, 48, -100], [11.5, 48, 0], [11.5, 48, 520]]
+      },
+      "properties": {
+        "coordTimes": ["2026-10-17T08:00:00Z", "2026-10-17T08:00:30Z", "2026-10-17T08:01:00Z"],
+        "heartRates": [0, null, 120],
+        "cadences": [0, null, 80],
+        "powers": [0, null, 150]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[11.5, 48, 40], [11.5, 48, 0], [11.5, 48, -20]]
+      },
+      "properties": {
+        "coordTimes": ["2026-10-17T08:02:00Z", "2026-10-17T08:02:30Z", "2026-10-17T08:03:00Z"],
+        "heartRates": [130, 0, null],
+        "cadences": [90, 0, null],
+        "powers": [180, 0, null]
+      }
+    }
+  ]
+}

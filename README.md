@@ -7,11 +7,21 @@
 
 - [How timezones work in the backend](docs/activity-timezone.md)
 - [Admin maintenance jobs](docs/admin-maintenance.md)
+- [Verve elevation conversion and required grid](docs/verve-elevation.md)
 
 ## Dependencies
 
 - A postgreSQL instance with enables postgis extension. **Postgres >= 18 required**
 - Some kind of boto3 compatible object store (e.g. rustfs)
+- The checksum-verified EGM2008 elevation grid. Install it before starting the
+  backend or running tests:
+
+  ```bash
+  uv run python -m verve_backend.cli.download_elevation_grid
+  ```
+
+  Missing, corrupt, or unreadable grids abort backend startup. See the elevation
+  documentation for `VERVE_EGM2008_GRID` and installation details.
 
 ## Database setup
 

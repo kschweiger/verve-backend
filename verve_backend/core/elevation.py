@@ -31,10 +31,13 @@ def grid_path() -> Path:
 class ElevationConverter:
     def __init__(self, path: Path | None = None) -> None:
         path = (path or grid_path()).resolve()
-        if not path.is_file():
-            raise ElevationConversionError(f"Required EGM2008 grid missing: {path}")
-        with path.open("rb") as stream:
-            digest = hashlib.file_digest(stream, "sha256").hexdigest()
+        try:
+            if not path.is_file():
+                raise ElevationConversionError(f"Required EGM2008 grid missing: {path}")
+            with path.open("rb") as stream:
+                digest = hashlib.file_digest(stream, "sha256").hexdigest()
+        except OSError as exc:
+            raise ElevationConversionError(f"Cannot read EGM2008 grid: {path}") from exc
         if digest != GRID_SHA256:
             raise ElevationConversionError(f"EGM2008 grid checksum mismatch: {path}")
         # An explicit required local grid prevents network and identity fallbacks.

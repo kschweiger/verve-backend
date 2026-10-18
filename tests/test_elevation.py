@@ -3,22 +3,18 @@ from io import BytesIO
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 from pytest_mock import MockerFixture
 
 from verve_backend.core.elevation import (
     ElevationConversionError,
     ElevationConverter,
-    grid_path,
+    get_elevation_converter,
 )
 
 
 @pytest.fixture
 def converter() -> ElevationConverter:
-    if not grid_path().is_file():
-        pytest.skip(
-            "Install the EGM2008 grid with: "
-            "python -m verve_backend.cli.download_elevation_grid"
-        )
     return ElevationConverter()
 
 
@@ -110,6 +106,54 @@ def test_grid_downloader_keeps_existing_grid_when_checksum_fails(
         download_elevation_grid, "urlopen", return_value=BytesIO(b"corrupt download")
     )
     with pytest.raises(ValueError, match="checksum"):
+        download_elevation_grid.main()
+    assert destination.read_bytes() == b"existing verified grid"
+    assert list(tmp_path.iterdir()) == [destination]
+
+
+def test_unreadable_grid_reports_conversion_error(
+    tmp_path: Path, mocker: MockerFixture
+) -> None:
+    path = tmp_path / "unreadable.tif"
+    path.write_bytes(b"grid")
+    mocker.patch.object(Path, "open", side_effect=PermissionError("unreadable"))
+    with pytest.raises(ElevationConversionError) as caught:
+        ElevationConverter(path)
+    assert isinstance(caught.value.__cause__, PermissionError)
+
+
+@pytest.mark.parametrize("corrupt", [False, True], ids=["missing", "corrupt"])
+def test_backend_startup_requires_verified_grid(
+    tmp_path: Path, mocker: MockerFixture, corrupt: bool
+) -> None:
+    from verve_backend.main import app
+
+    # Startup must validate even if a previous app instance populated the cache.
+    get_elevation_converter()
+    path = tmp_path / "grid.tif"
+    if corrupt:
+        path.write_bytes(b"corrupt")
+    mocker.patch.dict("os.environ", {"VERVE_EGM2008_GRID": str(path)})
+    try:
+        with pytest.raises(ElevationConversionError), TestClient(app):
+            pytest.fail("Backend started without a verified EGM2008 grid")
+    finally:
+        get_elevation_converter.cache_clear()
+
+
+def test_grid_downloader_preserves_existing_grid_on_interrupted_download(
+    tmp_path: Path, mocker: MockerFixture
+) -> None:
+    from verve_backend.cli import download_elevation_grid
+
+    destination = tmp_path / "egm2008.tif"
+    destination.write_bytes(b"existing verified grid")
+    mocker.patch.dict("os.environ", {"VERVE_EGM2008_GRID": str(destination)})
+    source = mocker.MagicMock()
+    source.__enter__.return_value = source
+    source.read.side_effect = [b"partial data", OSError("connection lost")]
+    mocker.patch.object(download_elevation_grid, "urlopen", return_value=source)
+    with pytest.raises(OSError, match="connection lost"):
         download_elevation_grid.main()
     assert destination.read_bytes() == b"existing verified grid"
     assert list(tmp_path.iterdir()) == [destination]

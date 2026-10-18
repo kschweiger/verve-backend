@@ -3,8 +3,12 @@ from typing import Any
 from uuid import UUID
 
 from geoalchemy2 import Geometry
-from sqlmodel import Session, func, select
+from sqlmodel import Session, col, func, select
 
+from verve_backend.core.elevation import (
+    ElevationConversionError,
+    get_elevation_converter,
+)
 from verve_backend.core.meta_data import SwimmingMetaData
 from verve_backend.models import (
     Activity,
@@ -157,6 +161,7 @@ def _cast(session: Session, activity_id: UUID) -> VerveFeature:
         select(TrackPoint.segment_id)
         .distinct()
         .where(TrackPoint.activity_id == activity_id)
+        .order_by(col(TrackPoint.segment_id))
     )
     segment_ids = session.exec(stmt).all()
     _features = []
@@ -173,6 +178,7 @@ def _cast(session: Session, activity_id: UUID) -> VerveFeature:
             )
             .where(TrackPoint.activity_id == activity_id)
             .where(TrackPoint.segment_id == _id)
+            .order_by(col(TrackPoint.id))
         )
         _points = session.exec(stmt).all()
         _coordinates = []
@@ -181,7 +187,14 @@ def _cast(session: Session, activity_id: UUID) -> VerveFeature:
         _cadences = []
         _powers = []
         for point, latitude, longitude in _points:
-            _coordinates.append((longitude, latitude, point.elevation))
+            if longitude is None or latitude is None or point.elevation is None:
+                raise ElevationConversionError(
+                    "Spatial Verve export requires coordinates and a height"
+                )
+            height = get_elevation_converter().to_ellipsoidal(
+                longitude, latitude, point.elevation
+            )
+            _coordinates.append((longitude, latitude, height))
 
             _times.append(point.time)
             _heart_rates.append(point.heartrate)
