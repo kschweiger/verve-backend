@@ -318,7 +318,7 @@ class ActivityBase(ActivityCore):
 
 
 class ActivityCreate(ActivityBase):
-    name: str | None
+    name: str | None  # ty: ignore[invalid-attribute-override]
 
 
 class ActivityPublic(ActivityBase):
@@ -395,8 +395,8 @@ class EquipmentCreate(EquipmentBase):
 
 
 class EquipmentUpdate(EquipmentBase):
-    name: str | None = None
-    equipment_type: EquipmentType | None = None
+    name: str | None = None  # ty: ignore[invalid-attribute-override]
+    equipment_type: EquipmentType | None = None  # ty: ignore[invalid-attribute-override]
 
 
 class EquipmentPublic(EquipmentBase):
@@ -595,7 +595,7 @@ class GoalBase(SQLModel):
 
 
 class GoalCreate(GoalBase):
-    year: int | None = None
+    year: int | None = None  # ty: ignore[invalid-attribute-override]
 
 
 class GoalPublic(GoalBase):
@@ -808,7 +808,7 @@ class ActivityHighlightBase(SQLModel):
 
 
 class ActivityHighlightPublic(ActivityHighlightBase):
-    value: float | int | timedelta
+    value: float | int | timedelta  # ty: ignore[invalid-attribute-override]
 
 
 class ActivityHighlight(ActivityHighlightBase, table=True):
