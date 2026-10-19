@@ -25,7 +25,22 @@ RUN uv sync --frozen --no-dev --no-install-project
 # RUN find .venv/lib -name "*.so" -exec strip --strip-unneeded {} +
 
 # ==========================================
-# Stage 2: Runtime
+# Stage 2: Checksum-pinned elevation grid
+# ==========================================
+FROM builder AS elevation-grid
+
+COPY verve_backend/core/elevation.py /app/verve_backend/core/elevation.py
+COPY verve_backend/cli /app/verve_backend/cli
+
+# Reuse cached downloads only after checksum validation. Keep the output outside
+# the cache mount so the runtime stage receives a regular image artifact.
+RUN --mount=type=cache,id=verve-egm2008,target=/var/cache/verve-egm2008,sharing=locked \
+  VERVE_EGM2008_GRID=/var/cache/verve-egm2008/us_nga_egm08_25.tif \
+  /app/.venv/bin/python -m verve_backend.cli.install_elevation_grid \
+  --destination /opt/verve/proj/us_nga_egm08_25.tif
+
+# ==========================================
+# Stage 3: Runtime
 # ==========================================
 FROM python:3.14-slim-bookworm AS runtime
 
@@ -48,9 +63,12 @@ ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH="/app"
 ENV UVICORN_TIMEOUT=30
 ENV UVICORN_WORKERS=1
+ENV VERVE_EGM2008_GRID=/opt/verve/proj/us_nga_egm08_25.tif
 
 # 3. COPY --chown (For your code)
 COPY --chown=verve:verve . /app
+
+COPY --from=elevation-grid /opt/verve/proj/us_nga_egm08_25.tif /opt/verve/proj/us_nga_egm08_25.tif
 
 # 4. Copy scripts (ownership doesn't matter much for /bin, but chmod is needed)
 COPY docker-entrypoint.sh /usr/local/bin/
@@ -60,6 +78,9 @@ COPY run.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh /usr/local/bin/run.sh
 
 USER verve
+
+# Validate the packaged artifact offline under the normal runtime user.
+RUN --network=none python -m verve_backend.cli.install_elevation_grid --verify-only
 
 EXPOSE 8000
 

@@ -41,8 +41,9 @@ trip. They expected 200 where strict file validation correctly returned 422.
 
 Application rows below are complete based on the focused and final full-suite
 runs. Explicit deferrals remain outside the approved delivery boundary, rather
-than establishing full exporter conformance. Final release sign-off is blocked
-by the two deployment prerequisites listed below.
+than establishing full exporter conformance. WP7's local image evidence below
+now resolves the image packaging gate; cadence upgrade compatibility remains
+blocked on the user-generated migration.
 
 | Requirement | Status | Evidence / limitation |
 | --- | --- | --- |
@@ -67,7 +68,7 @@ by the two deployment prerequisites listed below.
 | Public export API, non-spatial/summary export, broader serialization | Explicitly deferred | No export endpoint exists; preserve agreed export boundary |
 | Cadence summary/minimum persistence and upstream parser enhancements | Explicitly deferred | Existing storage limits; original bytes retained |
 | Provenance schema and automatic historical rewrites | Explicitly deferred | WP3 retains storage semantics and explicit reprocessing |
-| Grid-bearing runtime image, both release architectures | Blocked | WP7 packaged-artifact/offline evidence missing |
+| Grid-bearing runtime image, both release architectures | Complete | [WP7 local image evidence](2026-10-19-geojson-wp7-docker-elevation.md): both platforms, offline conversion/startup, invalid overrides and packaging failures |
 | Cadence upgrade compatibility | Blocked | User-generated migration absent; pytest recreates model tables |
 | Required checks and current documentation | Complete | Commands below passed; supported behavior and limits documented |
 
@@ -141,15 +142,18 @@ recorded rather than suppressed.
 - Real task bodies ran in eager mode against Redis; deployed worker/broker
   execution was outside this test plan. Cost if wrong: deployment-only worker
   failures remain possible and are not claimed as tested.
-- Migration upgrade compatibility and runtime images remain blocked release
-  gates; local/model-created tests cannot substitute for them.
+- Migration upgrade compatibility and runtime images were outstanding at WP6
+  close. WP7's local built-image checks now resolve the image gate; model-created
+  tests still cannot establish migration upgrade compatibility.
 - Broader serializer preservation was set aside within the approved export
   boundary and its current limitations are documented.
 
 No actionable review findings or deferred minor findings were reported.
 
-Final release sign-off requires WP7 evidence: checksum-pinned grid, runtime-user
-readability, offline conversion, invalid override startup failure, build-context
-exclusion and both `linux/amd64`/`linux/arm64` results. Deployment also requires
-the user-generated cadence migration. Local grid tests and model-created pytest
-tables cannot satisfy these gates.
+WP7 addendum: local `linux/amd64` and `linux/arm64` images now supply the
+checksum-pinned grid, runtime-user readability, offline conversion/startup,
+invalid-override failures, build-context exclusion and packaging-failure evidence.
+See the [WP7 report](2026-10-19-geojson-wp7-docker-elevation.md) for image IDs and
+commands. These are built-image checks, not host-only grid tests. CI and release
+procedures remain unchanged. Deployment still requires the user-generated cadence
+migration; model-created pytest tables cannot establish its upgrade compatibility.
