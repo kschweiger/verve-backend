@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import json
+from importlib import resources
 from io import BytesIO
 from zipfile import ZipFile
+
+import pytest
 
 from scripts.timezone_fixtures import build_archive, digest_sources
 
@@ -35,3 +39,27 @@ def test_archive_is_reproducible_and_contains_all_source_files(tmp_path) -> None
     with ZipFile(BytesIO(first)) as archive:
         assert archive.namelist() == ["timezones/cases.json", "timezones/sample.gpx"]
         assert archive.read("timezones/cases.json") == b"{}"
+
+
+@pytest.mark.parametrize(
+    "file_name",
+    [
+        "verve-berlin-declared-new-york.json",
+        "verve-berlin-declared-new-york-utc.json",
+        "verve-berlin-no-zone.json",
+        "verve-no-geometry-no-zone.json",
+    ],
+)
+def test_portable_verve_fixtures_conform_to_file_contract(file_name: str) -> None:
+    from verve_backend.schema.verve_file import VerveFeature
+
+    source = json.loads(
+        resources.files("tests.resources").joinpath("timezones", file_name).read_bytes()
+    )
+    parsed = VerveFeature.model_validate(source)
+    assert isinstance(source["properties"]["generator"], str)
+    assert parsed.properties.start_time.utcoffset() is not None
+    for feature in parsed.features:
+        assert all(
+            time.utcoffset() is not None for time in feature.properties.coord_times
+        )

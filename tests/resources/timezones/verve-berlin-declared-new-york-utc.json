@@ -2,6 +2,7 @@
   "type": "FeatureCollection",
   "properties": {
     "verveVersion": "1.0",
+    "generator": "Verve timezone fixtures",
     "name": "verve-berlin-declared-new-york-utc",
     "activityType": "Foot Sports",
     "activitySubType": "Walk",

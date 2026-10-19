@@ -166,7 +166,7 @@
     {
       "id": "verve-gps-zone",
       "file": "verve-berlin-no-zone.json",
-      "description": "Older Verve files without a zone infer it from GPS.",
+      "description": "Without a recorded zone, GPS selects display context; timestamp offsets preserve instants.",
       "user_timezone": "America/Los_Angeles",
       "timezone_name": null,
       "routes": [
@@ -214,7 +214,7 @@
     {
       "id": "request-override",
       "file": "verve-berlin-declared-new-york.json",
-      "description": "Tokyo request override wins over file, GPS, and owner.",
+      "description": "Tokyo request override selects display context without changing offset-qualified instants.",
       "user_timezone": "America/Los_Angeles",
       "timezone_name": "Asia/Tokyo",
       "routes": [
@@ -223,16 +223,16 @@
       ],
       "expected": {
         "timezone": "Asia/Tokyo",
-        "start": "2026-08-10T01:00:00Z",
+        "start": "2026-08-10T14:00:00Z",
         "point_times": [
-          "2026-08-10T01:00:00Z",
-          "2026-08-10T01:05:00Z",
-          "2026-08-10T01:10:00Z"
+          "2026-08-10T14:00:00Z",
+          "2026-08-10T14:05:00Z",
+          "2026-08-10T14:10:00Z"
         ],
         "duration_seconds": 600,
         "heart_rates": [96, 108, 120],
         "elapsed_seconds": [0, 300, 600],
-        "local_start": "2026-08-10T10:00:00"
+        "local_start": "2026-08-10T23:00:00"
       }
     },
     {

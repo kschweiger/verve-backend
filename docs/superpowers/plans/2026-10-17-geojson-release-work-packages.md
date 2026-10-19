@@ -25,7 +25,9 @@ Each package is a separate tracking unit with its own deliverable and acceptance
 
 **Boundary:** Swimming validation belongs to WP5; database-backed import belongs to WP2. Export is deferred separately.
 
-**Completion:** [ ] Contract reviewed · [ ] Changes tested · [ ] Checks passed
+**Completion:** [x] Contract reviewed · [x] Changes tested · [x] Checks passed
+
+**Release verification:** [WP6 evidence](2026-10-19-geojson-wp6-release-verification.md), including the reconciled timestamp fixtures and final passing suite.
 
 ## WP2 — Verve import and segment preservation
 
@@ -165,7 +167,9 @@ Each package is a separate tracking unit with its own deliverable and acceptance
 
 **Dependencies:** Final completion follows WP1–WP5 and WP7. Establish a test baseline early.
 
-**Completion:** [ ] Integration verified · [ ] Full checks recorded · [ ] Release documentation reconciled
+**Completion:** [x] Integration verified · [x] Full checks recorded · [x] Release documentation reconciled · [ ] Final release sign-off
+
+**Results:** [WP6 verification and requirement register](2026-10-19-geojson-wp6-release-verification.md). Final suite: **718 passed**. Ruff, formatting, and ty passed across 32 release Python files; fixture artifacts and the 18-table RLS guard passed. Final sign-off remains blocked on WP7 image evidence; deployment also requires the user-generated cadence migration. Broader export remains explicitly deferred.
 
 ## WP7 — Docker elevation grid deployment
 

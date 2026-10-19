@@ -17,6 +17,7 @@ Swimming metadata is stored in the root Verve GeoJSON properties object under th
   "type": "FeatureCollection",
   "properties": {
     "verveVersion": "1.0",
+    "generator": "Swimming contract example",
     "name": "Summary-only swimming example",
     "startTime": "2026-10-13T08:00:00Z",
     "durationSeconds": 600,

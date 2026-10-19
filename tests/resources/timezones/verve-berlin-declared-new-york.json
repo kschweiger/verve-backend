@@ -2,10 +2,11 @@
   "type": "FeatureCollection",
   "properties": {
     "verveVersion": "1.0",
+    "generator": "Verve timezone fixtures",
     "name": "verve-berlin-declared-new-york",
     "activityType": "Foot Sports",
     "activitySubType": "Walk",
-    "startTime": "2026-08-10T10:00:00",
+    "startTime": "2026-08-10T10:00:00-04:00",
     "durationSeconds": 600,
     "totalDistanceMeters": 1300,
     "timezone": "America/New_York"
@@ -36,9 +37,9 @@
       "properties": {
         "heartRates": [96, 108, 120],
         "coordTimes": [
-          "2026-08-10T10:00:00",
-          "2026-08-10T10:05:00",
-          "2026-08-10T10:10:00"
+          "2026-08-10T10:00:00-04:00",
+          "2026-08-10T10:05:00-04:00",
+          "2026-08-10T10:10:00-04:00"
         ]
       }
     }
