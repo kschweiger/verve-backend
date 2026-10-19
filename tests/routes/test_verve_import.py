@@ -809,6 +809,71 @@ def test_verve_import_and_reprocessing_preserve_coerced_properties(
         assert_source_bytes(db, object_store, activity, file_name)
 
 
+@pytest.mark.parametrize(
+    ("file_name", "alias", "canonical"),
+    [
+        pytest.param(
+            "nonspatial_heart_rate_alias.json",
+            "heart_rates",
+            "heartRates",
+            id="heart-rate-alias",
+        ),
+        pytest.param(
+            "nonspatial_timestamp_alias.json",
+            "coord_times",
+            "coordTimes",
+            id="timestamp-alias",
+        ),
+    ],
+)
+@pytest.mark.parametrize("upload_path", UPLOAD_PATHS)
+def test_sample_aliases_survive_repeated_reprocessing(
+    db: Session,
+    upload_client: TestClient,
+    temp_user_id: UUID,
+    temp_user_token: str,
+    object_store: S3Client,
+    file_name: str,
+    alias: str,
+    canonical: str,
+    upload_path: str,
+) -> None:
+    from verve_backend.tasks import reprocess_stored_track
+
+    content, expected = read_source(file_name)
+    for feature in expected["features"]:
+        props = feature["properties"]
+        props[canonical] = props.pop(alias)
+    response = upload_client.post(
+        upload_path,
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        files={"file": (file_name, content, "application/json")},
+    )
+    assert response.status_code == 200, response.text
+    activity_id = UUID(response.json()["id"])
+    summary_fields = ("avg_heartrate", "max_heartrate", "avg_power", "max_power")
+    initial_summaries = None
+
+    for attempt in range(3):
+        if attempt:
+            result = reprocess_stored_track(
+                activity_id=activity_id, user_id=temp_user_id
+            )
+            assert result["error"] is None, result
+            assert result["number_of_points"] == 6
+        db.expire_all()
+        activity = db.get(Activity, activity_id)
+        assert activity is not None
+        assert_samples(db, activity, expected)
+        summaries = tuple(getattr(activity, field) for field in summary_fields)
+        if initial_summaries is None:
+            assert all(value is not None for value in summaries)
+            initial_summaries = summaries
+        else:
+            assert summaries == pytest.approx(initial_summaries)
+        assert_source_bytes(db, object_store, activity, file_name)
+
+
 @pytest.mark.parametrize("file_name", INVALID_FILES)
 @pytest.mark.parametrize("upload_path", UPLOAD_PATHS)
 def test_invalid_verve_file_is_rejected_before_writes(
