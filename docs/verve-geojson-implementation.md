@@ -1,6 +1,6 @@
 # Verve GeoJSON 1.0 backend behavior
 
-Authority: `backend-release-changes.md`, the [release work packages](superpowers/plans/2026-10-17-geojson-release-work-packages.md), and the sibling geojson-flavor repository's core/swimming 1.0 specifications. This page describes the supported backend subset and application compatibility, rather than claiming complete format conformance.
+This page describes the supported backend subset of Verve GeoJSON 1.0 and its application compatibility. See the [swimming contract](product-specs/verve-swimming-metadata.md) for metadata semantics. Complete export support is tracked in [issue #263](https://github.com/kschweiger/verve-backend/issues/263).
 
 ## Import and timestamps
 
@@ -30,9 +30,9 @@ There is no public Verve export endpoint. The internal spatial serializer is tes
 
 ## Release deployment
 
-1. Apply the user-generated cadence integer-to-float migration, preserving existing values and RLS policies. Model-created pytest tables do not prove upgrade compatibility.
-2. Require WP7's verified grid-bearing images for `linux/amd64` and `linux/arm64`, including offline runtime-user conversion. Missing, corrupt, or unreadable grids already abort startup.
+1. Apply cadence migration `1f6fbf03c352` before deploying. Verify the upgrade preserves existing values and RLS policies; model-created pytest tables do not prove upgrade compatibility.
+2. Use verified grid-bearing images for `linux/amd64` and `linux/arm64`, including offline runtime-user conversion. Missing, corrupt, or unreadable grids already abort startup.
 3. Coordinate running cadence responses with clients.
 4. Review historical Verve sources and explicitly reprocess eligible activities through [admin maintenance](admin-maintenance.md). No automatic rewrite or blanket historical cadence division is performed.
 
-Current checks and unresolved release gates are recorded in the [WP6 verification report](superpowers/plans/2026-10-19-geojson-wp6-release-verification.md).
+Verify deployment using the [elevation image checks](verve-elevation.md#docker-images). Upstream cadence parser work is tracked in [geo-track-analyzer issue #49](https://github.com/kschweiger/track_analyzer/issues/49).

@@ -62,9 +62,9 @@ separate extension rather than being combined with base cadence. These are
 geo-track-analyzer follow-ups; this backend adds no adapters for them. Other
 sports retain their source's counted motion, such as swimming/rowing strokes.
 
-The user generates the cadence integer-to-float migration from the final model.
-Apply it before deploying this code. The schema migration must preserve existing
-numeric values and row-level security policies.
+Apply cadence integer-to-float migration `1f6fbf03c352` before deploying this code.
+Verify that the upgrade preserves existing numeric values and row-level security
+policies.
 
 Earlier running Verve imports stored steps/min directly. Reprocess those
 activities from their original source files before relying on the new response
