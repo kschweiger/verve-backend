@@ -70,6 +70,10 @@ SET verve_user.curr_user = '{user.id}'`
 
 ## Running the docker container:
 
+Docker images include the checksum-verified EGM2008 grid and use it offline.
+See [elevation deployment notes](docs/verve-elevation.md#docker-images) for the
+bundled path, overrides and local image verification.
+
 addition to setting the config variables (`verve_backen.core.config`), the container read the following variables
 
 - `UVICORN_WORKERS`: Number of workers for the uvicorn running the backend (default: 1)

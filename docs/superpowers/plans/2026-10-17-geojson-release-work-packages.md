@@ -169,7 +169,7 @@ Each package is a separate tracking unit with its own deliverable and acceptance
 
 **Completion:** [x] Integration verified · [x] Full checks recorded · [x] Release documentation reconciled · [ ] Final release sign-off
 
-**Results:** [WP6 verification and requirement register](2026-10-19-geojson-wp6-release-verification.md). Final suite: **718 passed**. Ruff, formatting, and ty passed across 32 release Python files; fixture artifacts and the 18-table RLS guard passed. Final sign-off remains blocked on WP7 image evidence; deployment also requires the user-generated cadence migration. Broader export remains explicitly deferred.
+**Results:** [WP6 verification and requirement register](2026-10-19-geojson-wp6-release-verification.md). Final WP6 suite: **718 passed**. Ruff, formatting, and ty passed across 32 release Python files; fixture artifacts and the 18-table RLS guard passed. WP7 now supplies local image evidence for both architectures; deployment still requires the user-generated cadence migration. Broader export remains explicitly deferred.
 
 ## WP7 — Docker elevation grid deployment
 
@@ -181,7 +181,7 @@ Each package is a separate tracking unit with its own deliverable and acceptance
 - Copy the verified artifact into the runtime image, configure `VERVE_EGM2008_GRID`, and ensure the normal runtime user can read it.
 - Exclude local `data/proj/` artifacts from the build context so developer files cannot replace the reproducible installation.
 - Verify conversion using the built image without network access; retain explicit startup failures for missing, corrupt, or unreadable grids.
-- Verify the release images for both `linux/amd64` and `linux/arm64`, and include image verification in the build/release workflow.
+- Build and verify both `linux/amd64` and `linux/arm64` images locally; leave CI and the release procedure unchanged.
 - Document the image grid path, configuration overrides, and deployment prerequisites.
 
 **Acceptance:**
@@ -191,8 +191,10 @@ Each package is a separate tracking unit with its own deliverable and acceptance
 - An invalid runtime grid override aborts backend startup explicitly.
 - Local unverified grid files cannot enter the runtime image through the build context.
 
-**Boundary:** Container packaging and verification only. Reuse WP3's converter, downloader, and startup validation. No changes to storage, file-format behavior, or conversion semantics. Local and pytest CI grid installation already belong to WP3.
+**Boundary:** Container packaging and local verification only. Reuse WP3's converter, downloader, and startup validation. No changes to CI, release jobs, tagging, publishing, deployment procedures, storage, file-format behavior, or conversion semantics. Local and pytest CI grid installation already belong to WP3.
 
 **Dependencies:** WP3. Complete before WP6's final release sign-off.
 
-**Completion:** [ ] Verified artifact packaged · [ ] Both architectures verified offline · [ ] Deployment documented
+**Completion:** [x] Verified artifact packaged · [x] Both architectures verified offline · [x] Deployment documented
+
+**Results:** [WP7 implementation and local image evidence](2026-10-19-geojson-wp7-docker-elevation.md). Both architectures built and passed all five offline checks; cache reuse, build-context exclusion and packaging failure probes passed. Full suite: **722 passed**. CI and release procedures remain unchanged.
