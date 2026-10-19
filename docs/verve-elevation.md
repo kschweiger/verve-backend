@@ -76,19 +76,17 @@ to the bundled file.
 
 The offline verifier invokes the existing ASGI lifespan directly. Normal container
 startup still waits for PostgreSQL, runs migrations, verifies RLS and requires the
-existing application/service configuration. WP7 leaves CI and the release
-procedure unchanged.
+existing application/service configuration.
 
 ## Existing activities and release deployment
 
 Earlier Verve imports may contain unconverted file heights. Use the existing
 explicit activity reprocessing operation to rebuild those activities from their
-original Verve source. WP3 does not run a bulk rewrite or change database schema
-or storage semantics.
+original Verve source. Reprocessing is explicit; deployment does not perform a
+bulk rewrite or change elevation storage semantics.
 
-Container packaging and local architecture verification are tracked in
-[WP7 — Docker elevation grid deployment](superpowers/plans/2026-10-19-geojson-wp7-docker-elevation.md).
+Run the Docker image verification commands above for each release architecture.
 The grid startup requirement remains mandatory for every deployment.
 
-Broader Verve export support remains a separate follow-up. WP3 changes elevation
-conversion for the existing spatial exporter only.
+Broader Verve export support is tracked in [issue #263](https://github.com/kschweiger/verve-backend/issues/263).
+Elevation conversion currently applies to the existing spatial exporter.
