@@ -11,7 +11,7 @@ dependencies = [
   "boto3==1.43.108",
   "boto3-stubs[s3]==1.43.108",
   "celery==5.6.3",
-  "fastapi[standard]==0.142.2",
+  "fastapi[standard]==0.143.0",
   "geo-track-analyzer==3.1.1",
   "geoalchemy2==0.20.0",
   "gevent==26.9.0",
