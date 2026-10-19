@@ -83,7 +83,10 @@ def reprocess_activity_track(
             verve_timezone = verve_data.properties.timezone
     parsed = parse_track(
         file_name=f"track.{file_type}",
-        file_content=content,
+        # Match initial import: the parser consumes canonical field names.
+        file_content=verve_data.to_json().encode()
+        if verve_data is not None
+        else content,
         fallback_timezone=get_user_timezone(session, user_id),
         verve_timezone=verve_timezone,
         verve_data=verve_data,
