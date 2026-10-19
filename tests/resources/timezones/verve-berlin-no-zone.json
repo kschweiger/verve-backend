@@ -2,10 +2,11 @@
   "type": "FeatureCollection",
   "properties": {
     "verveVersion": "1.0",
+    "generator": "Verve timezone fixtures",
     "name": "verve-berlin-no-zone",
     "activityType": "Foot Sports",
     "activitySubType": "Walk",
-    "startTime": "2026-08-10T10:00:00",
+    "startTime": "2026-08-10T10:00:00+02:00",
     "durationSeconds": 600,
     "totalDistanceMeters": 1300
   },
@@ -35,9 +36,9 @@
       "properties": {
         "heartRates": [96, 108, 120],
         "coordTimes": [
-          "2026-08-10T10:00:00",
-          "2026-08-10T10:05:00",
-          "2026-08-10T10:10:00"
+          "2026-08-10T10:00:00+02:00",
+          "2026-08-10T10:05:00+02:00",
+          "2026-08-10T10:10:00+02:00"
         ]
       }
     }

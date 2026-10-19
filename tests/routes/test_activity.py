@@ -207,64 +207,6 @@ def test_auto_gpx_resolves_track_times_to_utc(
     assert first_point.time == expected_start
 
 
-@pytest.mark.parametrize(
-    ("timezone_name", "expected_start", "expected_point"),
-    [
-        (
-            None,
-            datetime(2026, 1, 13, 14, 21, 56, tzinfo=UTC),
-            datetime(2026, 1, 13, 14, 22, 2, tzinfo=UTC),
-        ),
-        (
-            "Europe/Berlin",
-            datetime(2026, 1, 13, 14, 21, 56, tzinfo=UTC),
-            datetime(2026, 1, 13, 14, 22, 2, tzinfo=UTC),
-        ),
-    ],
-)
-def test_import_verve_resolves_offsetless_times(
-    client: TestClient,
-    db: Session,
-    temp_user_token: str,
-    timezone_name: str | None,
-    expected_start: datetime,
-    expected_point: datetime,
-    celery_eager: None,
-) -> None:
-    headers = {"Authorization": f"Bearer {temp_user_token}"}
-    response = client.patch(
-        "/users/me/timezone",
-        headers=headers,
-        params={"timezone_name": "America/Los_Angeles"},
-    )
-    assert response.status_code == 200
-
-    data = json.loads(
-        resources.files("tests.resources").joinpath("processed_Walk.json").read_text()
-    )
-    data["properties"]["startTime"] = data["properties"]["startTime"].removesuffix("Z")
-    for feature in data["features"]:
-        feature["properties"]["coordTimes"] = [
-            value.removesuffix("Z") for value in feature["properties"]["coordTimes"]
-        ]
-
-    response = client.post(
-        "/activity/import/",
-        headers=headers,
-        params={"timezone_name": timezone_name} if timezone_name else None,
-        files={"file": ("Walk.json", json.dumps(data), "application/json")},
-    )
-    assert response.status_code == 200
-    activity = ActivityPublic.model_validate(response.json())
-    assert activity.start == expected_start
-    assert activity.timezone == (timezone_name or "Europe/Zurich")
-    first_point = db.exec(
-        select(TrackPoint).where(TrackPoint.activity_id == activity.id)
-    ).first()
-    assert first_point is not None
-    assert first_point.time == expected_point
-
-
 def test_auto_geojson_resolves_offsetless_track_times(
     client: TestClient,
     db: Session,

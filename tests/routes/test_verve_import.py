@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 from geoalchemy2.shape import to_shape
 from mypy_boto3_s3.client import S3Client
 from pydantic import ValidationError
+from pytest_mock import MockerFixture
 from sqlmodel import Session, col, select
 
 from verve_backend.core.config import settings
@@ -452,6 +453,251 @@ def database_snapshot(db: Session, user_id: UUID) -> dict[str, list[dict]]:
         )
         for model in (Activity, RawTrackData, TrackPoint, SegmentSet, SegmentCut)
     }
+
+
+@pytest.mark.parametrize("upload_path", UPLOAD_PATHS)
+@pytest.mark.parametrize("timezone_name", [None, "Europe/Berlin"])
+@pytest.mark.parametrize("member", ["startTime", "coordTimes"])
+def test_offsetless_verve_timestamps_are_rejected_before_writes(
+    db: Session,
+    upload_client: TestClient,
+    temp_user_id: UUID,
+    temp_user_token: str,
+    source_keys: Callable[[], set[str]],
+    upload_path: str,
+    timezone_name: str | None,
+    member: str,
+) -> None:
+    _, source = read_source("spatial_supplied_stats.json")
+    if member == "startTime":
+        source["properties"][member] = source["properties"][member].removesuffix("Z")
+    else:
+        times = source["features"][0]["properties"][member]
+        times[0] = times[0].removesuffix("Z")
+    before_database = database_snapshot(db, temp_user_id)
+    before_objects = source_keys()
+    response = upload_client.post(
+        upload_path,
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        params={} if timezone_name is None else {"timezone_name": timezone_name},
+        files={"file": ("offsetless.json", json.dumps(source), "application/json")},
+    )
+    assert response.status_code == 422, response.text
+    assert database_snapshot(db, temp_user_id) == before_database
+    assert source_keys() == before_objects
+
+
+@pytest.mark.parametrize("upload_path", UPLOAD_PATHS)
+def test_imported_verve_activity_is_isolated_by_owner(
+    db: Session,
+    upload_client: TestClient,
+    temp_user_id: UUID,
+    temp_user_token: str,
+    user2_token: str,
+    upload_path: str,
+) -> None:
+    from verve_backend.api.deps import _create_rls_session
+
+    content, _ = read_source("spatial_supplied_stats.json")
+    owner_headers = {"Authorization": f"Bearer {temp_user_token}"}
+    other_headers = {"Authorization": f"Bearer {user2_token}"}
+    response = upload_client.post(
+        upload_path,
+        headers=owner_headers,
+        files={"file": ("spatial.json", content, "application/json")},
+    )
+    assert response.status_code == 200, response.text
+    activity_id = UUID(response.json()["id"])
+    for path in (f"/activity/{activity_id}", f"/track/{activity_id}"):
+        assert upload_client.get(path, headers=owner_headers).status_code == 200
+        assert upload_client.get(path, headers=other_headers).status_code == 404
+    listed = upload_client.get("/activity/", headers=other_headers)
+    assert listed.status_code == 200
+    assert str(activity_id) not in {row["id"] for row in listed.json()["data"]}
+    assert (
+        upload_client.post(
+            "/admin/reprocess_track",
+            headers=other_headers,
+            params={"activity_id": str(activity_id)},
+        ).status_code
+        == 403
+    )
+
+    other = upload_client.get("/users/me", headers=other_headers)
+    assert other.status_code == 200
+    for user_id, visible in [(temp_user_id, True), (UUID(other.json()["id"]), False)]:
+        with _create_rls_session(user_id) as session:
+            assert (session.get(Activity, activity_id) is not None) is visible
+            assert (session.get(RawTrackData, activity_id) is not None) is visible
+            points = session.exec(
+                select(TrackPoint).where(TrackPoint.activity_id == activity_id)
+            ).all()
+            assert len(points) == (6 if visible else 0)
+
+
+@pytest.mark.parametrize(
+    "file_name",
+    [
+        "running_cadence.json",
+        "nonspatial_supplied_stats.json",
+        "summary_only_supplied_stats.json",
+    ],
+)
+def test_admin_route_reprocesses_verve_without_conversion_drift(
+    db: Session,
+    upload_client: TestClient,
+    temp_user_id: UUID,
+    temp_user_token: str,
+    admin_token: str,
+    object_store: S3Client,
+    mocker: MockerFixture,
+    file_name: str,
+) -> None:
+    from verve_backend.celery_app import celery
+    from verve_backend.tasks import finish_track_reprocessing, reprocess_stored_track
+
+    mocker.patch.object(reprocess_stored_track, "store_eager_result", True)
+    mocker.patch.object(finish_track_reprocessing, "store_eager_result", True)
+    mocker.patch.dict(celery.conf.changes, {"task_store_eager_result": True})
+    content, _ = read_source(file_name)
+    response = upload_client.post(
+        "/activity/import/",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        files={"file": (file_name, content, "application/json")},
+    )
+    assert response.status_code == 200, response.text
+    activity_id = UUID(response.json()["id"])
+    db.expire_all()
+    activity = db.get(Activity, activity_id)
+    assert activity is not None
+    raw = db.get(RawTrackData, activity_id)
+    assert raw is not None
+    original_path = raw.store_path
+    statistics = {
+        "avg_speed",
+        "max_speed",
+        "avg_heartrate",
+        "max_heartrate",
+        "avg_power",
+        "max_power",
+        "moving_duration",
+        "energy",
+        "elevation_change_up",
+        "elevation_change_down",
+    }
+    original_statistics = activity.model_dump(include=statistics)
+    points = db.exec(
+        select(TrackPoint)
+        .where(TrackPoint.activity_id == activity_id)
+        .order_by(col(TrackPoint.id))
+    ).all()
+    original_points = [p.model_dump(exclude={"geometry", "geography"}) for p in points]
+    if file_name == "running_cadence.json":
+        assert [p.cadence for p in points] == [85.5, None, 0, 90, 0, None]
+        assert activity.avg_speed == pytest.approx(36)
+    else:
+        assert_activity(db, activity, file_name)
+
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    for _ in range(2):
+        queued = upload_client.post(
+            "/admin/reprocess_track",
+            headers=headers,
+            params={"activity_id": str(activity_id)},
+        )
+        assert queued.status_code == 202, queued.text
+        jobs = queued.json()
+        try:
+            assert len(jobs["tracks"]) == 1
+            assert jobs["tracks"][0]["user_id"] == str(temp_user_id)
+            for job in [*jobs["tracks"], *jobs["completion_tasks"]]:
+                status = upload_client.get(
+                    f"/admin/tasks/{job['task_id']}", headers=headers
+                )
+                assert status.status_code == 200
+                report = status.json()
+                assert report["state"] == "SUCCESS", report
+                if "reprocessed" in report["result"]:
+                    assert report["result"]["reprocessed"] == 1
+                    assert report["result"]["failed"] == 0
+                else:
+                    assert report["result"]["error"] is None
+                    assert report["result"]["number_of_points"] == len(original_points)
+            db.expire_all()
+            db.refresh(activity)
+            assert activity.model_dump(include=statistics) == original_statistics
+            points = db.exec(
+                select(TrackPoint)
+                .where(TrackPoint.activity_id == activity_id)
+                .order_by(col(TrackPoint.id))
+            ).all()
+            assert [
+                p.model_dump(exclude={"geometry", "geography"}) for p in points
+            ] == original_points
+            raw = db.get(RawTrackData, activity_id)
+            assert raw is not None
+            assert raw.store_path == original_path
+            assert_source_bytes(db, object_store, activity, file_name)
+        finally:
+            for job in [*jobs["tracks"], *jobs["completion_tasks"]]:
+                celery.AsyncResult(job["task_id"]).forget()
+
+
+@pytest.mark.parametrize(
+    "file_name", ["running_cadence.json", "elevation_grid_node.json"]
+)
+def test_spatial_serializer_reimports_through_public_route(
+    db: Session,
+    upload_client: TestClient,
+    temp_user_token: str,
+    file_name: str,
+) -> None:
+    from verve_backend.schema.exporter import _cast
+
+    content, source = read_source(file_name)
+    headers = {"Authorization": f"Bearer {temp_user_token}"}
+    response = upload_client.post(
+        "/activity/import/",
+        headers=headers,
+        files={"file": (file_name, content, "application/json")},
+    )
+    assert response.status_code == 200, response.text
+    for _ in range(2):
+        activity_id = UUID(response.json()["id"])
+        db.expire_all()
+        before = db.exec(
+            select(TrackPoint)
+            .where(TrackPoint.activity_id == activity_id)
+            .order_by(col(TrackPoint.id))
+        ).all()
+        before_heights = [point.elevation for point in before]
+        exported = _cast(db, activity_id).to_json()
+        parsed = VerveFeature.model_validate_json(exported)
+        assert parsed.properties.stats is not None
+        assert parsed.properties.stats.speed is not None
+        assert parsed.properties.stats.speed.avg == pytest.approx(10)
+        for actual, expected in zip(parsed.features, source["features"], strict=True):
+            assert actual.geometry is not None
+            for position, original in zip(
+                actual.geometry.coordinates,
+                expected["geometry"]["coordinates"],
+                strict=True,
+            ):
+                assert position == pytest.approx(original, abs=1e-7)
+            assert actual.properties.coord_times == [
+                datetime.fromisoformat(time)
+                for time in expected["properties"]["coordTimes"]
+            ]
+            if file_name == "running_cadence.json":
+                assert actual.properties.cadences == expected["properties"]["cadences"]
+        db.expire_all()
+        assert [point.elevation for point in before] == before_heights
+        response = upload_client.post(
+            "/activity/import/",
+            headers=headers,
+            files={"file": ("roundtrip.json", exported, "application/json")},
+        )
+        assert response.status_code == 200, response.text
 
 
 @pytest.mark.parametrize("file_name", VALID_FILES)

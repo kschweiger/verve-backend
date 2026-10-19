@@ -19,9 +19,9 @@ if TYPE_CHECKING:
 @pytest.mark.parametrize(
     ("override", "expected_zone", "expected_hour", "point_hour"),
     [
-        pytest.param(None, "Europe/Berlin", 8, 14, id="file-zone"),
+        pytest.param(None, "Europe/Berlin", 8, 15, id="file-zone"),
         pytest.param(
-            "America/Los_Angeles", "America/Los_Angeles", 17, 23, id="request-zone"
+            "America/Los_Angeles", "America/Los_Angeles", 8, 15, id="request-zone"
         ),
     ],
 )
@@ -56,11 +56,7 @@ def test_verve_declared_zone_wins_over_gps_and_owner_setting(
         resources.files("tests.resources").joinpath("processed_Walk.json").read_text()
     )
     data["properties"]["timezone"] = "Europe/Berlin"
-    data["properties"]["startTime"] = "2026-07-01T10:00:00"
-    for feature in data["features"]:
-        feature["properties"]["coordTimes"] = [
-            time.removesuffix("Z") for time in feature["properties"]["coordTimes"]
-        ]
+    data["properties"]["startTime"] = "2026-07-01T10:00:00+02:00"
     file_bytes = json.dumps(data, indent=2).encode()
     response = client.post(
         route,

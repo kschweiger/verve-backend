@@ -22,7 +22,9 @@ After changing fixtures, regenerate the published files with
 
 All tracks contain three points, five minutes apart, with heart rates of 96, 108, and 120 bpm. Expected heart rates and elapsed seconds are in the manifest, aligned with `point_times`, so clients can check plot values and their positions. GPX uses a `heartrate` extension; Verve uses `heartRates`.
 
-Berlin and Los Angeles coordinates are real locations; tracks are synthetic. Files ending in `local` have no timestamp offset. `offset` uses a numeric offset, and `utc` uses `Z`. Only Verve JSON can declare an IANA timezone in `properties.timezone`.
+Berlin and Los Angeles coordinates are real locations; tracks are synthetic. GPX files ending in `local` have no timestamp offset and exercise application fallback. `offset` uses a numeric offset, and `utc` uses `Z`. Every Verve timestamp has an explicit offset; only Verve JSON can declare an IANA timezone in `properties.timezone`.
+
+Verve timestamp offsets determine instants independently of display context. The declared New York example uses `-04:00`, the Berlin example without a recorded zone uses `+02:00`, and the non-spatial owner-fallback example uses `-07:00`. A Tokyo request override displays the New York example at 23:00 while preserving its 14:00 UTC start and sample instants. A named timezone never supplies a missing offset in a Verve file.
 
 The scenarios cover summer/winter offsets, travel, the daylight saving clock change, file/request precedence, owner fallback without geometry, and preservation of aware instants. The request-override case deliberately reuses the declared-zone file with different request settings.
 
