@@ -1,4 +1,25 @@
 <!-- insertion marker -->
+<a name="2.1.0"></a>
+
+## [2.1.0](https://github.com/kschweiger/verve-backend/compare/2.0.0...2.1.0) (2026-10-20)
+
+### Features
+
+- **geojson:** enforce swimming metadata 1.0 contract ([1eabbda](https://github.com/kschweiger/verve-backend/commit/1eabbda60e6a118732c91163ad46f12b51d7d3f7))
+- **geojson:** store cadence as RPM and convert activity responses ([e5fed67](https://github.com/kschweiger/verve-backend/commit/e5fed677e8443311771fa0648e498393be2ba5f1))
+- **geojson:** convert Verve elevations at file boundaries ([421827d](https://github.com/kschweiger/verve-backend/commit/421827d6afc3c9834137efa1fe2eff3b2cd4468f))
+- **geojson:** add Python EGM2008 elevation conversion ([f0888a9](https://github.com/kschweiger/verve-backend/commit/f0888a9b9f1ee5314047728a9055e9f9bafac9d5))
+- **user:** admin user can list other users ([e9778a6](https://github.com/kschweiger/verve-backend/commit/e9778a674b0bbce1a1c99b9a51774f2d0cb4b7ef))
+- **user:** add is_admin flag ([3609545](https://github.com/kschweiger/verve-backend/commit/360954549987cd43fba690bfdb1c9572cc91ec53))
+
+### Bug Fixes
+
+- **geojson:** preserve sample aliases during reprocessing ([1425adf](https://github.com/kschweiger/verve-backend/commit/1425adf5bbfc527196a3ac4fbb814aebb96d405a))
+- **geojson:** preserve Verve imports and summaries ([1e0ba91](https://github.com/kschweiger/verve-backend/commit/1e0ba91dc489dea872ed84af7857e9aaeeea49f3))
+- **geojson:** require offsets on core file timestamps ([e14e27e](https://github.com/kschweiger/verve-backend/commit/e14e27ed13c2b30a167c163c5128214fb34d3700))
+- **geojson:** enforce geometry and sample array requirements ([85f7874](https://github.com/kschweiger/verve-backend/commit/85f7874d6e65c0ce3d0e3cf51b7b95d96eb4fdcc))
+- **geojson:** convert speed summaries at the file boundary ([0f02abc](https://github.com/kschweiger/verve-backend/commit/0f02abc45f7a82e8345c7804d1f2d45a3439092c))
+
 <a name="2.0.0"></a>
 
 ## [2.0.0](https://github.com/kschweiger/verve-backend/compare/1.16.2...2.0.0) (2026-10-09)
