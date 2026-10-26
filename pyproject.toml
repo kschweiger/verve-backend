@@ -86,7 +86,7 @@ dev = [
 ]
 test = [
   "freezegun>=1.5.5",
-  "pillow>=12.3.0",
+  "pillow>=13.0.0",
   "pytest>=9.1.1",
   "pytest-cov>=7.1.0",
   "pytest-mock>=3.17.0",
