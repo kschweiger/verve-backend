@@ -193,7 +193,7 @@ def reprocess_activity_track(
                 SegmentCut(user_id=user_id, set_id=raw_set.id, point_id=point_id)
             )
 
-    activity.timezone = parsed.timezone.key
+    activity.timezone = parsed.timezone.key  # ty: ignore[invalid-assignment]
     if verve_data is None:
         activity.avg_speed = activity.max_speed = None
         activity.avg_power = activity.max_power = None
