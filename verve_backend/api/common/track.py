@@ -257,7 +257,7 @@ def add_track(
         )
 
     obj_path = f"tracks/{uuid.uuid4()}"
-    activity.timezone = parsed.timezone.key
+    activity.timezone = parsed.timezone.key  # ty: ignore[invalid-assignment]
 
     obj_store_client.upload_fileobj(
         BytesIO(file_content),
