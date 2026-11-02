@@ -27,8 +27,6 @@ dependencies = [
   "sqlmodel==0.0.48",
   "structlog==26.1.0",
   "timezonefinder==9.2.0",
-  "timezonefinder-data==3.2026.4",
-  "timezonefinder==9.0.0",
   "timezonefinder-data==4.2026.5",
 ]
 
@@ -43,21 +41,7 @@ line-length = 88
 target-version = "py314"
 
 [tool.ruff.lint]
-select = [
-  "E",
-  "F",
-  "I",
-  "PD",
-  "PT",
-  "NPY",
-  "N",
-  "W",
-  "RET",
-  "ANN",
-  "RUF",
-  "SIM",
-  "PERF",
-]
+select = ["E", "F", "I", "PD", "PT", "NPY", "N", "W", "RET", "ANN", "RUF", "SIM", "PERF"]
 unfixable = ["F841", "RUF015"]
 ignore = [
   "ANN202",
