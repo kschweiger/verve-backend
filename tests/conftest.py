@@ -186,9 +186,9 @@ def celery_eager(monkeypatch) -> None:
     """
     from verve_backend.celery_app import celery as celery_app_instance
 
-    # Use monkeypatch to temporarily set 'task_always_eager' to True.
-    # The original value will be automatically restored after the test.
-    monkeypatch.setattr(celery_app_instance.conf, "task_always_eager", True)
+    # Celery settings are mapping entries exposed through attribute access.
+    # Patch the mapping so teardown restores the value through the same interface.
+    monkeypatch.setitem(celery_app_instance.conf, "task_always_eager", True)
 
 
 @pytest.fixture
