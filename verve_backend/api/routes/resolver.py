@@ -1,4 +1,4 @@
-from typing import Any, Type
+from typing import Any, Type, cast
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -40,17 +40,18 @@ def get_resolved_types(
 
     all_acticity_types = session.exec(stmt).all()
 
+    # Queried rows have populated primary keys, unlike unsaved activity models.
     all_resolved_activities = []
     for _type in all_acticity_types:
         stmt = select(sub_type).where(sub_type.type_id == _type.id)
         all_sub_types = session.exec(stmt).all()
         all_resolved_activities.append(
             ResolvedType(
-                id=_type.id,
+                id=cast(int, _type.id),
                 name=_type.name,
                 sub_types=[
                     ResolvedSubType(
-                        id=st.id,
+                        id=cast(int, st.id),
                         name=st.name,
                     )
                     for st in all_sub_types
