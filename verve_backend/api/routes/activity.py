@@ -2,11 +2,12 @@ import datetime
 import json
 import uuid
 from io import BytesIO
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from zoneinfo import ZoneInfo
 
 import structlog
 from fastapi import APIRouter, HTTPException, Query, UploadFile
+from fastapi.responses import Response
 from pydantic import BaseModel
 from pydantic_extra_types.timezone_name import TimeZoneName
 from sqlalchemy.exc import IntegrityError
@@ -23,7 +24,7 @@ from verve_backend import crud
 from verve_backend.api.common.locale import get_activity_name
 from verve_backend.api.common.location import to_public_location
 from verve_backend.api.common.store_utils import remove_object_from_store
-from verve_backend.api.common.track import add_track, parse_track
+from verve_backend.api.common.track import add_track, load_activity_track, parse_track
 from verve_backend.api.common.utils import (
     check_and_raise_primary_key,
     check_distance_requirement,
@@ -62,6 +63,7 @@ from verve_backend.models import (
     UserSettings,
 )
 from verve_backend.result import Err, Ok, is_ok
+from verve_backend.schema.exporter import _cast
 from verve_backend.schema.importer import (
     convert_verve_file_to_activity,
     sniff_verve_format,
@@ -256,6 +258,68 @@ async def delete_activity(
             detail=f"Could not delete activity. Error: {e}",
         )
     session.commit()
+
+
+@router.get(
+    "/{id}/export",
+    response_class=Response,
+    responses={
+        200: {
+            "description": "Activity file download",
+            "content": {
+                "application/geo+json": {"schema": {"type": "string"}},
+                "application/gpx+xml": {"schema": {"type": "string"}},
+            },
+        },
+        422: {"description": "Invalid format or unsupported track data"},
+    },
+)
+def export_activity(
+    user_session: UserSession,
+    id: uuid.UUID,
+    output_format: Literal["geojson", "gpx"] = "geojson",
+) -> Response:
+    """Download the current spatial activity as Verve GeoJSON or GPX."""
+    _, session = user_session
+
+    activity = session.get(Activity, id)
+    if not activity:
+        raise HTTPException(status_code=404, detail="Activity not found")
+
+    try:
+        track = load_activity_track(session, id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
+        ) from exc
+
+    if output_format == "geojson":
+        if any(
+            len(segment.points) < 2
+            or any(p.elevation is None or p.time is None for p in segment.points)
+            for segment in track.track.segments
+        ):
+            raise HTTPException(
+                status_code=HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Verve GeoJSON requires at least two points per segment, "
+                "each with an elevation and timestamp",
+            )
+        data = _cast(session, id).to_json()
+        media_type = "application/geo+json"
+        extension = "json"
+    else:
+        track.track.name = activity.name
+        data = track.get_xml()
+        media_type = "application/gpx+xml"
+        extension = "gpx"
+
+    return Response(
+        content=data,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="activity-{id}.{extension}"'
+        },
+    )
 
 
 @router.get(
