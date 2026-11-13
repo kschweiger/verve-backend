@@ -1,4 +1,12 @@
 <!-- insertion marker -->
+<a name="2.2.0"></a>
+
+## [2.2.0](https://github.com/kschweiger/verve-backend/compare/2.1.0...2.2.0) (2026-11-13)
+
+### Features
+
+- add activity export route (#277) ([e2f0e3b](https://github.com/kschweiger/verve-backend/commit/e2f0e3b77b97c2af75dfa5869a31307aecf07179))
+
 <a name="2.1.0"></a>
 
 ## [2.1.0](https://github.com/kschweiger/verve-backend/compare/2.0.0...2.1.0) (2026-10-20)
@@ -359,4 +367,3 @@
 - Add max metrics to activity ([5d37a48](https://github.com/kschweiger/verve-backend/commit/5d37a48fd8843a1928aa41ed3cb3082722761444))
 - Setup testing and minor refactorings ([3b6df2a](https://github.com/kschweiger/verve-backend/commit/3b6df2a2e43c2f9fcc0f660718d11ea28e234504))
 - ActivityType can be set in auto activity creation route ([d9c5988](https://github.com/kschweiger/verve-backend/commit/d9c5988ecb1c51d1d5a4ce3291398869c2f8a239))
-
