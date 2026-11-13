@@ -4,21 +4,23 @@ import math
 import uuid
 from dataclasses import dataclass
 from io import BytesIO
+from itertools import groupby
 from time import perf_counter
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 import structlog
 from fastapi import HTTPException
-from geo_track_analyzer import ByteTrack, FITTrack, Track
+from geo_track_analyzer import ByteTrack, FITTrack, PyTrack, Track
 from geo_track_analyzer.exceptions import (
     EmptyGeoJsonError,
     GeoJsonWithoutGeometryError,
     UnsupportedGeoJsonTypeError,
 )
 from geo_track_analyzer.track import GeoJsonTrack
+from geoalchemy2 import Geometry
 from pydantic import ValidationError
-from sqlmodel import Session, select, text
+from sqlmodel import Session, col, func, select, text
 from starlette.status import (
     HTTP_400_BAD_REQUEST,
     HTTP_422_UNPROCESSABLE_CONTENT,
@@ -52,6 +54,52 @@ if TYPE_CHECKING:
     from verve_backend.schema.verve_file import VerveFeature
 
 logger = structlog.getLogger(__name__)
+
+
+def load_activity_track(session: Session, activity_id: uuid.UUID) -> Track:
+    """Load unsimplified spatial samples using the caller's RLS-scoped session."""
+    rows = session.exec(
+        select(
+            TrackPoint,
+            func.ST_Y(func.ST_AsText(TrackPoint.geography).cast(Geometry)),
+            func.ST_X(func.ST_AsText(TrackPoint.geography).cast(Geometry)),
+        )
+        .where(TrackPoint.activity_id == activity_id)
+        .order_by(col(TrackPoint.segment_id), col(TrackPoint.id))
+    ).all()
+    if not rows:
+        raise ValueError("Activity track has no points")
+    if any(lat is None or lon is None for _, lat, lon in rows):
+        raise ValueError("Activity track contains points without coordinates")
+
+    track = None
+    for _, samples in groupby(rows, key=lambda row: row[0].segment_id):
+        segment = list(samples)
+        points = [(lat, lon) for _, lat, lon in segment]
+        # PyTrack accepts missing individual elevations/times at runtime;
+        # its annotations currently only describe wholly populated arrays.
+        elevations = [point.elevation for point, _, _ in segment]
+        times = [point.time for point, _, _ in segment]
+        extensions: dict[str, list[float | None] | None] = {
+            key: [getattr(point, key) for point, _, _ in segment]
+            for key in ("heartrate", "cadence", "power")
+        }
+        if track is None:
+            track = PyTrack(
+                points=points,
+                elevations=elevations,  # ty: ignore[invalid-argument-type]
+                times=times,  # ty: ignore[invalid-argument-type]
+                extensions=extensions,
+            )
+        else:
+            track.add_segmeent(
+                points=points,
+                elevations=elevations,  # ty: ignore[invalid-argument-type]
+                times=times,  # ty: ignore[invalid-argument-type]
+                extensions=extensions,
+            )
+    assert track is not None
+    return track
 
 
 @dataclass(frozen=True)
