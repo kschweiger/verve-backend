@@ -78,6 +78,19 @@ Changing the user's zone leaves activity instants and display zones unchanged.
 Calendar requests use the new setting; goals recalculate when fetched.
 Stored yearly highlights need recalculation to reflect the change.
 
+## Active-day goals
+
+Activity goals support `aggregation: "active_days"` for weekly, monthly, and
+yearly periods. Cardio and weight lifting starting on the same local date count
+as one active day. Existing activity type, subtype, and equipment constraints
+are applied before counting dates. There is no minimum duration or distance.
+
+Dates use the user's saved timezone, not the activity's display timezone.
+Overnight activities count only toward their start date. Progress is recalculated
+when goals are fetched, reflecting late uploads, edits, deletions, and timezone
+changes. Manually entered activities qualify; manual and location goals do not
+support this aggregation. Existing `count` goals continue counting activities.
+
 ## Database migration
 
 Alembic revision `d9e3386babd7` adds the required activity and user timezone

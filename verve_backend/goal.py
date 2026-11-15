@@ -307,7 +307,8 @@ def update_goal_state(
             month=goal.month,
             week=goal.week,
             last_updated=last_updated
-            if goal.aggregation != GoalAggregation.AVG_DISTANCE
+            if goal.aggregation
+            not in (GoalAggregation.AVG_DISTANCE, GoalAggregation.ACTIVE_DAYS)
             else None,
             possible_activity_ids=None,
             filter_distance=goal.aggregation in distance_aggregations,
@@ -316,10 +317,14 @@ def update_goal_state(
 
         activities = session.exec(stmt).all()
 
-        if len(activities) == 0:
+        if goal.aggregation == GoalAggregation.ACTIVE_DAYS:
+            goal.current = len(
+                {activity.start.astimezone(timezone).date() for activity in activities}
+            )
+        elif len(activities) == 0:
             logger.debug("Goal %s: No new activities found", goal.id)
             return goal
-        if goal.aggregation == GoalAggregation.COUNT:
+        elif goal.aggregation == GoalAggregation.COUNT:
             goal.current += len(activities)
         elif goal.aggregation == GoalAggregation.DURATION:
             goal.current += sum(a.duration.total_seconds() for a in activities)

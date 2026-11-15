@@ -9,6 +9,7 @@ class GoalType(StrEnum):
 
 class GoalAggregation(StrEnum):
     COUNT = "count"
+    ACTIVE_DAYS = "active_days"
     TOTAL_DISTANCE = "total_distance"
     AVG_DISTANCE = "avg_distance"
     MAX_DISTANCE = "max_distance"
