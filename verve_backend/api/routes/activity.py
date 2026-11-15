@@ -72,6 +72,10 @@ from verve_backend.schema.verve_file import VerveFeature
 from verve_backend.tasks import process_activity_highlights
 
 
+class ActivityExportability(BaseModel):
+    is_exportable: bool
+
+
 class ActivityUpdate(BaseModel):
     timezone: TimeZoneName | None = None
     type_id: int | None = None
@@ -258,6 +262,34 @@ async def delete_activity(
             detail=f"Could not delete activity. Error: {e}",
         )
     session.commit()
+
+
+@router.get("/{id}/is_exportable", response_model=ActivityExportability)
+def is_activity_exportable(
+    user_session: UserSession, id: uuid.UUID
+) -> ActivityExportability:
+    """Check GeoJSON track prerequisites without loading or exporting the track."""
+    _, session = user_session
+    if session.get(Activity, id) is None:
+        raise HTTPException(status_code=404, detail="Activity not found")
+
+    segments = session.exec(
+        select(
+            func.count(),
+            func.count(TrackPoint.geography),
+            func.count(col(TrackPoint.elevation)),
+            func.count(col(TrackPoint.time)),
+        )
+        .where(TrackPoint.activity_id == id)
+        .group_by(col(TrackPoint.segment_id))
+    ).all()
+    return ActivityExportability(
+        is_exportable=bool(segments)
+        and all(
+            total >= 2 and coordinates == elevations == timestamps == total
+            for total, coordinates, elevations, timestamps in segments
+        )
+    )
 
 
 @router.get(
