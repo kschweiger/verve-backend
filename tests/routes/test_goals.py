@@ -148,9 +148,13 @@ def test_add_goal_year_uses_user_timezone(
     assert added_goals.data[0].year == expected_year
 
 
+@pytest.mark.parametrize(
+    "aggregation", [GoalAggregation.DURATION, GoalAggregation.ACTIVE_DAYS]
+)
 def test_add_multiple_goals_month(
     client: TestClient,
     temp_user_token: str,
+    aggregation: GoalAggregation,
 ) -> None:
     goal_data = {
         "name": "New Goal",
@@ -159,7 +163,7 @@ def test_add_multiple_goals_month(
         "temporal_type": TemporalType.MONTHLY,
         "month": None,
         "type": GoalType.ACTIVITY,
-        "aggregation": GoalAggregation.DURATION,
+        "aggregation": aggregation,
     }
 
     response = client.put(
@@ -177,9 +181,13 @@ def test_add_multiple_goals_month(
     ("month", "week", "exp_number_of_goals"),
     [(None, 1, 1), (1, None, 5), (None, None, 52)],
 )
+@pytest.mark.parametrize(
+    "aggregation", [GoalAggregation.COUNT, GoalAggregation.ACTIVE_DAYS]
+)
 def test_add_goals_week(
     client: TestClient,
     temp_user_token: str,
+    aggregation: GoalAggregation,
     month: int | None,
     week: int | None,
     exp_number_of_goals: int,
@@ -193,7 +201,7 @@ def test_add_goals_week(
         "month": month,
         "week": week,
         "type": GoalType.ACTIVITY,
-        "aggregation": GoalAggregation.COUNT,
+        "aggregation": aggregation,
     }
 
     response = client.put(
@@ -431,6 +439,7 @@ def test_modify_manual_goal_floor(
     ("aggregation", "expected_current"),
     [
         (GoalAggregation.COUNT, 1),
+        (GoalAggregation.ACTIVE_DAYS, 1),
         (GoalAggregation.DURATION, 1800),
         (GoalAggregation.TOTAL_DISTANCE, 2),
         (GoalAggregation.AVG_DISTANCE, 2),
