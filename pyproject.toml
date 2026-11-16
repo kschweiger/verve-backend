@@ -8,22 +8,22 @@ requires-python = ">=3.14,<3.15"
 dependencies = [
   "alembic==1.20.1",
   "bcrypt==4.3.0",
-  "boto3==1.43.123",
-  "boto3-stubs[s3]==1.43.123",
-  "celery==5.6.3",
-  "fastapi[standard]==0.162.0",
+  "boto3==1.43.126",
+  "boto3-stubs[s3]==1.43.126",
+  "celery==5.7.0",
+  "fastapi[standard]==0.162.2",
   "geo-track-analyzer==3.1.1",
   "geoalchemy2==0.20.0",
   "gevent==26.9.0",
-  "psycopg==3.3.6",
+  "psycopg==3.3.8",
   "pwdlib[argon2]>=0.3.1",
-  "pydantic==2.14.2",
+  "pydantic==2.14.3",
   "pydantic-settings==2.16.2",
   "pyjwt==2.15.1",
   "pyproj==3.8.0",
   "redis==7.4.1",
   "shapely==2.2.0",
-  "sqlalchemy==2.1.6",
+  "sqlalchemy==2.1.8",
   "sqlmodel==0.0.48",
   "structlog==26.1.0",
   "timezonefinder==9.2.0",
@@ -67,7 +67,7 @@ dev = [
   "plotly>=7.1.0",
   "rich>=15.0.0",
   "seaborn>=0.13.2",
-  "ty>=0.0.95",
+  "ty>=0.0.99",
   { include-group = "test" },
 ]
 test = [
@@ -82,7 +82,7 @@ test = [
 package = true
 
 [build-system]
-requires = ["uv_build>=0.13.6,<0.13.7"]
+requires = ["uv_build>=0.13.7,<0.13.8"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
