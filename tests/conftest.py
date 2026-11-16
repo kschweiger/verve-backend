@@ -307,6 +307,58 @@ def create_dummy_activity(
 
 
 def generate_data(session: Session) -> None:
+    from verve_backend.models import (
+        Exercise,
+        ExerciseMuscle,
+        Muscle,
+        MuscleGroup,
+        MuscleGroupMember,
+    )
+
+    quadriceps = Muscle(code="quadriceps")
+    glutes = Muscle(code="glutes")
+    calves = Muscle(code="calves")
+    core = Muscle(code="core")
+    squat = Exercise(
+        code="squat",
+        source="test",
+        source_id="squat",
+        source_revision="1",
+        muscle_links=[
+            ExerciseMuscle(muscle=quadriceps, role="primary"),  # ty: ignore[missing-argument]
+            ExerciseMuscle(muscle=glutes, role="primary"),  # ty: ignore[missing-argument]
+            ExerciseMuscle(muscle=calves, role="secondary"),  # ty: ignore[missing-argument]
+            ExerciseMuscle(muscle=core, role="secondary"),  # ty: ignore[missing-argument]
+        ],
+    )
+    session.add_all(
+        [
+            squat,
+            Exercise(
+                code="unmapped",
+                source="test",
+                source_id="unmapped",
+                source_revision="1",
+            ),
+            MuscleGroup(
+                code="legs",
+                members=[
+                    MuscleGroupMember(muscle=quadriceps),  # ty: ignore[missing-argument]
+                    MuscleGroupMember(muscle=calves),  # ty: ignore[missing-argument]
+                ],
+            ),
+            MuscleGroup(
+                code="lower_body",
+                members=[
+                    MuscleGroupMember(muscle=quadriceps),  # ty: ignore[missing-argument]
+                    MuscleGroupMember(muscle=glutes),  # ty: ignore[missing-argument]
+                ],
+            ),
+            MuscleGroup(code="empty"),
+        ]
+    )
+    session.commit()
+
     from verve_backend import (
         crud,
         models,

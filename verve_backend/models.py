@@ -10,9 +10,10 @@ from pydantic import (
     AfterValidator,
     BaseModel,
     EmailStr,
+    StringConstraints,
 )
 from pydantic_extra_types.timezone_name import TimeZoneName
-from sqlalchemy import JSON, Column
+from sqlalchemy import JSON, CheckConstraint, Column
 from sqlmodel import (
     Field,
     ForeignKeyConstraint,
@@ -62,6 +63,115 @@ class PydanticJSON(types.TypeDecorator):
         if value is None:
             return None
         return self.pydantic_model.model_validate(value)
+
+
+CatalogString = Annotated[str, StringConstraints(min_length=1, pattern=r"[^ ]")]
+
+
+class ExerciseMuscleRole(StrEnum):
+    PRIMARY = "primary"
+    SECONDARY = "secondary"
+
+
+class Exercise(SQLModel, table=True):
+    __tablename__: str = "exercises"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    code: CatalogString = Field(nullable=False)
+    source: CatalogString = Field(nullable=False)
+    source_id: CatalogString = Field(nullable=False)
+    source_revision: CatalogString = Field(nullable=False)
+    is_active: bool = Field(default=True, nullable=False)
+
+    muscle_links: list["ExerciseMuscle"] = Relationship(
+        back_populates="exercise", sa_relationship_kwargs={"passive_deletes": "all"}
+    )
+
+    __table_args__ = (
+        UniqueConstraint("code", name="uix_exercises_code"),
+        UniqueConstraint("source", "source_id", name="uix_exercises_source_source_id"),
+        CheckConstraint("btrim(code) <> ''", name="ck_exercises_code_not_empty"),
+        CheckConstraint("btrim(source) <> ''", name="ck_exercises_source_not_empty"),
+        CheckConstraint(
+            "btrim(source_id) <> ''", name="ck_exercises_source_id_not_empty"
+        ),
+        CheckConstraint(
+            "btrim(source_revision) <> ''",
+            name="ck_exercises_source_revision_not_empty",
+        ),
+    )
+
+
+class Muscle(SQLModel, table=True):
+    __tablename__: str = "muscles"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    code: CatalogString = Field(nullable=False)
+    exercise_links: list["ExerciseMuscle"] = Relationship(
+        back_populates="muscle", sa_relationship_kwargs={"passive_deletes": "all"}
+    )
+    group_links: list["MuscleGroupMember"] = Relationship(
+        back_populates="muscle", sa_relationship_kwargs={"passive_deletes": "all"}
+    )
+
+    __table_args__ = (
+        UniqueConstraint("code", name="uix_muscles_code"),
+        CheckConstraint("btrim(code) <> ''", name="ck_muscles_code_not_empty"),
+    )
+
+
+class MuscleGroup(SQLModel, table=True):
+    __tablename__: str = "muscle_groups"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    code: CatalogString = Field(nullable=False)
+    members: list["MuscleGroupMember"] = Relationship(
+        back_populates="group", sa_relationship_kwargs={"passive_deletes": "all"}
+    )
+
+    __table_args__ = (
+        UniqueConstraint("code", name="uix_muscle_groups_code"),
+        CheckConstraint("btrim(code) <> ''", name="ck_muscle_groups_code_not_empty"),
+    )
+
+
+class ExerciseMuscle(SQLModel, table=True):
+    __tablename__: str = "exercise_muscles"
+
+    exercise_id: uuid.UUID = Field(
+        foreign_key="exercises.id",
+        primary_key=True,
+        nullable=False,
+        ondelete="RESTRICT",
+    )
+    muscle_id: uuid.UUID = Field(
+        foreign_key="muscles.id", primary_key=True, nullable=False, ondelete="RESTRICT"
+    )
+    role: ExerciseMuscleRole = Field(sa_column=Column(types.Text, nullable=False))
+    exercise: Exercise = Relationship(back_populates="muscle_links")
+    muscle: Muscle = Relationship(back_populates="exercise_links")
+
+    __table_args__ = (
+        CheckConstraint(
+            "role IN ('primary', 'secondary')", name="ck_exercise_muscles_role"
+        ),
+    )
+
+
+class MuscleGroupMember(SQLModel, table=True):
+    __tablename__: str = "muscle_group_members"
+
+    group_id: uuid.UUID = Field(
+        foreign_key="muscle_groups.id",
+        primary_key=True,
+        nullable=False,
+        ondelete="RESTRICT",
+    )
+    muscle_id: uuid.UUID = Field(
+        foreign_key="muscles.id", primary_key=True, nullable=False, ondelete="RESTRICT"
+    )
+    group: MuscleGroup = Relationship(back_populates="members")
+    muscle: Muscle = Relationship(back_populates="group_links")
 
 
 class SupportedLocale(StrEnum):
