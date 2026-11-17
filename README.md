@@ -7,6 +7,7 @@
 
 - [How timezones work in the backend](docs/activity-timezone.md)
 - [Admin maintenance jobs](docs/admin-maintenance.md)
+- [RepDB exercise import](docs/exercise-import.md)
 - [Verve elevation conversion and required grid](docs/verve-elevation.md)
 - [Cadence storage and response units](docs/verve-cadence.md)
 - [Verve GeoJSON support and release prerequisites](docs/verve-geojson-implementation.md)

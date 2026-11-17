@@ -73,6 +73,13 @@ class ExerciseMuscleRole(StrEnum):
     SECONDARY = "secondary"
 
 
+class ExerciseCatalogImportState(SQLModel, table=True):
+    __tablename__: str = "exercise_catalog_import_state"
+
+    source: str = Field(primary_key=True)
+    completed_revision: str | None = None
+
+
 class Exercise(SQLModel, table=True):
     __tablename__: str = "exercises"
 

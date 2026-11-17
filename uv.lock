@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = "==3.14.*"
 
 [[package]]
@@ -2192,10 +2192,12 @@ dependencies = [
     { name = "boto3" },
     { name = "boto3-stubs", extra = ["s3"] },
     { name = "celery" },
+    { name = "click" },
     { name = "fastapi", extra = ["standard"] },
     { name = "geo-track-analyzer" },
     { name = "geoalchemy2" },
     { name = "gevent" },
+    { name = "httpx2" },
     { name = "psycopg" },
     { name = "pwdlib", extra = ["argon2"] },
     { name = "pydantic" },
@@ -2243,10 +2245,12 @@ requires-dist = [
     { name = "boto3", specifier = "==1.43.126" },
     { name = "boto3-stubs", extras = ["s3"], specifier = "==1.43.126" },
     { name = "celery", specifier = "==5.7.0" },
+    { name = "click", specifier = "==8.5.0" },
     { name = "fastapi", extras = ["standard"], specifier = "==0.162.2" },
     { name = "geo-track-analyzer", specifier = "==3.1.1" },
     { name = "geoalchemy2", specifier = "==0.21.0" },
     { name = "gevent", specifier = "==26.9.0" },
+    { name = "httpx2", specifier = ">=2.16.0" },
     { name = "psycopg", specifier = "==3.3.8" },
     { name = "pwdlib", extras = ["argon2"], specifier = ">=0.3.1" },
     { name = "pydantic", specifier = "==2.14.3" },
