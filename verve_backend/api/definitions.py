@@ -19,3 +19,4 @@ class Tag(StrEnum):
     SEGMENTS = auto()
     STATISTICS = auto()
     COLLECTION = auto()
+    STRENGTH_TRAINING = auto()
