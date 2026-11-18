@@ -1,32 +1,54 @@
-# RepDB exercise import
+# Bundled exercise catalog sync
 
-Run against a database with catalog tables already prepared (the catalog migration
-is deferred):
+The command reads packaged catalog data without network access or file writes.
+Names remain in the packaged English/German locale JSON files.
 
 ```sh
-ENVIRONMENT=testing uv run python -m verve_backend.cli.import_exercises \
-  --translations-dir ./exercise-names
+python -m verve_backend.cli.import_exercises
+python -m verve_backend.cli.import_exercises --dry-run
+python -m verve_backend.cli.import_exercises --force
+python -m verve_backend.cli.import_exercises --input /path/catalog.json --dry-run
 ```
 
-The Click command resolves upstream HEAD once and pins the httpx2 download to that
-commit. A matching completed checkpoint and verified `repdb-import.json` manifest
-skip the snapshot download and leave files unchanged. Use `--force` to reimport,
-or `--dry-run` to validate and report changes without database or file writes.
+The database tables must already exist. The container's `run.sh` runs Alembic,
+then syncs the catalog before admin setup, RLS verification, and Uvicorn. A sync
+failure stops startup. The command itself never creates or migrates tables.
 
-For offline input, supply `--input exercises.json --revision <full-commit-sha>`.
-Local input always runs validation/import and never makes network requests.
+Input is validated before opening the database. Exercises and muscles match by
+stable code and keep their UUIDs. Included exercises get exactly the declared
+muscle roles and activation flag; omitted `is_active` means `true`. Retire an
+exercise explicitly with `is_active: false`. Omitted exercises, their assignments,
+and unused muscles remain stored.
 
-Imports preserve existing UUIDs, application codes, activation flags, absent
-exercises, unused muscles, and groups. Global code collisions fail; in particular,
-the shared test seed's non-RepDB `squat` conflicts with the full RepDB snapshot.
-Use an isolated test schema for full-snapshot smoke testing.
+All display groups and memberships follow the input. Retained group codes keep
+their UUIDs; changed or empty member sets replace existing sets. Omitted groups
+and their memberships are deleted. These are application display groups, not
+user-maintained data.
 
-English/German names merge into `en.json` and `de.json`, preserving unrelated
-sections, absent keys, and existing German names when the source lacks them.
-A session advisory lock serializes RepDB runs through publication. Catalog data
-and checkpoint invalidation commit together; publication follows, then the
-checkpoint is marked complete. If publication fails after commit, the command
-reports this and exits unsuccessfully; rerun to repair the output.
+A PostgreSQL transaction advisory lock serializes starts, including checkpoint
+lookup. Catalog changes and `ExerciseCatalogSyncState` commit together. Failure
+rolls back both and releases the lock.
 
-Source and license/attribution: <https://github.com/RepDB/exercise-dataset>.
-Runtime localization, migrations, group maintenance, and API/UI work are deferred.
+The checkpoint stores catalog code, content hash, and importer behavior version.
+Only the currently applied catalog retains a checkpoint, because display groups
+are global. Applying a different catalog invalidates the previous checkpoint.
+A matching hash and version skip a normal sync, including explicit `--input`.
+Hashing excludes the root `$schema` editor hint and locale files. See the
+[format contract](exercise-catalog-format.md) for canonicalization details.
+Increment `SYNC_VERSION` when sync behavior changes and the same data must run
+again. `--force` bypasses the checkpoint to repair database edits. `--dry-run`
+always previews current differences and writes neither data nor checkpoint.
+A checkpoint records a successful sync; it does not detect later database drift.
+
+Success prints JSON with `status` (`imported`, `unchanged`, or `dry_run`),
+`catalog_code`, and `content_hash`. Applied/preview runs also report counters and
+warnings. Invalid input or database failures exit nonzero. The former
+`--revision` and `--translations-dir` options are removed.
+
+The catalog and license are bundled in the application image. Runtime validation
+uses Pydantic; JSON Schema validation and locale coverage run in tests. Builds do
+not download upstream data. An older image contains an older catalog, which a
+sync can reapply; coordinate rollbacks and avoid mixed catalog versions.
+
+See the [curation and source notes](../verve_backend/data/README.md). API endpoints,
+workout logging, body-map rendering, and runtime localization remain separate work.

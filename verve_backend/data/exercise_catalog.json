@@ -1,5 +1,5 @@
 {
-  "$schema": "../../docs/schemas/exercise-catalog.schema.json",
+  "$schema": "./exercise_catalog.schema.json",
   "schema_version": 1,
   "source": "verve",
   "upstream": {

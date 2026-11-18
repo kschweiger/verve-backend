@@ -9,8 +9,8 @@ display groups. These counts describe this revision, not format limits.
 Names are stored in the `exercises`, `muscles`, and `muscle_groups` sections of
 [`en.json`](../locales/en.json) and [`de.json`](../locales/de.json). The
 [format documentation](../../docs/exercise-catalog-format.md) describes the
-contract and its JSON Schema. The existing RepDB CLI does not consume this new
-format; the separate catalog sync is a later change.
+contract and its JSON Schema. The [offline importer](../../docs/exercise-import.md)
+synchronizes this catalog after Alembic during startup.
 
 ## Origin
 
@@ -121,8 +121,11 @@ group. The format also permits overlapping groups and unmapped muscles.
 
 Groups describe presentation regions. Deep muscles are associated with a useful
 region rather than claiming that every muscle has a visible surface shape. The
-frontend still needs its own mapping from these codes to SVG shapes. The sync
-policy for existing/admin-edited group memberships remains a separate decision.
+frontend still needs its own mapping from these codes to SVG shapes. The
+sync makes the full group definition authoritative while preserving IDs for
+retained group codes. It deletes groups absent from the bundle. A
+matching checkpoint may skip a normal run; `--force` reapplies the bundled mapping
+after direct database edits.
 
 ## Checks for this revision
 

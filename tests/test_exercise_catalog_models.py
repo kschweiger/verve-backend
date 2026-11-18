@@ -3,7 +3,13 @@ from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
-from verve_backend.models import Exercise, ExerciseMuscle, Muscle, MuscleGroup
+from verve_backend.models import (
+    Exercise,
+    ExerciseMuscle,
+    ExerciseMuscleRole,
+    Muscle,
+    MuscleGroup,
+)
 
 
 def test_catalog_relationships(db: Session) -> None:
@@ -18,6 +24,10 @@ def test_catalog_relationships(db: Session) -> None:
         "secondary",
         "secondary",
     ]
+    assert {link.role.value for link in squat.muscle_links} == {
+        ExerciseMuscleRole.PRIMARY.value,
+        ExerciseMuscleRole.SECONDARY.value,
+    }
     quadriceps = db.exec(select(Muscle).where(Muscle.code == "quadriceps")).one()
     assert {link.group.code for link in quadriceps.group_links} == {
         "legs",
@@ -81,20 +91,10 @@ def test_referenced_parent_deletion(
 @pytest.mark.parametrize("model", [Exercise, Muscle, MuscleGroup])
 @pytest.mark.parametrize("value", ["", "   ", None])
 def test_catalog_validation_rejects_invalid_codes(model, value) -> None:
-    data = dict(code=value, source="test", source_id="squat", source_revision="1")
+    data = dict(code=value)
     with pytest.raises(ValidationError) as error:
         model.model_validate(data)
     assert ("code",) in [item["loc"] for item in error.value.errors()]
-
-
-@pytest.mark.parametrize("field", ["source", "source_id", "source_revision"])
-@pytest.mark.parametrize("value", ["", "   ", None])
-def test_exercise_validation_rejects_invalid_source_fields(field, value) -> None:
-    data = dict(code="squat", source="test", source_id="squat", source_revision="1")
-    data[field] = value
-    with pytest.raises(ValidationError) as error:
-        Exercise.model_validate(data)
-    assert (field,) in [item["loc"] for item in error.value.errors()]
 
 
 def test_exercise_muscle_validation_rejects_invalid_role() -> None:

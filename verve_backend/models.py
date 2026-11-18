@@ -73,11 +73,20 @@ class ExerciseMuscleRole(StrEnum):
     SECONDARY = "secondary"
 
 
-class ExerciseCatalogImportState(SQLModel, table=True):
-    __tablename__: str = "exercise_catalog_import_state"
+class ExerciseCatalogSyncState(SQLModel, table=True):
+    __tablename__: str = "exercise_catalog_sync_state"
 
-    source: str = Field(primary_key=True)
-    completed_revision: str | None = None
+    catalog_code: CatalogString = Field(primary_key=True)
+    content_hash: str = Field(nullable=False)
+    sync_version: int = Field(nullable=False)
+
+    __table_args__ = (
+        CheckConstraint(
+            "btrim(catalog_code) <> ''", name="ck_catalog_sync_code_not_empty"
+        ),
+        CheckConstraint("content_hash ~ '^[0-9a-f]{64}$'", name="ck_catalog_sync_hash"),
+        CheckConstraint("sync_version > 0", name="ck_catalog_sync_version_positive"),
+    )
 
 
 class Exercise(SQLModel, table=True):
@@ -85,9 +94,6 @@ class Exercise(SQLModel, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     code: CatalogString = Field(nullable=False)
-    source: CatalogString = Field(nullable=False)
-    source_id: CatalogString = Field(nullable=False)
-    source_revision: CatalogString = Field(nullable=False)
     is_active: bool = Field(default=True, nullable=False)
 
     muscle_links: list["ExerciseMuscle"] = Relationship(
@@ -96,16 +102,7 @@ class Exercise(SQLModel, table=True):
 
     __table_args__ = (
         UniqueConstraint("code", name="uix_exercises_code"),
-        UniqueConstraint("source", "source_id", name="uix_exercises_source_source_id"),
         CheckConstraint("btrim(code) <> ''", name="ck_exercises_code_not_empty"),
-        CheckConstraint("btrim(source) <> ''", name="ck_exercises_source_not_empty"),
-        CheckConstraint(
-            "btrim(source_id) <> ''", name="ck_exercises_source_id_not_empty"
-        ),
-        CheckConstraint(
-            "btrim(source_revision) <> ''",
-            name="ck_exercises_source_revision_not_empty",
-        ),
     )
 
 
@@ -154,15 +151,9 @@ class ExerciseMuscle(SQLModel, table=True):
     muscle_id: uuid.UUID = Field(
         foreign_key="muscles.id", primary_key=True, nullable=False, ondelete="RESTRICT"
     )
-    role: ExerciseMuscleRole = Field(sa_column=Column(types.Text, nullable=False))
+    role: ExerciseMuscleRole
     exercise: Exercise = Relationship(back_populates="muscle_links")
     muscle: Muscle = Relationship(back_populates="exercise_links")
-
-    __table_args__ = (
-        CheckConstraint(
-            "role IN ('primary', 'secondary')", name="ck_exercise_muscles_role"
-        ),
-    )
 
 
 class MuscleGroupMember(SQLModel, table=True):

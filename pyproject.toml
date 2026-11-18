@@ -16,7 +16,6 @@ dependencies = [
   "geo-track-analyzer==3.1.1",
   "geoalchemy2==0.21.0",
   "gevent==26.9.0",
-  "httpx2>=2.16.0",
   "psycopg==3.3.8",
   "pwdlib[argon2]>=0.3.1",
   "pydantic==2.14.3",
@@ -74,6 +73,7 @@ dev = [
 ]
 test = [
   "freezegun>=1.5.5",
+  "jsonschema[format-nongpl]>=4.26.0",
   "pillow>=13.0.0",
   "pytest>=9.2.0",
   "pytest-cov>=7.1.0",

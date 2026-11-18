@@ -12,6 +12,9 @@ echo "--- 🔄 Running Database Migrations ---"
 # We are in the venv (via Dockerfile PATH), so we can run alembic directly.
 alembic upgrade head
 
+echo "--- 🏋️ Synchronizing Exercise Catalog ---"
+python -m verve_backend.cli.import_exercises
+
 # -----------------------------------------------------
 # 2. Admin User Setup (Conditional)
 # -----------------------------------------------------

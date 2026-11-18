@@ -321,9 +321,6 @@ def generate_data(session: Session) -> None:
     core = Muscle(code="core")
     squat = Exercise(
         code="squat",
-        source="test",
-        source_id="squat",
-        source_revision="1",
         muscle_links=[
             ExerciseMuscle(muscle=quadriceps, role="primary"),  # ty: ignore[missing-argument]
             ExerciseMuscle(muscle=glutes, role="primary"),  # ty: ignore[missing-argument]
@@ -336,9 +333,6 @@ def generate_data(session: Session) -> None:
             squat,
             Exercise(
                 code="unmapped",
-                source="test",
-                source_id="unmapped",
-                source_revision="1",
             ),
             MuscleGroup(
                 code="legs",

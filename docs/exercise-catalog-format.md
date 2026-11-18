@@ -1,7 +1,7 @@
 # Bundled exercise catalog format
 
 Status: accepted format, version 1. This describes our own curated catalog, with
-free-exercise-db as a starting point. It does not change the existing RepDB CLI.
+free-exercise-db as a starting point. The offline importer consumes this format.
 
 The [first catalog](../verve_backend/data/exercise_catalog.json) contains the 50
 agreed exercise variants plus lateral band walks, monster walks, terminal knee
@@ -12,7 +12,7 @@ format with two entries; they are not the complete catalog.
 
 ## Files
 
-- [JSON Schema](schemas/exercise-catalog.schema.json)
+- [JSON Schema](../verve_backend/data/exercise_catalog.schema.json)
 - [Example catalog](examples/exercise-catalog/catalog.json)
 - [Example English labels](examples/exercise-catalog/en.json)
 - [Example German labels](examples/exercise-catalog/de.json)
@@ -89,10 +89,15 @@ The frontend maps group codes to its body-map shapes. Group labels use the
 `muscle_groups` locale namespace. SVG paths, colors, and weights are outside this
 format.
 
-This section supplies a default mapping for a fresh installation. The later sync
-design must decide whether existing memberships are preserved or reconciled with
-the bundle. Presence in this file does not by itself authorize overwriting admin
-changes. Do not maintain a second group-definition document in the locale files.
+The bundled group definitions are authoritative. Synchronization creates missing
+groups and replaces memberships with the declared sets, preserving IDs for
+retained codes. An empty member array clears a group. Groups absent from the
+input are deleted with their memberships. Exercises and muscles are retained.
+Do not maintain a second group-definition document in the locale files.
+
+A matching completed checkpoint may skip synchronization. Use `--force` to
+reapply the bundle after direct database edits. See the
+[importer documentation](exercise-import.md).
 
 ### Upstream provenance
 
@@ -140,30 +145,29 @@ English and German examples cover all of their catalog codes. Preserve labels fo
 retired exercises. Translations remain application resources and are never synced
 into database name columns.
 
-## Mapping to the existing database
+## Database mapping
 
 | Raw data | Database value |
 | --- | --- |
-| Root `source` | `Exercise.source`; also the source key of an optional import checkpoint. |
-| Exercise `code` | `Exercise.code` and `Exercise.source_id` for our own catalog. |
-| Catalog content checksum | `Exercise.source_revision`; optionally `completed_revision` after a successful sync. |
-| Exercise `is_active` | Catalog activation value, with `true` as the input default. |
-| Detailed muscle code | `Muscle.code`. |
-| Exercise muscle arrays | `ExerciseMuscle` rows with their respective roles. |
-| Group `code` and member codes | `MuscleGroup.code` and default `MuscleGroupMember` links. |
-| `upstream` and `upstream_id` | Raw-data provenance only; no new database columns. |
+| Root `source` | `ExerciseCatalogSyncState.catalog_code`, the catalog checkpoint key. |
+| Exercise `code` | Unique `Exercise.code`, used to find and retain its UUID. |
+| Content checksum | `ExerciseCatalogSyncState.content_hash`. |
+| Sync behavior version | `ExerciseCatalogSyncState.sync_version`, maintained by the importer. |
+| Exercise `is_active` | `Exercise.is_active`, defaulting to `true`. |
+| Detailed muscle code | Unique `Muscle.code`. |
+| Exercise muscle arrays | `ExerciseMuscle` rows and their roles. |
+| Group code and member codes | `MuscleGroup.code` and `MuscleGroupMember` links. |
+| `upstream` and `upstream_id` | Raw-data provenance only. |
 
-Do not store UUIDs or a manually updated catalog revision in the files. A sync
-creates UUIDs once and preserves them when matching stable codes/source
-references. The upstream Git SHA describes the external starting data; the
-derived catalog checksum describes our modified data. They are different values.
+UUIDs are generated once and retained when codes match. Codes must not change
+when labels change. The upstream Git SHA describes the original starting data;
+the catalog checksum describes our current bundled data.
 
-For an optional checkpoint, hash the parsed catalog as deterministic JSON: sort
-object keys, use UTF-8, and omit insignificant whitespace. Exclude the root
-`$schema` editor hint from the hash. Array order remains part of the checksum.
-Locale files are excluded because their labels are bundled application resources
-and do not change database rows. A checkpoint also needs to account for a future
-change of sync behavior; the sync implementation will define that versioning.
+The checksum is SHA-256 of the parsed document without the root `$schema` hint.
+Canonical JSON uses sorted object keys, UTF-8, compact separators, and no trailing
+newline. Array order is significant. Defaults are not inserted before hashing.
+Locale files are excluded. A matching checksum and sync version skip a normal
+run; `--force` applies the catalog again.
 
 ## Validation boundaries
 
@@ -171,7 +175,7 @@ The JSON Schema checks field names, required fields, types, code syntax, list
 duplicates, and the requirement for upstream metadata when an ID is used. Unknown
 fields are rejected so spelling errors do not silently disappear.
 
-The later loader must additionally check before any database writes:
+The Pydantic runtime loader also checks the structure and, before database access:
 
 - Unique exercise codes and unique group codes. Object-level `uniqueItems` alone
   does not reject two objects with the same code and different content.
@@ -182,5 +186,6 @@ The later loader must additionally check before any database writes:
 - Referenced upstream IDs exist at the recorded revision when preparing imported
   entries. Runtime sync reads bundled files and does not contact upstream.
 
-Preparation should also check locale coverage for exercises, muscles, and groups.
-The existing RepDB CLI does not yet implement this format or these checks.
+Tests validate the bundled document against the maintained JSON Schema and check
+English/German locale coverage. `jsonschema` is a test dependency. Runtime
+validation uses the existing Pydantic dependency and does not fetch schema URLs.
