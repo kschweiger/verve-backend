@@ -52,3 +52,20 @@ sync can reapply; coordinate rollbacks and avoid mixed catalog versions.
 
 See the [curation and source notes](../verve_backend/data/README.md). API endpoints,
 workout logging, body-map rendering, and runtime localization remain separate work.
+
+## Importer tests
+
+The configured test database must contain the `catalog_import_tests` schema in
+addition to the application's `api` schema. CI creates both before pytest. For a
+local test database, create the additional schema once with the test database
+owner:
+
+```sql
+CREATE SCHEMA IF NOT EXISTS catalog_import_tests;
+```
+
+The importer test module overrides the shared database fixture. It creates only
+the six catalog tables in this schema and clears their rows before and after each
+test. Its CLI calls use real sessions and commits against the isolated tables.
+The fixtures leave the schema itself in place and do not reset or restore the
+application catalog. Each test supplies any existing catalog data it needs.

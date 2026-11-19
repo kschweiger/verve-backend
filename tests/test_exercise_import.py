@@ -1,59 +1,80 @@
 import json
+from collections.abc import Generator
 from concurrent.futures import ThreadPoolExecutor
 from importlib.resources import files
 
 import pytest
 from click.testing import CliRunner
-from sqlalchemy import delete, text
-from sqlmodel import Session, select
+from sqlalchemy import Engine, MetaData, inspect, text
+from sqlmodel import Session, SQLModel, select
 
 from tests.test_exercise_catalog_data import document
 from verve_backend.models import (
     Exercise,
     ExerciseCatalogSyncState,
-    ExerciseMuscle,
     Muscle,
     MuscleGroup,
-    MuscleGroupMember,
+)
+
+CATALOG_SCHEMA = "catalog_import_tests"
+CATALOG_TABLES = (
+    "exercises",
+    "muscles",
+    "muscle_groups",
+    "exercise_muscles",
+    "muscle_group_members",
+    "exercise_catalog_sync_state",
 )
 
 
-@pytest.fixture
-def catalog_db(db):  # noqa: ANN201
-    """Restore the global catalog after tests of authoritative group replacement."""
+@pytest.fixture(scope="session")
+def catalog_metadata() -> MetaData:
+    metadata = MetaData()
+    for name in CATALOG_TABLES:
+        SQLModel.metadata.tables[name].to_metadata(metadata)
+    return metadata
+
+
+@pytest.fixture(scope="session")
+def catalog_engine(catalog_metadata: MetaData) -> Engine:
+    from verve_backend.core.config import settings
     from verve_backend.core.db import get_engine
 
-    models = (
-        Exercise,
-        Muscle,
-        MuscleGroup,
-        ExerciseMuscle,
-        MuscleGroupMember,
-        ExerciseCatalogSyncState,
+    assert settings.ENVIRONMENT == "testing"
+    assert settings.POSTGRES_SCHEMA != CATALOG_SCHEMA
+    engine = get_engine(rls=False).execution_options(
+        schema_translate_map={None: CATALOG_SCHEMA}
     )
-    with Session(get_engine(rls=False)) as session:
-        original = {
-            model: [row.model_dump() for row in session.exec(select(model)).all()]
-            for model in models
-        }
-        session.rollback()
-        yield session
-        session.rollback()
-        session.expunge_all()
-        for model in (
-            ExerciseMuscle,
-            MuscleGroupMember,
-            ExerciseCatalogSyncState,
-            Exercise,
-            MuscleGroup,
-            Muscle,
-        ):
-            session.execute(delete(model))
-        for model in models:
-            session.add_all(model(**row) for row in original[model])
-            session.flush()
-        session.commit()
-        db.expire_all()
+    if not inspect(engine).has_schema(CATALOG_SCHEMA):
+        pytest.fail(
+            f"Create the {CATALOG_SCHEMA!r} schema before running importer tests"
+        )
+    catalog_metadata.drop_all(engine)
+    catalog_metadata.create_all(engine)
+    return engine
+
+
+@pytest.fixture(autouse=True)
+def db(
+    catalog_engine: Engine, catalog_metadata: MetaData, mocker
+) -> Generator[Session]:
+    """Override the shared seeded database with an empty, isolated catalog."""
+    mocker.patch("verve_backend.core.db.get_engine", return_value=catalog_engine)
+    with catalog_engine.begin() as connection:
+        for table in reversed(catalog_metadata.sorted_tables):
+            connection.execute(table.delete())
+    try:
+        with Session(catalog_engine) as session:
+            yield session
+    finally:
+        with catalog_engine.begin() as connection:
+            for table in reversed(catalog_metadata.sorted_tables):
+                connection.execute(table.delete())
+
+
+@pytest.fixture
+def catalog_db(db: Session) -> Session:
+    return db
 
 
 @pytest.fixture
@@ -63,11 +84,45 @@ def source(tmp_path):  # noqa: ANN201
     return path
 
 
+def test_import_keeps_application_catalog_unchanged(catalog_engine, source) -> None:
+    from verve_backend.cli import import_exercises as cli
+    from verve_backend.core.config import settings
+
+    application_engine = catalog_engine.execution_options(
+        schema_translate_map={None: settings.POSTGRES_SCHEMA}
+    )
+
+    def application_catalog() -> dict:
+        with application_engine.connect() as connection:
+            existing = set(
+                inspect(connection).get_table_names(schema=settings.POSTGRES_SCHEMA)
+            )
+            return {
+                name: frozenset(
+                    connection.execute(SQLModel.metadata.tables[name].select()).all()
+                )
+                for name in CATALOG_TABLES
+                if name in existing
+            }
+
+    original = application_catalog()
+    assert cli.run_import(source)["status"] == "imported"
+    assert application_catalog() == original
+    with catalog_engine.connect() as connection:
+        assert set(
+            connection.execute(
+                text("SELECT code FROM catalog_import_tests.exercises")
+            ).scalars()
+        ) == {"test_squat", "test_unmapped"}
+
+
 def test_reconcile_identity_roles_activation_and_groups(catalog_db, source) -> None:
     from verve_backend.core.exercise_catalog import sync_catalog
     from verve_backend.core.exercise_catalog_data import load_catalog
 
     session = catalog_db
+    session.add(Muscle(code="quadriceps"))
+    session.flush()
     first = sync_catalog(session, load_catalog(source))
     assert first.created == first.muscles_created == first.groups_created == 2
     exercise = session.exec(select(Exercise).where(Exercise.code == "test_squat")).one()
@@ -113,8 +168,13 @@ def test_preview_does_not_mutate_catalog(catalog_db, source) -> None:
     from verve_backend.core.exercise_catalog import sync_catalog
     from verve_backend.core.exercise_catalog_data import load_catalog
 
+    group = MuscleGroup(code="existing_group")
+    catalog_db.add(group)
+    catalog_db.flush()
     result = sync_catalog(catalog_db, load_catalog(source), dry_run=True)
-    assert result.created == result.muscles_created == 2
+    assert result.created == 2
+    assert result.muscles_created == 3
+    assert result.groups_deleted == 1
     assert not catalog_db.new
     assert not catalog_db.dirty
     assert not catalog_db.deleted
@@ -122,10 +182,7 @@ def test_preview_does_not_mutate_catalog(catalog_db, source) -> None:
         catalog_db.exec(select(Exercise).where(Exercise.code == "test_squat")).first()
         is None
     )
-    assert (
-        catalog_db.exec(select(MuscleGroup).where(MuscleGroup.code == "legs")).first()
-        is not None
-    )
+    assert catalog_db.exec(select(MuscleGroup.id)).all() == [group.id]
 
 
 def test_cli_checkpoint_force_and_version(catalog_db, source) -> None:
