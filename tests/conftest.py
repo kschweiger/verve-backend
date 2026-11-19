@@ -35,12 +35,14 @@ def pytest_configure(config) -> None:
 @pytest.fixture(scope="session", autouse=True)
 def db():  # noqa: ANN201
     from verve_backend import models  # noqa: F401
+    from verve_backend.cli.import_exercises import run_import
     from verve_backend.core.db import get_engine
 
     engine = get_engine(echo=False, rls=False)
 
     SQLModel.metadata.drop_all(engine)
     SQLModel.metadata.create_all(engine)
+    run_import()
     with Session(engine) as session:
         generate_data(session)
         yield session
@@ -307,52 +309,6 @@ def create_dummy_activity(
 
 
 def generate_data(session: Session) -> None:
-    from verve_backend.models import (
-        Exercise,
-        ExerciseMuscle,
-        Muscle,
-        MuscleGroup,
-        MuscleGroupMember,
-    )
-
-    quadriceps = Muscle(code="quadriceps")
-    glutes = Muscle(code="glutes")
-    calves = Muscle(code="calves")
-    core = Muscle(code="core")
-    squat = Exercise(
-        code="squat",
-        muscle_links=[
-            ExerciseMuscle(muscle=quadriceps, role="primary"),  # ty: ignore[missing-argument]
-            ExerciseMuscle(muscle=glutes, role="primary"),  # ty: ignore[missing-argument]
-            ExerciseMuscle(muscle=calves, role="secondary"),  # ty: ignore[missing-argument]
-            ExerciseMuscle(muscle=core, role="secondary"),  # ty: ignore[missing-argument]
-        ],
-    )
-    session.add_all(
-        [
-            squat,
-            Exercise(
-                code="unmapped",
-            ),
-            MuscleGroup(
-                code="legs",
-                members=[
-                    MuscleGroupMember(muscle=quadriceps),  # ty: ignore[missing-argument]
-                    MuscleGroupMember(muscle=calves),  # ty: ignore[missing-argument]
-                ],
-            ),
-            MuscleGroup(
-                code="lower_body",
-                members=[
-                    MuscleGroupMember(muscle=quadriceps),  # ty: ignore[missing-argument]
-                    MuscleGroupMember(muscle=glutes),  # ty: ignore[missing-argument]
-                ],
-            ),
-            MuscleGroup(code="empty"),
-        ]
-    )
-    session.commit()
-
     from verve_backend import (
         crud,
         models,

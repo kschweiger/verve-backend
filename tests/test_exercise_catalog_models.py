@@ -1,3 +1,5 @@
+from collections.abc import Generator
+
 import pytest
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
@@ -9,15 +11,61 @@ from verve_backend.models import (
     ExerciseMuscleRole,
     Muscle,
     MuscleGroup,
+    MuscleGroupMember,
 )
 
 
-def test_catalog_relationships(db: Session) -> None:
-    """Reload the seeded catalog to check roles and overlapping memberships.
+@pytest.fixture
+def catalog(db: Session) -> Generator[Session]:
+    """Keep synthetic edge cases in a separate transaction that rolls back."""
+    with Session(db.get_bind()) as session:
+        quadriceps = Muscle(code="model_test_quadriceps")
+        glutes = Muscle(code="model_test_glutes")
+        calves = Muscle(code="model_test_calves")
+        core = Muscle(code="model_test_core")
+        squat = Exercise(code="model_test_squat")
+        unmapped = Exercise(code="model_test_unmapped")
+        legs = MuscleGroup(code="model_test_legs")
+        lower_body = MuscleGroup(code="model_test_lower_body")
+        empty = MuscleGroup(code="model_test_empty")
+        session.add_all(
+            [quadriceps, glutes, calves, core, squat, unmapped, legs, lower_body, empty]
+        )
+        session.flush()
+        session.add_all(
+            [
+                ExerciseMuscle(exercise_id=squat.id, muscle_id=muscle.id, role=role)
+                for muscle, role in (
+                    (quadriceps, ExerciseMuscleRole.PRIMARY),
+                    (glutes, ExerciseMuscleRole.PRIMARY),
+                    (calves, ExerciseMuscleRole.SECONDARY),
+                    (core, ExerciseMuscleRole.SECONDARY),
+                )
+            ]
+        )
+        session.add_all(
+            [
+                MuscleGroupMember(group_id=group.id, muscle_id=muscle.id)
+                for group, muscle in (
+                    (legs, quadriceps),
+                    (legs, calves),
+                    (lower_body, quadriceps),
+                    (lower_body, glutes),
+                )
+            ]
+        )
+        session.flush()
+        yield session
+
+
+def test_catalog_relationships(catalog: Session) -> None:
+    """Reload a local catalog to check roles and overlapping memberships.
     Empty exercises and groups must also remain valid without associations.
     """
-    db.expire_all()
-    squat = db.exec(select(Exercise).where(Exercise.code == "squat")).one()
+    catalog.expire_all()
+    squat = catalog.exec(
+        select(Exercise).where(Exercise.code == "model_test_squat")
+    ).one()
     assert sorted(link.role for link in squat.muscle_links) == [
         "primary",
         "primary",
@@ -28,62 +76,64 @@ def test_catalog_relationships(db: Session) -> None:
         ExerciseMuscleRole.PRIMARY.value,
         ExerciseMuscleRole.SECONDARY.value,
     }
-    quadriceps = db.exec(select(Muscle).where(Muscle.code == "quadriceps")).one()
+    quadriceps = catalog.exec(
+        select(Muscle).where(Muscle.code == "model_test_quadriceps")
+    ).one()
     assert {link.group.code for link in quadriceps.group_links} == {
-        "legs",
-        "lower_body",
+        "model_test_legs",
+        "model_test_lower_body",
     }
     assert all(link.exercise.id == squat.id for link in quadriceps.exercise_links)
-    unmapped = db.exec(select(Exercise).where(Exercise.code == "unmapped")).one()
-    empty = db.exec(select(MuscleGroup).where(MuscleGroup.code == "empty")).one()
+    unmapped = catalog.exec(
+        select(Exercise).where(Exercise.code == "model_test_unmapped")
+    ).one()
+    empty = catalog.exec(
+        select(MuscleGroup).where(MuscleGroup.code == "model_test_empty")
+    ).one()
     assert unmapped.muscle_links == []
     assert empty.members == []
 
 
-def test_exercise_deactivation(db: Session) -> None:
-    """Deactivation preserves the seeded exercise and its muscle assignments.
-    Restore the active flag afterward so the shared baseline remains unchanged.
-    """
-    exercise = db.exec(select(Exercise).where(Exercise.code == "squat")).one()
+def test_exercise_deactivation(catalog: Session) -> None:
+    """Deactivation preserves the local exercise and its muscle assignments."""
+    exercise = catalog.exec(
+        select(Exercise).where(Exercise.code == "model_test_squat")
+    ).one()
     identity, code = exercise.id, exercise.code
     links = {(link.muscle_id, link.role) for link in exercise.muscle_links}
-    try:
-        exercise.is_active = False
-        db.commit()
-        db.expire_all()
-        assert not exercise.is_active
-        assert exercise.id == identity
-        assert exercise.code == code
-        assert {(link.muscle_id, link.role) for link in exercise.muscle_links} == links
-    finally:
-        exercise.is_active = True
-        db.commit()
+    exercise.is_active = False
+    catalog.flush()
+    catalog.expire_all()
+    assert not exercise.is_active
+    assert exercise.id == identity
+    assert exercise.code == code
+    assert {(link.muscle_id, link.role) for link in exercise.muscle_links} == links
 
 
 @pytest.mark.parametrize("loaded", [False, True])
 @pytest.mark.parametrize(
     ("model", "code", "collections"),
     [
-        (Exercise, "squat", ["muscle_links"]),
-        (Muscle, "quadriceps", ["exercise_links", "group_links"]),
-        (MuscleGroup, "legs", ["members"]),
+        (Exercise, "model_test_squat", ["muscle_links"]),
+        (Muscle, "model_test_quadriceps", ["exercise_links", "group_links"]),
+        (MuscleGroup, "model_test_legs", ["members"]),
     ],
 )
 def test_referenced_parent_deletion(
-    db: Session, model, code, collections, loaded
+    catalog: Session, model, code, collections, loaded
 ) -> None:
     """ORM deletion must preserve references with loaded or unloaded collections.
-    A savepoint contains the rejected deletion and leaves seeded links intact.
+    A savepoint contains the rejected deletion and leaves local links intact.
     """
-    parent = db.exec(select(model).where(model.code == code)).one()
-    db.expire(parent)
+    parent = catalog.exec(select(model).where(model.code == code)).one()
+    catalog.expire(parent)
     if loaded:
         for collection in collections:
             assert getattr(parent, collection)
-    with pytest.raises(IntegrityError), db.begin_nested():  # noqa: PT012
-        db.delete(parent)
-        db.flush()
-    db.expire_all()
+    with pytest.raises(IntegrityError), catalog.begin_nested():  # noqa: PT012
+        catalog.delete(parent)
+        catalog.flush()
+    catalog.expire_all()
     for collection in collections:
         assert getattr(parent, collection)
 

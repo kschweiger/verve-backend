@@ -55,6 +55,12 @@ workout logging, body-map rendering, and runtime localization remain separate wo
 
 ## Importer tests
 
+The shared application test fixture imports the bundled catalog through the same
+`run_import()` entry point as the startup CLI, after creating the test tables and
+before seeding users and activities. This includes the completed checkpoint.
+Model-specific edge cases use local, uncommitted fixtures that roll back after
+each test; they are not part of the shared application catalog.
+
 The configured test database must contain the `catalog_import_tests` schema in
 addition to the application's `api` schema. CI creates both before pytest. For a
 local test database, create the additional schema once with the test database
