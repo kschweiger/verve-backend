@@ -150,8 +150,7 @@ def get_exercise(
         404: {"model": HTTPErrorResponse, "description": "User not found"},
     },
     summary="List active exercises",
-    description="List active exercises available for selection, "
-    "ordered by stable code.",
+    description="List active exercises available for selection.",
 )
 def get_exercises(
     user_session: UserSession,

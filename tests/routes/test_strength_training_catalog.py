@@ -3,6 +3,8 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 from pytest_mock import MockerFixture
 
+from verve_backend.core.exercise_catalog_data import load_catalog
+
 PATH = "/strength_training/exercises"
 
 
@@ -13,8 +15,9 @@ def test_catalog_returns_active_exercises_and_matching_detail(
     response = client.get(PATH, headers=headers)
     assert response.status_code == 200
     exercises = response.json()["data"]
-    assert exercises
-    assert [e["code"] for e in exercises] == sorted(e["code"] for e in exercises)
+    active_codes = {item.code for item in load_catalog().exercises if item.is_active}
+    assert {item["code"] for item in exercises} == active_codes
+    assert len(exercises) == len(active_codes)
     assert all(e["is_active"] for e in exercises)
     exercise = next(e for e in exercises if e["code"] == "chest_press_machine")
     assert set(exercise) == {"id", "code", "name", "is_active", "muscles"}
@@ -128,8 +131,13 @@ def test_catalog_uses_locale_override_and_user_preference(
     preferred = client.get(PATH, headers=headers).json()["data"]
     english = client.get(f"{PATH}?locale=en", headers=headers).json()["data"]
     german = client.get(f"{PATH}?locale=de", headers=headers).json()["data"]
-    assert preferred == german
-    assert any(a["name"] != b["name"] for a, b in zip(english, german, strict=True))
+    german_by_code = {item["code"]: item for item in german}
+    assert {item["code"]: item for item in preferred} == german_by_code
+    english_names = {item["code"]: item["name"] for item in english}
+    assert english_names.keys() == german_by_code.keys()
+    assert any(
+        german_by_code[code]["name"] != name for code, name in english_names.items()
+    )
 
 
 def test_missing_german_label_falls_back_to_english(
