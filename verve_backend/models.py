@@ -92,11 +92,27 @@ class ExerciseCatalogSyncState(SQLModel, table=True):
     )
 
 
-class Exercise(SQLModel, table=True):
+class ExerciseBase(SQLModel):
+    code: CatalogString = Field(
+        nullable=False, description="Stable code identifying the exercise."
+    )
+    is_active: bool = Field(
+        description="Whether the exercise is available for selection."
+    )
+
+
+class ExercisePublic(ExerciseBase):
+    id: uuid.UUID = Field(description="Unique identifier of the exercise.")
+    name: str = Field(description="Translated exercise name.")
+    muscles: list["ExerciseMusclePublic"] = Field(
+        description="Muscles used by the exercise, sorted by code."
+    )
+
+
+class Exercise(ExerciseBase, table=True):
     __tablename__: str = "exercises"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    code: CatalogString = Field(nullable=False)
     is_active: bool = Field(default=True, nullable=False)
 
     muscle_links: list["ExerciseMuscle"] = Relationship(
@@ -109,11 +125,21 @@ class Exercise(SQLModel, table=True):
     )
 
 
-class Muscle(SQLModel, table=True):
+class MuscleBase(SQLModel):
+    code: CatalogString = Field(
+        nullable=False, description="Stable code identifying the muscle."
+    )
+
+
+class MusclePublic(MuscleBase):
+    id: uuid.UUID = Field(description="Unique identifier of the muscle.")
+    name: str = Field(description="Translated muscle name.")
+
+
+class Muscle(MuscleBase, table=True):
     __tablename__: str = "muscles"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    code: CatalogString = Field(nullable=False)
     exercise_links: list["ExerciseMuscle"] = Relationship(
         back_populates="muscle", sa_relationship_kwargs={"passive_deletes": "all"}
     )
@@ -127,11 +153,21 @@ class Muscle(SQLModel, table=True):
     )
 
 
-class MuscleGroup(SQLModel, table=True):
+class MuscleGroupBase(SQLModel):
+    code: CatalogString = Field(
+        nullable=False, description="Stable code identifying the muscle display group."
+    )
+
+
+class MuscleGroupPublic(MuscleGroupBase):
+    id: uuid.UUID = Field(description="Unique identifier of the display group.")
+    name: str = Field(description="Translated display group name.")
+
+
+class MuscleGroup(MuscleGroupBase, table=True):
     __tablename__: str = "muscle_groups"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    code: CatalogString = Field(nullable=False)
     members: list["MuscleGroupMember"] = Relationship(
         back_populates="group", sa_relationship_kwargs={"passive_deletes": "all"}
     )
@@ -139,6 +175,16 @@ class MuscleGroup(SQLModel, table=True):
     __table_args__ = (
         UniqueConstraint("code", name="uix_muscle_groups_code"),
         CheckConstraint("btrim(code) <> ''", name="ck_muscle_groups_code_not_empty"),
+    )
+
+
+class ExerciseMusclePublic(MusclePublic):
+    role: ExerciseMuscleRole = Field(
+        description="Whether the muscle is a primary target "
+        "or provides secondary assistance."
+    )
+    muscle_groups: list[MuscleGroupPublic] = Field(
+        description="Display groups containing this muscle, sorted by code."
     )
 
 

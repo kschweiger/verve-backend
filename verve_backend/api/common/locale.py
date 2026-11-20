@@ -3,10 +3,17 @@ from datetime import datetime
 from enum import StrEnum
 from functools import lru_cache
 from importlib.resources import files
-from typing import Literal
+from typing import Annotated, Literal
+
+from fastapi import Query
 
 import verve_backend.locales
-from verve_backend.api.deps import SupportedLocale
+from verve_backend.models import SupportedLocale
+
+CatalogLocale = Annotated[
+    SupportedLocale | None,
+    Query(description="Defaults to the account preference, or English if unset."),
+]
 
 
 class TimeOfDay(StrEnum):

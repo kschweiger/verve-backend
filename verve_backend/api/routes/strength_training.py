@@ -1,17 +1,32 @@
-from typing import Any
+from collections.abc import Sequence
+from typing import Any, cast
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Path
+from sqlalchemy.orm import selectinload
+from sqlmodel import Session, col, select
 from starlette.status import (
     HTTP_404_NOT_FOUND,
     HTTP_501_NOT_IMPLEMENTED,
 )
 
+from verve_backend.api.common.locale import CatalogLocale, load_translations
+from verve_backend.api.common.responses import HTTPErrorResponse
 from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import UserSession
 from verve_backend.models import (
     Activity,
+    Exercise,
+    ExerciseMuscle,
+    ExerciseMusclePublic,
+    ExercisePublic,
+    ListResponse,
+    Muscle,
+    MuscleGroupMember,
+    MuscleGroupPublic,
+    SupportedLocale,
+    UserSettings,
 )
 
 router = APIRouter(prefix="/strength_training", tags=[Tag.STRENGTH_TRAINING])
@@ -20,36 +35,122 @@ logger = structlog.getLogger(__name__)
 
 
 # -------------------- Exercises --------------------
-# Exercisier are defined by the database and the static version data
-# So we do not need write routes
-# Since the are global no really need to check anyhting about the user
-#
+_ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
+    400: {"model": HTTPErrorResponse, "description": "Inactive user"},
+    401: {"model": HTTPErrorResponse, "description": "Authentication required"},
+    403: {"model": HTTPErrorResponse, "description": "Invalid credentials"},
+    404: {"model": HTTPErrorResponse, "description": "Exercise or user not found"},
+}
+
+
+def _query_exercises(
+    session: Session, *, exercise_id: UUID | None = None
+) -> Sequence[Exercise]:
+    statement = select(Exercise).options(
+        selectinload(cast(Any, Exercise.muscle_links))
+        .selectinload(cast(Any, ExerciseMuscle.muscle))
+        .selectinload(cast(Any, Muscle.group_links))
+        .selectinload(cast(Any, MuscleGroupMember.group))
+    )
+    if exercise_id is None:
+        statement = statement.where(col(Exercise.is_active).is_(True))
+    else:
+        statement = statement.where(Exercise.id == exercise_id)
+    return session.exec(statement.order_by(Exercise.code)).all()
+
+
+def _load_exercises(
+    session: Session,
+    user_id: str,
+    locale: SupportedLocale | None,
+    *,
+    exercise_id: UUID | None = None,
+) -> list[ExercisePublic]:
+    settings = session.get(UserSettings, UUID(user_id)) if locale is None else None
+    locale = locale or (settings.locale if settings else SupportedLocale.EN)
+    translations = load_translations(locale)
+    english = load_translations(SupportedLocale.EN)
+
+    def label(kind: str, code: str) -> str:
+        return (
+            translations.get(kind, {}).get(code)
+            or english.get(kind, {}).get(code)
+            or code
+        )
+
+    exercises = _query_exercises(session, exercise_id=exercise_id)
+    return [
+        ExercisePublic(
+            id=exercise.id,
+            code=exercise.code,
+            name=label("exercises", exercise.code),
+            is_active=exercise.is_active,
+            muscles=[
+                ExerciseMusclePublic(
+                    id=link.muscle.id,
+                    code=link.muscle.code,
+                    name=label("muscles", link.muscle.code),
+                    role=link.role,
+                    muscle_groups=[
+                        MuscleGroupPublic(
+                            id=member.group.id,
+                            code=member.group.code,
+                            name=label("muscle_groups", member.group.code),
+                        )
+                        for member in sorted(
+                            link.muscle.group_links, key=lambda m: m.group.code
+                        )
+                    ],
+                )
+                for link in sorted(
+                    exercise.muscle_links, key=lambda item: item.muscle.code
+                )
+            ],
+        )
+        for exercise in exercises
+    ]
+
+
 @router.get(
     "/exercises/{exercise_id}",
-    # response_model=...,
+    response_model=ExercisePublic,
+    responses=_ERROR_RESPONSES,
+    summary="Get an exercise by ID",
+    description="Look up an exercise, including inactive exercises used in "
+    "historical records.",
 )
 def get_exercise(
     user_session: UserSession,
-    exercise_id: UUID,
+    exercise_id: UUID = Path(description="UUID of the exercise to retrieve."),
+    locale: CatalogLocale = None,
 ) -> Any:
-    _, session = user_session
-    raise HTTPException(status_code=HTTP_501_NOT_IMPLEMENTED)
+    user_id, session = user_session
+    exercises = _load_exercises(session, user_id, locale, exercise_id=exercise_id)
+    if not exercises:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Exercise not found")
+    return exercises[0]
 
 
 @router.get(
     "/exercises",
-    # response_model=...,
+    response_model=ListResponse[ExercisePublic],
+    responses={
+        **_ERROR_RESPONSES,
+        404: {"model": HTTPErrorResponse, "description": "User not found"},
+    },
+    summary="List active exercises",
+    description="List active exercises available for selection, "
+    "ordered by stable code.",
 )
 def get_exercises(
     user_session: UserSession,
+    locale: CatalogLocale = None,
 ) -> Any:
-    """Get a list of all exercises"""
-    _, session = user_session
-
-    raise HTTPException(status_code=HTTP_501_NOT_IMPLEMENTED)
+    user_id, session = user_session
+    return ListResponse[ExercisePublic](data=_load_exercises(session, user_id, locale))
 
 
-# TODO: Here we prbably want to also add routes that directly add exercises to a activity?
+# TODO: Consider routes that directly add exercises to an activity.
 
 
 # -------------------- Exercise Plan --------------------
@@ -63,7 +164,7 @@ def get_plans(
     activity_id: UUID,
 ) -> Any:
     """Retrieve a plan"""
-    user_id, session = user_session
+    _, session = user_session
     activity = session.get(Activity, activity_id)
     if not activity:
         raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Activity not found")
@@ -74,11 +175,10 @@ def get_plans(
     "/exercise_plans/{plan_id}/activities",
     # response_model=...,
 )
-def get_plan(
+def get_plan_activities(
     user_session: UserSession, plan_id: UUID, matches_template: bool = False
 ) -> Any:
     """Retrieve all activities for assigned to a plan"""
-    user_id, session = user_session
     raise HTTPException(status_code=HTTP_501_NOT_IMPLEMENTED)
 
 
@@ -91,7 +191,6 @@ def get_plan(
     plan_id: UUID,
 ) -> Any:
     """Retrieve a plan"""
-    user_id, session = user_session
     raise HTTPException(status_code=HTTP_501_NOT_IMPLEMENTED)
 
 
@@ -105,7 +204,6 @@ def update_plan(
     data,  # TODO: define update model
 ) -> Any:
     """Update a plan"""
-    user_id, session = user_session
     raise HTTPException(status_code=HTTP_501_NOT_IMPLEMENTED)
 
 
@@ -118,7 +216,6 @@ def delete_plan(
     plan_id: UUID,
 ) -> Any:
     """Delete a plan"""
-    user_id, session = user_session
 
     raise HTTPException(status_code=HTTP_501_NOT_IMPLEMENTED)
 
@@ -133,7 +230,6 @@ def duplicate_plan(
     name: str,
 ) -> Any:
     """Duplicates the plan under a new name"""
-    user_id, session = user_session
 
     raise HTTPException(status_code=HTTP_501_NOT_IMPLEMENTED)
 
@@ -142,11 +238,10 @@ def duplicate_plan(
     "/exercise_plans",
     # response_model=...,
 )
-def get_plan(
+def list_plans(
     user_session: UserSession,
 ) -> Any:
     """Retrieve all plans"""
-    user_id, session = user_session
     raise HTTPException(status_code=HTTP_501_NOT_IMPLEMENTED)
 
 
@@ -159,7 +254,6 @@ def create_plan(
     data,  # TODO: define update model
 ) -> Any:
     """Create a plan"""
-    user_id, session = user_session
 
     # TODO: return 409 if plan with same name already exists
     raise HTTPException(status_code=HTTP_501_NOT_IMPLEMENTED)
@@ -177,8 +271,8 @@ def add_plan_to_activity(
     activity_id: UUID,
     plan_id: UUID,
 ) -> Any:
-    """Link a plan to an activity. This creates the activity specific ActivityExercisePlan"""
-    user_id, session = user_session
+    """Link a plan to an activity, creating an ActivityExercisePlan."""
+    _, session = user_session
 
     activity = session.get(Activity, activity_id)
     if not activity:
@@ -198,8 +292,8 @@ def add_exercise_to_activity_plan(
     activity_id: UUID,
     data,
 ) -> Any:
-    """Add a exercise to a activiy. If no plan is assigned, a new ActivityExercisePlan is created"""
-    user_id, session = user_session
+    """Add an exercise to an activity, creating a plan if needed."""
+    _, session = user_session
 
     activity = session.get(Activity, activity_id)
     if not activity:
@@ -217,7 +311,7 @@ def save_template(
     activity_id: UUID,
     data,  # TODO:
 ) -> Any:
-    user_id, session = user_session
+    _, session = user_session
 
     activity = session.get(Activity, activity_id)
     if not activity:
@@ -235,7 +329,7 @@ def update_template(
     activity_id: UUID,
     data,  # TODO:
 ) -> Any:
-    user_id, session = user_session
+    _, session = user_session
 
     activity = session.get(Activity, activity_id)
     if not activity:
@@ -251,7 +345,7 @@ def get_activity_exercise_plans(
     user_session: UserSession,
     activity_id: UUID,
 ) -> Any:
-    user_id, session = user_session
+    _, session = user_session
 
     activity = session.get(Activity, activity_id)
     if not activity:
@@ -274,7 +368,7 @@ def update_activity_exercise_plan(
     activity_id: UUID,
     data,  # TODO: Data model?
 ) -> Any:
-    user_id, session = user_session
+    _, session = user_session
 
     activity = session.get(Activity, activity_id)
     if not activity:
