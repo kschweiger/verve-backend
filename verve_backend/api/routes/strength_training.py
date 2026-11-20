@@ -75,8 +75,7 @@ def get_plans(
     # response_model=...,
 )
 def get_plan(
-    user_session: UserSession,
-    plan_id: UUID,
+    user_session: UserSession, plan_id: UUID, matches_template: bool = False
 ) -> Any:
     """Retrieve all activities for assigned to a plan"""
     user_id, session = user_session
@@ -185,7 +184,7 @@ def add_plan_to_activity(
     if not activity:
         raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Activity not found")
 
-    # TODO: Check plan
+    # TODO: Check plan and return 409 if exists
 
     raise HTTPException(status_code=HTTP_501_NOT_IMPLEMENTED)
 
@@ -197,7 +196,7 @@ def add_plan_to_activity(
 def add_exercise_to_activity_plan(
     user_session: UserSession,
     activity_id: UUID,
-    data,  # TODO: Takes optional plan_id and/or exercise ids
+    data,
 ) -> Any:
     """Add a exercise to a activiy. If no plan is assigned, a new ActivityExercisePlan is created"""
     user_id, session = user_session
