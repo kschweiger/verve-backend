@@ -82,6 +82,10 @@ LOCATION_TYPES = {
 
 
 RSL_TABLES = [
+    ("exercise_plan", "exercise_plans"),
+    ("exercise_plan_entry", "exercise_plan_entries"),
+    ("activity_exercise_plan", "activity_exercise_plans"),
+    ("activity_exercise_plan_entry", "activity_exercise_plan_entries"),
     ("activity", "activities"),
     ("activity_highlights", "activity_highlights"),
     ("activity_collection", "activity_collections"),
