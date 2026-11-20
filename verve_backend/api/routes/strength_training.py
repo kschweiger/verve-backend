@@ -1,12 +1,17 @@
+from collections import Counter
 from collections.abc import Sequence
-from typing import Any, cast
+from typing import Annotated, Any, TypedDict, cast
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, HTTPException, Path
-from sqlalchemy.orm import selectinload
+from fastapi import APIRouter, HTTPException, Path, Query
+from psycopg.errors import UniqueViolation
+from sqlalchemy import delete
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import joinedload, selectinload
 from sqlmodel import Session, col, select
 from starlette.status import (
+    HTTP_204_NO_CONTENT,
     HTTP_404_NOT_FOUND,
     HTTP_501_NOT_IMPLEMENTED,
 )
@@ -20,6 +25,12 @@ from verve_backend.models import (
     Exercise,
     ExerciseMuscle,
     ExerciseMusclePublic,
+    ExercisePlan,
+    ExercisePlanCreate,
+    ExercisePlanEntry,
+    ExercisePlanEntryCreate,
+    ExercisePlanName,
+    ExercisePlanPublic,
     ExercisePublic,
     ListResponse,
     Muscle,
@@ -154,6 +165,80 @@ def get_exercises(
 
 
 # -------------------- Exercise Plan --------------------
+class ExercisePlanUpdate(TypedDict, total=False):
+    name: ExercisePlanName
+    entries: list[ExercisePlanEntryCreate]
+
+
+_PLAN_NOT_FOUND: dict[int | str, dict[str, Any]] = {
+    404: {"model": HTTPErrorResponse, "description": "Plan or exercise not found"}
+}
+_PLAN_WRITE_ERRORS: dict[int | str, dict[str, Any]] = {
+    **_PLAN_NOT_FOUND,
+    409: {"model": HTTPErrorResponse, "description": "Plan name already exists"},
+}
+
+
+def _lock_plan(session: Session, plan_id: UUID) -> ExercisePlan:
+    plan = session.exec(
+        select(ExercisePlan).where(ExercisePlan.id == plan_id).with_for_update()
+    ).first()
+    if plan is None:
+        raise HTTPException(status_code=404, detail="Exercise plan not found")
+    return plan
+
+
+def _validate_entries(
+    session: Session,
+    entries: list[ExercisePlanEntryCreate],
+    existing: Sequence[ExercisePlanEntry] = (),
+) -> None:
+    requested = Counter(entry.exercise_id for entry in entries)
+    if not requested:
+        return
+    exercises = session.exec(
+        select(Exercise).where(col(Exercise.id).in_(requested))
+    ).all()
+    active = {exercise.id for exercise in exercises if exercise.is_active}
+    existing_counts = Counter(entry.exercise_id for entry in existing)
+    if any(
+        exercise_id not in active and count > existing_counts[exercise_id]
+        for exercise_id, count in requested.items()
+    ):
+        raise HTTPException(status_code=404, detail="Exercise not found or unavailable")
+
+
+def _save_plan(session: Session, plan: ExercisePlan) -> ExercisePlanPublic:
+    try:
+        session.flush()
+        session.expire(plan, ["entries"])
+        result = ExercisePlanPublic.model_validate(plan)
+        session.commit()
+    except IntegrityError as exc:
+        session.rollback()
+        error = exc.orig
+        if (
+            isinstance(error, UniqueViolation)
+            and error.diag.constraint_name == "uix_exercise_plans_user_name"
+        ):
+            raise HTTPException(
+                status_code=409, detail="Exercise plan name already exists"
+            ) from exc
+        raise
+    return result
+
+
+def _add_entries(
+    session: Session, plan: ExercisePlan, entries: list[ExercisePlanEntryCreate]
+) -> None:
+    for entry in entries:
+        session.add(
+            ExercisePlanEntry(
+                **entry.model_dump(), plan_id=plan.id, user_id=plan.user_id
+            )
+        )
+
+
 # user specific
 @router.get(
     "/exercise_plans/activity/{activity_id}",
@@ -184,79 +269,113 @@ def get_plan_activities(
 
 @router.get(
     "/exercise_plans/{plan_id}",
-    # response_model=...,
+    response_model=ExercisePlanPublic,
+    responses=_PLAN_NOT_FOUND,
 )
 def get_plan(
     user_session: UserSession,
     plan_id: UUID,
 ) -> Any:
-    """Retrieve a plan"""
-    raise HTTPException(status_code=HTTP_501_NOT_IMPLEMENTED)
+    _, session = user_session
+    plan = (
+        session.exec(
+            select(ExercisePlan)
+            .where(ExercisePlan.id == plan_id)
+            .options(joinedload(cast(Any, ExercisePlan.entries)))
+        )
+        .unique()
+        .first()
+    )
+    if plan is None:
+        raise HTTPException(status_code=404, detail="Exercise plan not found")
+    return plan
 
 
 @router.patch(
     "/exercise_plans/{plan_id}",
-    # response_model=...,
+    response_model=ExercisePlanPublic,
+    responses=_PLAN_WRITE_ERRORS,
 )
 def update_plan(
-    user_session: UserSession,
-    plan_id: UUID,
-    data,  # TODO: define update model
+    user_session: UserSession, plan_id: UUID, data: ExercisePlanUpdate
 ) -> Any:
-    """Update a plan"""
-    raise HTTPException(status_code=HTTP_501_NOT_IMPLEMENTED)
+    _, session = user_session
+    plan = _lock_plan(session, plan_id)
+    if "entries" in data:
+        _validate_entries(session, data["entries"], plan.entries)
+        session.exec(
+            delete(ExercisePlanEntry).where(col(ExercisePlanEntry.plan_id) == plan.id)
+        )
+        _add_entries(session, plan, data["entries"])
+    if "name" in data:
+        plan.name = data["name"]
+    return _save_plan(session, plan)
 
 
 @router.delete(
     "/exercise_plans/{plan_id}",
-    # response_model=...,
+    status_code=HTTP_204_NO_CONTENT,
+    responses=_PLAN_NOT_FOUND,
 )
-def delete_plan(
-    user_session: UserSession,
-    plan_id: UUID,
-) -> Any:
-    """Delete a plan"""
-
-    raise HTTPException(status_code=HTTP_501_NOT_IMPLEMENTED)
+def delete_plan(user_session: UserSession, plan_id: UUID) -> None:
+    _, session = user_session
+    plan = _lock_plan(session, plan_id)
+    session.delete(plan)
+    session.commit()
 
 
 @router.post(
     "/exercise_plans/{plan_id}",
-    # response_model=...,
+    response_model=ExercisePlanPublic,
+    status_code=201,
+    responses=_PLAN_WRITE_ERRORS,
 )
 def duplicate_plan(
     user_session: UserSession,
     plan_id: UUID,
-    name: str,
+    name: Annotated[ExercisePlanName, Query()],
 ) -> Any:
-    """Duplicates the plan under a new name"""
+    user_id, session = user_session
+    source = _lock_plan(session, plan_id)
+    entries = [
+        ExercisePlanEntryCreate.model_validate(entry) for entry in source.entries
+    ]
+    plan = ExercisePlan(name=name, user_id=UUID(user_id))
+    session.add(plan)
+    _add_entries(session, plan, entries)
+    return _save_plan(session, plan)
 
-    raise HTTPException(status_code=HTTP_501_NOT_IMPLEMENTED)
 
-
-@router.get(
-    "/exercise_plans",
-    # response_model=...,
-)
-def list_plans(
-    user_session: UserSession,
-) -> Any:
-    """Retrieve all plans"""
-    raise HTTPException(status_code=HTTP_501_NOT_IMPLEMENTED)
+@router.get("/exercise_plans", response_model=ListResponse[ExercisePlanPublic])
+def list_plans(user_session: UserSession) -> Any:
+    _, session = user_session
+    plans = (
+        session.exec(
+            select(ExercisePlan)
+            .options(joinedload(cast(Any, ExercisePlan.entries)))
+            .order_by(ExercisePlan.name)
+        )
+        .unique()
+        .all()
+    )
+    return ListResponse[ExercisePlanPublic](
+        data=[ExercisePlanPublic.model_validate(plan) for plan in plans]
+    )
 
 
 @router.post(
     "/exercise_plans",
-    # response_model=...,
+    response_model=ExercisePlanPublic,
+    status_code=201,
+    responses=_PLAN_WRITE_ERRORS,
 )
-def create_plan(
-    user_session: UserSession,
-    data,  # TODO: define update model
-) -> Any:
-    """Create a plan"""
-
-    # TODO: return 409 if plan with same name already exists
-    raise HTTPException(status_code=HTTP_501_NOT_IMPLEMENTED)
+def create_plan(user_session: UserSession, data: ExercisePlanCreate) -> Any:
+    user_id, session = user_session
+    _validate_entries(session, data.entries)
+    plan = ExercisePlan(name=data.name, user_id=UUID(user_id))
+    session.add(plan)
+    _add_entries(session, plan, data.entries)
+    return _save_plan(session, plan)
 
 
 # -------------------- Exercise Plan + Activity --------------------

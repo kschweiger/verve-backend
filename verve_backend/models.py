@@ -554,8 +554,8 @@ class Activity(ActivityBase, table=True):
 class ExercisePlanEntryBase(SQLModel):
     exercise_id: uuid.UUID
     weight: Annotated[float | None, PydanticField(ge=0, allow_inf_nan=False)] = None
-    sets: int | None = Field(default=None, gt=0)
-    repetitions: int | None = Field(default=None, gt=0)
+    sets: int | None = Field(default=None, gt=0, le=2_147_483_647)
+    repetitions: int | None = Field(default=None, gt=0, le=2_147_483_647)
 
 
 class ExercisePlanEntryCreate(ExercisePlanEntryBase):
@@ -566,8 +566,13 @@ class ExercisePlanEntryPublic(ExercisePlanEntryBase):
     id: int
 
 
+ExercisePlanName = Annotated[
+    str, StringConstraints(min_length=1, pattern=r"^[^\x00]*[^\s\x00][^\x00]*$")
+]
+
+
 class ExercisePlanBase(SQLModel):
-    name: Annotated[str, StringConstraints(min_length=1, pattern=r"\S")]
+    name: ExercisePlanName
 
 
 class ExercisePlanCreate(ExercisePlanBase):
