@@ -36,13 +36,28 @@ setup-db = "verve_backend.cli.setup_db:main"
 create-admin = "verve_backend.cli.create_admin_user:main"
 ensure-rls = "verve_backend.cli.ensure_rls:main"
 verify-rls = "verve_backend.cli.verify_rls:main"
+import-exercises = "verve_backend.cli.import_exercises:main"
 
 [tool.ruff]
 line-length = 88
 target-version = "py314"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "PD", "PT", "NPY", "N", "W", "RET", "ANN", "RUF", "SIM", "PERF"]
+select = [
+  "E",
+  "F",
+  "I",
+  "PD",
+  "PT",
+  "NPY",
+  "N",
+  "W",
+  "RET",
+  "ANN",
+  "RUF",
+  "SIM",
+  "PERF",
+]
 unfixable = ["F841", "RUF015"]
 ignore = [
   "ANN202",
