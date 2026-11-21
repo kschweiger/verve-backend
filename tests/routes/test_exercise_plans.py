@@ -31,6 +31,7 @@ def test_create_read_and_list_plans(
     other_created = client.post(PATH, headers=other, json={"name": name})
     assert other_created.status_code == 201
     other_plan = other_created.json()
+    assert other_plan["entries"] == []
 
     listing = client.get(PATH, headers=headers).json()["data"]
     plans_by_id = {item["id"]: item for item in listing}
@@ -59,6 +60,8 @@ def test_create_read_and_list_plans(
 def test_plan_response_openapi(client: TestClient) -> None:
     document = client.get("/openapi.json").json()
     paths = document["paths"]
+    schemas = document["components"]["schemas"]
+    assert "entries" in schemas["ExercisePlanPublic"]["required"]
     collection = paths["/api/v1/strength_training/exercise_plans"]
     detail = paths["/api/v1/strength_training/exercise_plans/{plan_id}"]
     for operation, status in [(collection["post"], "201"), (detail["get"], "200")]:
@@ -66,7 +69,7 @@ def test_plan_response_openapi(client: TestClient) -> None:
         assert schema["$ref"] == "#/components/schemas/ExercisePlanPublic"
     assert "content" not in detail["delete"]["responses"]["204"]
     patch = detail["patch"]
-    schema = document["components"]["schemas"]["ExercisePlanUpdate"]
+    schema = schemas["ExercisePlanUpdate"]
     assert not schema.get("required")
     assert schema["properties"]["name"]["type"] == "string"
     assert schema["properties"]["entries"]["type"] == "array"

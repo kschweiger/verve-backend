@@ -189,6 +189,8 @@ def test_missing_and_foreign_activity_or_template(
 
 def test_activity_plan_openapi(client: TestClient) -> None:
     document = client.get("/openapi.json").json()
+    schemas = document["components"]["schemas"]
+    assert "entries" in schemas["ActivityExercisePlanPublic"]["required"]
     detail = document["paths"][
         "/api/v1/strength_training/activity_exercise_plans/{activity_id}"
     ]

@@ -581,7 +581,7 @@ class ExercisePlanCreate(ExercisePlanBase):
 
 class ExercisePlanPublic(ExercisePlanBase):
     id: uuid.UUID
-    entries: list[ExercisePlanEntryPublic] = Field(default_factory=list)
+    entries: list[ExercisePlanEntryPublic]
 
 
 class ActivityExercisePlanEntryBase(ExercisePlanEntryBase):
@@ -607,7 +607,7 @@ class ActivityExercisePlanCreate(ActivityExercisePlanBase):
 
 class ActivityExercisePlanPublic(ActivityExercisePlanBase):
     id: uuid.UUID
-    entries: list[ActivityExercisePlanEntryPublic] = Field(default_factory=list)
+    entries: list[ActivityExercisePlanEntryPublic]
 
 
 # Plan relationships join on ownership, but only write the referenced object ID.

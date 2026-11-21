@@ -328,6 +328,10 @@ def get_plan(
     "/exercise_plans/{plan_id}",
     response_model=ExercisePlanPublic,
     responses=_PLAN_WRITE_ERRORS,
+    description=(
+        "Update the name or replace the entry list. "
+        'Send `{"entries": []}` to clear the entries.'
+    ),
 )
 def update_plan(
     user_session: UserSession, plan_id: UUID, data: ExercisePlanUpdate
@@ -748,7 +752,7 @@ def get_activity_muscle_groups(
         }
     },
     summary="Replace entries in an activity plan",
-    description="Replace the entire entry list. Send an empty list to clear the plan.",
+    description='Replace all entries. Send `{"entries": []}` to clear the plan.',
 )
 def update_activity_exercise_plan(
     user_session: UserSession,
