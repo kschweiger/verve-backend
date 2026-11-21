@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Verve exercise catalog",
+  "description": "Version 1 of the bundled, curated exercise catalog. Display labels live in separate locale JSON files.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source",
+    "muscles",
+    "muscle_groups",
+    "exercises"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional path or URI to this schema for editor support."
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "source": {
+      "$ref": "#/$defs/code",
+      "description": "Permanent identity of our catalog, for example verve. This is not the upstream dataset name."
+    },
+    "upstream": {
+      "$ref": "#/$defs/upstream"
+    },
+    "muscles": {
+      "$ref": "#/$defs/code_list",
+      "description": "All detailed muscle codes referenced by this catalog."
+    },
+    "muscle_groups": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/muscle_group"
+      },
+      "description": "Bundled default display groups. Group codes must be unique."
+    },
+    "exercises": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/exercise"
+      },
+      "description": "Concrete exercise variants. Exercise codes must be unique."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "exercises": {
+            "contains": {
+              "required": ["upstream_id"]
+            }
+          }
+        }
+      },
+      "then": {
+        "required": ["upstream"]
+      }
+    }
+  ],
+  "$defs": {
+    "code": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$"
+    },
+    "nonempty_string": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "code_list": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/code"
+      }
+    },
+    "upstream": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "repository", "revision", "license"],
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/nonempty_string"
+        },
+        "repository": {
+          "type": "string",
+          "format": "uri"
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$",
+          "description": "Full immutable upstream Git commit, independent of our catalog checksum."
+        },
+        "license": {
+          "$ref": "#/$defs/nonempty_string"
+        }
+      }
+    },
+    "muscle_group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "muscles"],
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/code"
+        },
+        "muscles": {
+          "$ref": "#/$defs/code_list",
+          "description": "Complete default member set. Each code must exist in the root muscles array. An empty group is valid."
+        }
+      }
+    },
+    "exercise": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "primary_muscles", "secondary_muscles"],
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/code"
+        },
+        "is_active": {
+          "type": "boolean",
+          "default": true,
+          "description": "Omission means true. Set false to retain a retired exercise explicitly."
+        },
+        "primary_muscles": {
+          "$ref": "#/$defs/code_list",
+          "description": "Complete primary assignment set. Each code must exist in muscles and must not also occur in secondary_muscles. May be empty."
+        },
+        "secondary_muscles": {
+          "$ref": "#/$defs/code_list",
+          "description": "Complete secondary assignment set. Each code must exist in muscles and must not also occur in primary_muscles. May be empty."
+        },
+        "upstream_id": {
+          "$ref": "#/$defs/nonempty_string",
+          "description": "Optional exercise ID at the root upstream revision. Omit for our own entries. Never used as the database identity."
+        }
+      }
+    }
+  }
+}

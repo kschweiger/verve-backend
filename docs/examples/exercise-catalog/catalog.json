@@ -1,0 +1,49 @@
+{
+  "$schema": "../../../verve_backend/data/exercise_catalog.schema.json",
+  "schema_version": 1,
+  "source": "verve",
+  "upstream": {
+    "source": "free-exercise-db",
+    "repository": "https://github.com/yuhonas/free-exercise-db",
+    "revision": "f00c92c7dcf1216a928a52c3706c7ce8e2f71ed5",
+    "license": "Unlicense"
+  },
+  "muscles": [
+    "pectoralis_major",
+    "anterior_deltoid",
+    "triceps_brachii",
+    "forearm_flexors"
+  ],
+  "muscle_groups": [
+    {
+      "code": "chest",
+      "muscles": ["pectoralis_major"]
+    },
+    {
+      "code": "front_shoulders",
+      "muscles": ["anterior_deltoid"]
+    },
+    {
+      "code": "back_upper_arms",
+      "muscles": ["triceps_brachii"]
+    },
+    {
+      "code": "forearms",
+      "muscles": ["forearm_flexors"]
+    }
+  ],
+  "exercises": [
+    {
+      "code": "chest_press_machine",
+      "is_active": true,
+      "primary_muscles": ["pectoralis_major"],
+      "secondary_muscles": ["anterior_deltoid", "triceps_brachii"],
+      "upstream_id": "Leverage_Chest_Press"
+    },
+    {
+      "code": "dead_hang",
+      "primary_muscles": ["forearm_flexors"],
+      "secondary_muscles": []
+    }
+  ]
+}

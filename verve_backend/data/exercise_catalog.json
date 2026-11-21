@@ -1,0 +1,893 @@
+{
+  "$schema": "./exercise_catalog.schema.json",
+  "schema_version": 1,
+  "source": "verve",
+  "upstream": {
+    "source": "free-exercise-db",
+    "repository": "https://github.com/yuhonas/free-exercise-db",
+    "revision": "f00c92c7dcf1216a928a52c3706c7ce8e2f71ed5",
+    "license": "Unlicense"
+  },
+  "muscles": [
+    "adductors",
+    "anterior_deltoid",
+    "biceps_brachii",
+    "brachialis",
+    "brachioradialis",
+    "erector_spinae",
+    "forearm_flexors",
+    "gastrocnemius",
+    "gluteus_maximus",
+    "gluteus_medius",
+    "gluteus_minimus",
+    "hamstrings",
+    "hip_flexors",
+    "infraspinatus",
+    "lateral_deltoid",
+    "latissimus_dorsi",
+    "obliques",
+    "pectoralis_major",
+    "posterior_deltoid",
+    "quadratus_lumborum",
+    "quadriceps",
+    "rectus_abdominis",
+    "rhomboids",
+    "serratus_anterior",
+    "soleus",
+    "supraspinatus",
+    "tensor_fasciae_latae",
+    "teres_major",
+    "teres_minor",
+    "tibialis_anterior",
+    "transversus_abdominis",
+    "trapezius_lower",
+    "trapezius_middle",
+    "trapezius_upper",
+    "triceps_brachii"
+  ],
+  "muscle_groups": [
+    {
+      "code": "chest",
+      "muscles": [
+        "pectoralis_major"
+      ]
+    },
+    {
+      "code": "front_shoulders",
+      "muscles": [
+        "anterior_deltoid"
+      ]
+    },
+    {
+      "code": "side_shoulders",
+      "muscles": [
+        "lateral_deltoid"
+      ]
+    },
+    {
+      "code": "rear_shoulders",
+      "muscles": [
+        "posterior_deltoid"
+      ]
+    },
+    {
+      "code": "rotator_cuff",
+      "muscles": [
+        "supraspinatus",
+        "infraspinatus",
+        "teres_minor"
+      ]
+    },
+    {
+      "code": "upper_trapezius",
+      "muscles": [
+        "trapezius_upper"
+      ]
+    },
+    {
+      "code": "middle_back",
+      "muscles": [
+        "rhomboids",
+        "trapezius_middle",
+        "trapezius_lower"
+      ]
+    },
+    {
+      "code": "back_sides",
+      "muscles": [
+        "latissimus_dorsi",
+        "teres_major"
+      ]
+    },
+    {
+      "code": "lower_back",
+      "muscles": [
+        "erector_spinae",
+        "quadratus_lumborum"
+      ]
+    },
+    {
+      "code": "front_upper_arms",
+      "muscles": [
+        "biceps_brachii",
+        "brachialis"
+      ]
+    },
+    {
+      "code": "back_upper_arms",
+      "muscles": [
+        "triceps_brachii"
+      ]
+    },
+    {
+      "code": "forearms",
+      "muscles": [
+        "forearm_flexors",
+        "brachioradialis"
+      ]
+    },
+    {
+      "code": "side_chest",
+      "muscles": [
+        "serratus_anterior"
+      ]
+    },
+    {
+      "code": "front_abdomen",
+      "muscles": [
+        "rectus_abdominis",
+        "transversus_abdominis"
+      ]
+    },
+    {
+      "code": "side_abdomen",
+      "muscles": [
+        "obliques"
+      ]
+    },
+    {
+      "code": "front_hips",
+      "muscles": [
+        "hip_flexors"
+      ]
+    },
+    {
+      "code": "buttocks",
+      "muscles": [
+        "gluteus_maximus"
+      ]
+    },
+    {
+      "code": "outer_hips",
+      "muscles": [
+        "gluteus_medius",
+        "gluteus_minimus",
+        "tensor_fasciae_latae"
+      ]
+    },
+    {
+      "code": "front_thighs",
+      "muscles": [
+        "quadriceps"
+      ]
+    },
+    {
+      "code": "back_thighs",
+      "muscles": [
+        "hamstrings"
+      ]
+    },
+    {
+      "code": "inner_thighs",
+      "muscles": [
+        "adductors"
+      ]
+    },
+    {
+      "code": "calves",
+      "muscles": [
+        "gastrocnemius",
+        "soleus"
+      ]
+    },
+    {
+      "code": "tibialis",
+      "muscles": [
+        "tibialis_anterior"
+      ]
+    }
+  ],
+  "exercises": [
+    {
+      "code": "chest_press_machine",
+      "is_active": true,
+      "primary_muscles": [
+        "pectoralis_major"
+      ],
+      "secondary_muscles": [
+        "anterior_deltoid",
+        "triceps_brachii"
+      ],
+      "upstream_id": "Leverage_Chest_Press"
+    },
+    {
+      "code": "bench_press_barbell",
+      "is_active": true,
+      "primary_muscles": [
+        "pectoralis_major"
+      ],
+      "secondary_muscles": [
+        "anterior_deltoid",
+        "triceps_brachii"
+      ],
+      "upstream_id": "Barbell_Bench_Press_-_Medium_Grip"
+    },
+    {
+      "code": "bench_press_dumbbell",
+      "is_active": true,
+      "primary_muscles": [
+        "pectoralis_major"
+      ],
+      "secondary_muscles": [
+        "anterior_deltoid",
+        "triceps_brachii"
+      ],
+      "upstream_id": "Dumbbell_Bench_Press"
+    },
+    {
+      "code": "incline_bench_press_dumbbell",
+      "is_active": true,
+      "primary_muscles": [
+        "pectoralis_major"
+      ],
+      "secondary_muscles": [
+        "anterior_deltoid",
+        "triceps_brachii"
+      ],
+      "upstream_id": "Incline_Dumbbell_Press"
+    },
+    {
+      "code": "pec_deck_machine",
+      "is_active": true,
+      "primary_muscles": [
+        "pectoralis_major"
+      ],
+      "secondary_muscles": [
+        "anterior_deltoid"
+      ],
+      "upstream_id": "Butterfly"
+    },
+    {
+      "code": "chest_fly_cable",
+      "is_active": true,
+      "primary_muscles": [
+        "pectoralis_major"
+      ],
+      "secondary_muscles": [
+        "anterior_deltoid"
+      ],
+      "upstream_id": "Cable_Crossover"
+    },
+    {
+      "code": "push_up",
+      "is_active": true,
+      "primary_muscles": [
+        "pectoralis_major"
+      ],
+      "secondary_muscles": [
+        "anterior_deltoid",
+        "triceps_brachii",
+        "serratus_anterior"
+      ],
+      "upstream_id": "Pushups"
+    },
+    {
+      "code": "dead_hang",
+      "is_active": true,
+      "primary_muscles": [
+        "forearm_flexors"
+      ],
+      "secondary_muscles": []
+    },
+    {
+      "code": "lat_pulldown_wide_grip",
+      "is_active": true,
+      "primary_muscles": [
+        "latissimus_dorsi"
+      ],
+      "secondary_muscles": [
+        "teres_major",
+        "biceps_brachii",
+        "brachialis",
+        "brachioradialis",
+        "trapezius_lower"
+      ],
+      "upstream_id": "Wide-Grip_Lat_Pulldown"
+    },
+    {
+      "code": "bent_over_row_barbell",
+      "is_active": true,
+      "primary_muscles": [
+        "latissimus_dorsi",
+        "rhomboids",
+        "trapezius_middle"
+      ],
+      "secondary_muscles": [
+        "posterior_deltoid",
+        "biceps_brachii",
+        "brachialis",
+        "erector_spinae"
+      ],
+      "upstream_id": "Bent_Over_Barbell_Row"
+    },
+    {
+      "code": "pull_up_overhand",
+      "is_active": true,
+      "primary_muscles": [
+        "latissimus_dorsi"
+      ],
+      "secondary_muscles": [
+        "teres_major",
+        "biceps_brachii",
+        "brachialis",
+        "brachioradialis",
+        "trapezius_lower"
+      ],
+      "upstream_id": "Pullups"
+    },
+    {
+      "code": "pull_up_assisted_machine_kneeling",
+      "is_active": true,
+      "primary_muscles": [
+        "latissimus_dorsi"
+      ],
+      "secondary_muscles": [
+        "teres_major",
+        "biceps_brachii",
+        "brachialis",
+        "brachioradialis",
+        "trapezius_lower"
+      ]
+    },
+    {
+      "code": "chin_up_underhand",
+      "is_active": true,
+      "primary_muscles": [
+        "latissimus_dorsi",
+        "biceps_brachii"
+      ],
+      "secondary_muscles": [
+        "teres_major",
+        "brachialis",
+        "brachioradialis",
+        "trapezius_lower"
+      ],
+      "upstream_id": "Chin-Up"
+    },
+    {
+      "code": "seated_row_wide_grip_machine",
+      "is_active": true,
+      "primary_muscles": [
+        "rhomboids",
+        "trapezius_middle",
+        "posterior_deltoid"
+      ],
+      "secondary_muscles": [
+        "latissimus_dorsi",
+        "trapezius_lower",
+        "biceps_brachii",
+        "brachialis"
+      ]
+    },
+    {
+      "code": "seated_row_neutral_grip_cable",
+      "is_active": true,
+      "primary_muscles": [
+        "latissimus_dorsi",
+        "rhomboids",
+        "trapezius_middle"
+      ],
+      "secondary_muscles": [
+        "posterior_deltoid",
+        "biceps_brachii",
+        "brachialis"
+      ],
+      "upstream_id": "Seated_Cable_Rows"
+    },
+    {
+      "code": "one_arm_row_dumbbell",
+      "is_active": true,
+      "primary_muscles": [
+        "latissimus_dorsi"
+      ],
+      "secondary_muscles": [
+        "rhomboids",
+        "trapezius_middle",
+        "posterior_deltoid",
+        "biceps_brachii",
+        "brachialis"
+      ],
+      "upstream_id": "One-Arm_Dumbbell_Row"
+    },
+    {
+      "code": "back_extension_machine",
+      "is_active": true,
+      "primary_muscles": [
+        "erector_spinae"
+      ],
+      "secondary_muscles": []
+    },
+    {
+      "code": "shoulder_press_dumbbell_seated",
+      "is_active": true,
+      "primary_muscles": [
+        "anterior_deltoid",
+        "lateral_deltoid"
+      ],
+      "secondary_muscles": [
+        "triceps_brachii",
+        "serratus_anterior",
+        "trapezius_upper",
+        "trapezius_lower"
+      ],
+      "upstream_id": "Dumbbell_Shoulder_Press"
+    },
+    {
+      "code": "shoulder_press_machine",
+      "is_active": true,
+      "primary_muscles": [
+        "anterior_deltoid",
+        "lateral_deltoid"
+      ],
+      "secondary_muscles": [
+        "triceps_brachii",
+        "serratus_anterior",
+        "trapezius_upper",
+        "trapezius_lower"
+      ],
+      "upstream_id": "Leverage_Shoulder_Press"
+    },
+    {
+      "code": "overhead_press_barbell",
+      "is_active": true,
+      "primary_muscles": [
+        "anterior_deltoid"
+      ],
+      "secondary_muscles": [
+        "lateral_deltoid",
+        "triceps_brachii",
+        "serratus_anterior",
+        "trapezius_upper",
+        "trapezius_lower"
+      ],
+      "upstream_id": "Standing_Military_Press"
+    },
+    {
+      "code": "lateral_raise_dumbbell",
+      "is_active": true,
+      "primary_muscles": [
+        "lateral_deltoid"
+      ],
+      "secondary_muscles": [
+        "supraspinatus",
+        "trapezius_upper",
+        "serratus_anterior"
+      ],
+      "upstream_id": "Side_Lateral_Raise"
+    },
+    {
+      "code": "lateral_raise_machine",
+      "is_active": true,
+      "primary_muscles": [
+        "lateral_deltoid"
+      ],
+      "secondary_muscles": [
+        "supraspinatus",
+        "trapezius_upper",
+        "serratus_anterior"
+      ]
+    },
+    {
+      "code": "reverse_pec_deck_machine",
+      "is_active": true,
+      "primary_muscles": [
+        "posterior_deltoid"
+      ],
+      "secondary_muscles": [
+        "rhomboids",
+        "trapezius_middle"
+      ],
+      "upstream_id": "Reverse_Machine_Flyes"
+    },
+    {
+      "code": "face_pull_cable",
+      "is_active": true,
+      "primary_muscles": [
+        "posterior_deltoid",
+        "trapezius_middle",
+        "rhomboids"
+      ],
+      "secondary_muscles": [
+        "infraspinatus",
+        "teres_minor",
+        "biceps_brachii",
+        "brachialis"
+      ],
+      "upstream_id": "Face_Pull"
+    },
+    {
+      "code": "biceps_curl_machine",
+      "is_active": true,
+      "primary_muscles": [
+        "biceps_brachii",
+        "brachialis"
+      ],
+      "secondary_muscles": [
+        "brachioradialis"
+      ],
+      "upstream_id": "Machine_Bicep_Curl"
+    },
+    {
+      "code": "biceps_curl_dumbbell",
+      "is_active": true,
+      "primary_muscles": [
+        "biceps_brachii",
+        "brachialis"
+      ],
+      "secondary_muscles": [
+        "brachioradialis"
+      ],
+      "upstream_id": "Dumbbell_Bicep_Curl"
+    },
+    {
+      "code": "biceps_curl_barbell",
+      "is_active": true,
+      "primary_muscles": [
+        "biceps_brachii",
+        "brachialis"
+      ],
+      "secondary_muscles": [
+        "brachioradialis"
+      ],
+      "upstream_id": "Barbell_Curl"
+    },
+    {
+      "code": "hammer_curl_dumbbell",
+      "is_active": true,
+      "primary_muscles": [
+        "brachialis",
+        "brachioradialis"
+      ],
+      "secondary_muscles": [
+        "biceps_brachii"
+      ],
+      "upstream_id": "Hammer_Curls"
+    },
+    {
+      "code": "triceps_extension_machine",
+      "is_active": true,
+      "primary_muscles": [
+        "triceps_brachii"
+      ],
+      "secondary_muscles": [],
+      "upstream_id": "Machine_Triceps_Extension"
+    },
+    {
+      "code": "triceps_pushdown_cable",
+      "is_active": true,
+      "primary_muscles": [
+        "triceps_brachii"
+      ],
+      "secondary_muscles": [],
+      "upstream_id": "Triceps_Pushdown"
+    },
+    {
+      "code": "overhead_triceps_extension_cable",
+      "is_active": true,
+      "primary_muscles": [
+        "triceps_brachii"
+      ],
+      "secondary_muscles": [],
+      "upstream_id": "Triceps_Overhead_Extension_with_Rope"
+    },
+    {
+      "code": "dip_parallel_bars",
+      "is_active": true,
+      "primary_muscles": [
+        "triceps_brachii"
+      ],
+      "secondary_muscles": [
+        "pectoralis_major",
+        "anterior_deltoid"
+      ],
+      "upstream_id": "Dips_-_Triceps_Version"
+    },
+    {
+      "code": "dip_assisted_machine_kneeling",
+      "is_active": true,
+      "primary_muscles": [
+        "triceps_brachii"
+      ],
+      "secondary_muscles": [
+        "pectoralis_major",
+        "anterior_deltoid"
+      ]
+    },
+    {
+      "code": "leg_press_machine",
+      "is_active": true,
+      "primary_muscles": [
+        "quadriceps",
+        "gluteus_maximus"
+      ],
+      "secondary_muscles": [
+        "adductors"
+      ],
+      "upstream_id": "Leg_Press"
+    },
+    {
+      "code": "squat_barbell",
+      "is_active": true,
+      "primary_muscles": [
+        "quadriceps",
+        "gluteus_maximus"
+      ],
+      "secondary_muscles": [
+        "adductors",
+        "erector_spinae"
+      ],
+      "upstream_id": "Barbell_Squat"
+    },
+    {
+      "code": "goblet_squat_dumbbell",
+      "is_active": true,
+      "primary_muscles": [
+        "quadriceps",
+        "gluteus_maximus"
+      ],
+      "secondary_muscles": [
+        "adductors",
+        "erector_spinae"
+      ]
+    },
+    {
+      "code": "romanian_deadlift_barbell",
+      "is_active": true,
+      "primary_muscles": [
+        "hamstrings",
+        "gluteus_maximus"
+      ],
+      "secondary_muscles": [
+        "erector_spinae",
+        "adductors",
+        "forearm_flexors"
+      ],
+      "upstream_id": "Romanian_Deadlift"
+    },
+    {
+      "code": "deadlift_barbell",
+      "is_active": true,
+      "primary_muscles": [
+        "gluteus_maximus",
+        "quadriceps",
+        "hamstrings"
+      ],
+      "secondary_muscles": [
+        "erector_spinae",
+        "adductors",
+        "forearm_flexors"
+      ],
+      "upstream_id": "Barbell_Deadlift"
+    },
+    {
+      "code": "lunge_dumbbell",
+      "is_active": true,
+      "primary_muscles": [
+        "quadriceps",
+        "gluteus_maximus"
+      ],
+      "secondary_muscles": [
+        "hamstrings",
+        "adductors",
+        "gluteus_medius"
+      ],
+      "upstream_id": "Dumbbell_Lunges"
+    },
+    {
+      "code": "bulgarian_split_squat_dumbbell",
+      "is_active": true,
+      "primary_muscles": [
+        "quadriceps",
+        "gluteus_maximus"
+      ],
+      "secondary_muscles": [
+        "hamstrings",
+        "adductors",
+        "gluteus_medius"
+      ],
+      "upstream_id": "Split_Squat_with_Dumbbells"
+    },
+    {
+      "code": "hip_thrust_barbell",
+      "is_active": true,
+      "primary_muscles": [
+        "gluteus_maximus"
+      ],
+      "secondary_muscles": [
+        "hamstrings",
+        "adductors"
+      ],
+      "upstream_id": "Barbell_Hip_Thrust"
+    },
+    {
+      "code": "leg_curl_machine_seated",
+      "is_active": true,
+      "primary_muscles": [
+        "hamstrings"
+      ],
+      "secondary_muscles": [
+        "gastrocnemius"
+      ],
+      "upstream_id": "Seated_Leg_Curl"
+    },
+    {
+      "code": "leg_curl_machine_lying",
+      "is_active": true,
+      "primary_muscles": [
+        "hamstrings"
+      ],
+      "secondary_muscles": [
+        "gastrocnemius"
+      ],
+      "upstream_id": "Lying_Leg_Curls"
+    },
+    {
+      "code": "leg_extension_machine",
+      "is_active": true,
+      "primary_muscles": [
+        "quadriceps"
+      ],
+      "secondary_muscles": [],
+      "upstream_id": "Leg_Extensions"
+    },
+    {
+      "code": "hip_abduction_machine",
+      "is_active": true,
+      "primary_muscles": [
+        "gluteus_medius",
+        "gluteus_minimus"
+      ],
+      "secondary_muscles": [
+        "tensor_fasciae_latae",
+        "gluteus_maximus"
+      ],
+      "upstream_id": "Thigh_Abductor"
+    },
+    {
+      "code": "hip_adduction_machine",
+      "is_active": true,
+      "primary_muscles": [
+        "adductors"
+      ],
+      "secondary_muscles": [],
+      "upstream_id": "Thigh_Adductor"
+    },
+    {
+      "code": "calf_raise_machine_standing",
+      "is_active": true,
+      "primary_muscles": [
+        "gastrocnemius",
+        "soleus"
+      ],
+      "secondary_muscles": [],
+      "upstream_id": "Standing_Calf_Raises"
+    },
+    {
+      "code": "calf_raise_machine_seated",
+      "is_active": true,
+      "primary_muscles": [
+        "soleus"
+      ],
+      "secondary_muscles": [
+        "gastrocnemius"
+      ],
+      "upstream_id": "Seated_Calf_Raise"
+    },
+    {
+      "code": "tibialis_raise_wall",
+      "is_active": true,
+      "primary_muscles": [
+        "tibialis_anterior"
+      ],
+      "secondary_muscles": []
+    },
+    {
+      "code": "crunch_machine",
+      "is_active": true,
+      "primary_muscles": [
+        "rectus_abdominis"
+      ],
+      "secondary_muscles": [
+        "obliques"
+      ]
+    },
+    {
+      "code": "crunch_floor",
+      "is_active": true,
+      "primary_muscles": [
+        "rectus_abdominis"
+      ],
+      "secondary_muscles": [
+        "obliques"
+      ],
+      "upstream_id": "Crunches"
+    },
+    {
+      "code": "plank",
+      "is_active": true,
+      "primary_muscles": [
+        "rectus_abdominis",
+        "obliques",
+        "transversus_abdominis"
+      ],
+      "secondary_muscles": [],
+      "upstream_id": "Plank"
+    },
+    {
+      "code": "side_plank",
+      "is_active": true,
+      "primary_muscles": [
+        "obliques",
+        "quadratus_lumborum"
+      ],
+      "secondary_muscles": [
+        "transversus_abdominis",
+        "gluteus_medius"
+      ]
+    },
+    {
+      "code": "hanging_knee_raise",
+      "is_active": true,
+      "primary_muscles": [
+        "hip_flexors"
+      ],
+      "secondary_muscles": [
+        "rectus_abdominis",
+        "obliques",
+        "forearm_flexors"
+      ]
+    },
+    {
+      "code": "lateral_band_walk_loop_band",
+      "is_active": true,
+      "primary_muscles": [
+        "gluteus_medius",
+        "gluteus_minimus"
+      ],
+      "secondary_muscles": [
+        "gluteus_maximus",
+        "tensor_fasciae_latae"
+      ]
+    },
+    {
+      "code": "monster_walk_loop_band",
+      "is_active": true,
+      "primary_muscles": [
+        "gluteus_medius",
+        "gluteus_minimus"
+      ],
+      "secondary_muscles": [
+        "gluteus_maximus",
+        "tensor_fasciae_latae"
+      ]
+    },
+    {
+      "code": "terminal_knee_extension_band",
+      "is_active": true,
+      "primary_muscles": [
+        "quadriceps"
+      ],
+      "secondary_muscles": []
+    }
+  ]
+}

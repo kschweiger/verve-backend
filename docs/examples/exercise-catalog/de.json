@@ -1,0 +1,18 @@
+{
+  "exercises": {
+    "chest_press_machine": "Brustpresse (Maschine)",
+    "dead_hang": "Dead Hang"
+  },
+  "muscles": {
+    "pectoralis_major": "Großer Brustmuskel",
+    "anterior_deltoid": "Vorderer Deltamuskel",
+    "triceps_brachii": "Trizeps",
+    "forearm_flexors": "Unterarmbeuger"
+  },
+  "muscle_groups": {
+    "chest": "Brust",
+    "front_shoulders": "Vordere Schultern",
+    "back_upper_arms": "Oberarme hinten",
+    "forearms": "Unterarme"
+  }
+}
