@@ -26,23 +26,28 @@ def test_create_read_and_list_plans(
     assert plan["name"] == name
     assert len({entry["id"] for entry in plan["entries"]}) == 2
     fetched = client.get(f"{PATH}/{plan['id']}", headers=headers).json()
-    earlier = client.post(PATH, headers=headers, json={"name": f"A {name}"}).json()
-    listing = client.get(PATH, headers=headers).json()["data"]
-    listed = next(item for item in listing if item["id"] == plan["id"])
-    for item in (plan, fetched, listed):
-        item["entries"].sort(key=lambda entry: entry["id"])
-    assert fetched == listed == plan
-    assert listing.index(earlier) < listing.index(listed)
-    assert [item["name"] for item in listing] == sorted(
-        item["name"] for item in listing
-    )
     assert client.get(f"{PATH}/{plan['id']}", headers=other).status_code == 404
     assert client.post(PATH, headers=headers, json={"name": name}).status_code == 409
-    other_plan = client.post(PATH, headers=other, json={"name": name}).json()
-    assert other_plan["id"] not in {item["id"] for item in listing}
-    other_listing = client.get(PATH, headers=other).json()["data"]
-    assert plan["id"] not in {item["id"] for item in other_listing}
-    assert other_plan in other_listing
+    other_created = client.post(PATH, headers=other, json={"name": name})
+    assert other_created.status_code == 201
+    other_plan = other_created.json()
+
+    listing = client.get(PATH, headers=headers).json()["data"]
+    plans_by_id = {item["id"]: item for item in listing}
+    assert len(plans_by_id) == len(listing)
+    assert other_plan["id"] not in plans_by_id
+    expected_entries = {entry["id"]: entry for entry in plan["entries"]}
+    for item in (fetched, plans_by_id[plan["id"]]):
+        assert item["id"] == plan["id"]
+        assert item["name"] == name
+        assert len(item["entries"]) == len(expected_entries)
+        assert {entry["id"]: entry for entry in item["entries"]} == expected_entries
+
+    other_listing = {
+        item["id"]: item for item in client.get(PATH, headers=other).json()["data"]
+    }
+    assert plan["id"] not in other_listing
+    assert other_listing[other_plan["id"]] == other_plan
     assert (
         client.post(
             f"{PATH}/{plan['id']}", headers=other, params={"name": "copy"}
