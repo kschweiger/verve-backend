@@ -14,7 +14,6 @@ from sqlmodel import Session, col, select
 from starlette.status import (
     HTTP_204_NO_CONTENT,
     HTTP_404_NOT_FOUND,
-    HTTP_501_NOT_IMPLEMENTED,
 )
 
 from verve_backend.api.common.locale import CatalogLocale, load_translations
@@ -27,11 +26,13 @@ from verve_backend.models import (
     ActivityExercisePlanEntry,
     ActivityExercisePlanEntryCreate,
     ActivityExercisePlanPublic,
+    ActivityPublic,
     Exercise,
     ExerciseMuscle,
     ExerciseMusclePublic,
     ExerciseMuscleRole,
     ExercisePlan,
+    ExercisePlanBase,
     ExercisePlanCreate,
     ExercisePlanEntry,
     ExercisePlanEntryBase,
@@ -175,9 +176,6 @@ def get_exercises(
     return ListResponse[ExercisePublic](data=_load_exercises(session, user_id, locale))
 
 
-# TODO: Consider routes that directly add exercises to an activity.
-
-
 # -------------------- Exercise Plan --------------------
 class ExercisePlanUpdate(TypedDict, total=False):
     name: ExercisePlanName
@@ -243,25 +241,63 @@ def _save_plan(session: Session, plan: ExercisePlan) -> ExercisePlanPublic:
 
 
 def _add_entries(
-    session: Session, plan: ExercisePlan, entries: list[ExercisePlanEntryCreate]
+    session: Session, plan: ExercisePlan, entries: Sequence[ExercisePlanEntryBase]
 ) -> None:
     for entry in entries:
         session.add(
             ExercisePlanEntry(
-                **entry.model_dump(), plan_id=plan.id, user_id=plan.user_id
+                plan_id=plan.id,
+                user_id=plan.user_id,
+                exercise_id=entry.exercise_id,
+                weight=entry.weight,
+                sets=entry.sets,
+                repetitions=entry.repetitions,
             )
         )
 
 
+def _replace_plan_entries(
+    session: Session, plan: ExercisePlan, entries: Sequence[ExercisePlanEntryBase]
+) -> None:
+    session.exec(
+        delete(ExercisePlanEntry).where(col(ExercisePlanEntry.plan_id) == plan.id)
+    )
+    _add_entries(session, plan, entries)
+
+
 @router.get(
     "/exercise_plans/{plan_id}/activities",
-    # response_model=...,
+    response_model=ListResponse[ActivityPublic],
+    responses={
+        404: {"model": HTTPErrorResponse, "description": "Exercise plan not found"}
+    },
+    summary="List activities linked to an exercise plan",
 )
-def get_plan_activities(
-    user_session: UserSession, plan_id: UUID, matches_template: bool = False
-) -> Any:
-    """Retrieve all activities for assigned to a plan"""
-    raise HTTPException(status_code=HTTP_501_NOT_IMPLEMENTED)
+def get_plan_activities(user_session: UserSession, plan_id: UUID) -> Any:
+    _, session = user_session
+    rows = session.exec(
+        select(col(ExercisePlan.id), Activity)
+        .select_from(ExercisePlan)
+        .outerjoin(
+            ActivityExercisePlan,
+            col(ActivityExercisePlan.source_plan_id) == col(ExercisePlan.id),
+        )
+        .outerjoin(
+            Activity,
+            col(Activity.id) == col(ActivityExercisePlan.activity_id),
+        )
+        .where(ExercisePlan.id == plan_id)
+        .options(selectinload(cast(Any, Activity.tags)))
+    ).all()
+    if not rows:
+        raise HTTPException(status_code=404, detail="Exercise plan not found")
+    return ListResponse[ActivityPublic](
+        data=[
+            ActivityPublic.model_validate(activity)
+            for _, activity in rows
+            if activity is not None
+        ]
+    )
 
 
 @router.get(
@@ -300,10 +336,7 @@ def update_plan(
     plan = _lock_plan(session, plan_id)
     if "entries" in data:
         _validate_entries(session, data["entries"], plan.entries)
-        session.exec(
-            delete(ExercisePlanEntry).where(col(ExercisePlanEntry.plan_id) == plan.id)
-        )
-        _add_entries(session, plan, data["entries"])
+        _replace_plan_entries(session, plan, data["entries"])
     if "name" in data:
         plan.name = data["name"]
     return _save_plan(session, plan)
@@ -334,9 +367,7 @@ def duplicate_plan(
 ) -> Any:
     user_id, session = user_session
     source = _lock_plan(session, plan_id)
-    entries = [
-        ExercisePlanEntryCreate.model_validate(entry) for entry in source.entries
-    ]
+    entries = source.entries
     plan = ExercisePlan(name=name, user_id=UUID(user_id))
     session.add(plan)
     _add_entries(session, plan, entries)
@@ -400,6 +431,22 @@ def _lock_activity_plan(
         .where(ActivityExercisePlan.activity_id == activity_id)
         .with_for_update()
     ).first()
+
+
+def _activity_plan_for_template(
+    session: Session, activity_id: UUID
+) -> ActivityExercisePlan:
+    # Activity writers share this lock. Template deletion locks the template
+    # before clearing the source reference on the activity plan.
+    _require_activity(session, activity_id, lock=True)
+    plan = session.exec(
+        select(ActivityExercisePlan).where(
+            ActivityExercisePlan.activity_id == activity_id
+        )
+    ).first()
+    if plan is None:
+        raise HTTPException(status_code=404, detail="Activity exercise plan not found")
+    return plan
 
 
 def _add_activity_entries(
@@ -536,38 +583,59 @@ def remove_entry_from_activity_plan(
 
 @router.post(
     "/activity_exercise_plans/{activity_id}/save_as_template",
-    # response_model=...,
+    response_model=ExercisePlanPublic,
+    status_code=201,
+    responses={
+        404: {"model": HTTPErrorResponse, "description": "Activity or plan not found"},
+        409: {"model": HTTPErrorResponse, "description": "Plan name already exists"},
+    },
+    summary="Save an activity as a new exercise plan template",
+    description="Copy entries and link the activity to the new template.",
 )
 def save_template(
     user_session: UserSession,
     activity_id: UUID,
-    data,  # TODO:
+    data: ExercisePlanBase,
 ) -> Any:
     _, session = user_session
-
-    activity = session.get(Activity, activity_id)
-    if not activity:
-        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Activity not found")
-
-    raise HTTPException(status_code=HTTP_501_NOT_IMPLEMENTED)
+    activity_plan = _activity_plan_for_template(session, activity_id)
+    entries = activity_plan.entries
+    template = ExercisePlan(name=data.name, user_id=activity_plan.user_id)
+    session.add(template)
+    _add_entries(session, template, entries)
+    activity_plan.source_plan = template
+    return _save_plan(session, template)
 
 
 @router.post(
     "/activity_exercise_plans/{activity_id}/update_template",
-    # response_model=...,
+    response_model=ExercisePlanPublic,
+    responses={
+        404: {"model": HTTPErrorResponse, "description": "Activity or plan not found"},
+        409: {
+            "model": HTTPErrorResponse,
+            "description": "Activity has no linked template",
+        },
+    },
+    summary="Update the linked exercise plan template",
+    description="Replace template entries with copies of this activity's entries.",
 )
 def update_template(
     user_session: UserSession,
     activity_id: UUID,
-    data,  # TODO:
 ) -> Any:
     _, session = user_session
-
-    activity = session.get(Activity, activity_id)
-    if not activity:
-        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Activity not found")
-
-    raise HTTPException(status_code=HTTP_501_NOT_IMPLEMENTED)
+    activity_plan = _activity_plan_for_template(session, activity_id)
+    source_plan_id = activity_plan.source_plan_id
+    template = (
+        session.get(ExercisePlan, source_plan_id, with_for_update=True)
+        if source_plan_id is not None
+        else None
+    )
+    if template is None:
+        raise HTTPException(status_code=409, detail="Activity has no linked template")
+    _replace_plan_entries(session, template, activity_plan.entries)
+    return _save_plan(session, template)
 
 
 @router.get(

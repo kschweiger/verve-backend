@@ -578,3 +578,183 @@ def test_muscle_groups_openapi(client: TestClient) -> None:
         "exercise_count",
         "exercise_ids",
     }
+
+
+def test_save_activity_as_new_template(
+    client: TestClient,
+    user1_token: str,
+    user2_token: str,
+    user1_id: UUID,
+    activity_factory,
+) -> None:
+    headers = {"Authorization": f"Bearer {user1_token}"}
+    other = {"Authorization": f"Bearer {user2_token}"}
+    exercise_id = client.get("/strength_training/exercises", headers=headers).json()[
+        "data"
+    ][0]["id"]
+    name = str(uuid4())
+    original = client.post(TEMPLATES, headers=headers, json={"name": name}).json()
+    url = f"{PATH}/{activity_factory(user1_id)}"
+    action = f"{url}/save_as_template"
+    missing = client.post(action, headers=headers, json={"name": str(uuid4())})
+    assert missing.status_code == 404
+    assert missing.json() == {"detail": "Activity exercise plan not found"}
+    assert (
+        client.post(
+            url, headers=headers, params={"plan_id": original["id"]}
+        ).status_code
+        == 201
+    )
+    entry = {"exercise_id": exercise_id, "weight": 12.5, "sets": 3, "repetitions": None}
+    added = client.post(f"{url}/exercises", headers=headers, json=entry)
+    assert added.status_code == 201
+    activity_plan = added.json()
+    assert client.post(action, headers=headers, json={"name": name}).status_code == 409
+    assert client.get(url, headers=headers).json()["source_plan_id"] == original["id"]
+    new_name = str(uuid4())
+    response = client.post(action, headers=other, json={"name": new_name})
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Activity not found"}
+
+    response = client.post(action, headers=headers, json={"name": new_name})
+    assert response.status_code == 201
+    saved = response.json()
+    assert saved["id"] != original["id"]
+    assert saved["name"] == new_name
+    assert len(saved["entries"]) == 1
+    assert {key: saved["entries"][0][key] for key in entry} == entry
+    assert client.get(url, headers=headers).json() == {
+        **activity_plan,
+        "source_plan_id": saved["id"],
+    }
+    assert client.get(f"{TEMPLATES}/{saved['id']}", headers=headers).json() == saved
+    assert (
+        client.get(f"{TEMPLATES}/{original['id']}", headers=headers).json() == original
+    )
+    assert client.get(
+        f"{TEMPLATES}/{original['id']}/activities", headers=headers
+    ).json() == {"data": []}
+    linked = client.get(f"{TEMPLATES}/{saved['id']}/activities", headers=headers).json()
+    assert {activity["id"] for activity in linked["data"]} == {
+        activity_plan["activity_id"]
+    }
+
+
+def test_update_linked_template_keeps_other_activity_entries(
+    client: TestClient,
+    user1_token: str,
+    user2_token: str,
+    user1_id: UUID,
+    activity_factory,
+) -> None:
+    headers = {"Authorization": f"Bearer {user1_token}"}
+    other = {"Authorization": f"Bearer {user2_token}"}
+    exercise_id = client.get("/strength_training/exercises", headers=headers).json()[
+        "data"
+    ][0]["id"]
+    template = client.post(
+        TEMPLATES,
+        headers=headers,
+        json={
+            "name": str(uuid4()),
+            "entries": [{"exercise_id": exercise_id, "weight": 10}],
+        },
+    ).json()
+    url = f"{PATH}/{activity_factory(user1_id)}"
+    other_url = f"{PATH}/{activity_factory(user1_id)}"
+    unlinked_url = f"{PATH}/{activity_factory(user1_id)}"
+    for linked_url in (url, other_url):
+        assert (
+            client.post(
+                linked_url, headers=headers, params={"plan_id": template["id"]}
+            ).status_code
+            == 201
+        )
+    other_snapshot = client.get(other_url, headers=headers).json()
+    assert (
+        client.post(
+            f"{unlinked_url}/exercises",
+            headers=headers,
+            json={"exercise_id": exercise_id},
+        ).status_code
+        == 201
+    )
+    assert (
+        client.post(f"{unlinked_url}/update_template", headers=headers).status_code
+        == 409
+    )
+    assert client.post(f"{url}/update_template", headers=other).status_code == 404
+
+    entry = {"exercise_id": exercise_id, "weight": 20, "sets": None, "repetitions": 8}
+    updated = client.patch(url, headers=headers, json={"entries": [entry]})
+    assert updated.status_code == 200
+    response = client.post(f"{url}/update_template", headers=headers)
+    assert response.status_code == 200
+    saved = response.json()
+    assert saved["id"] == template["id"]
+    assert saved["name"] == template["name"]
+    assert len(saved["entries"]) == 1
+    assert saved["entries"][0]["id"] != template["entries"][0]["id"]
+    assert {key: saved["entries"][0][key] for key in entry} == entry
+    assert client.get(f"{TEMPLATES}/{template['id']}", headers=headers).json() == saved
+    assert client.get(url, headers=headers).json() == updated.json()
+    assert client.get(other_url, headers=headers).json() == other_snapshot
+
+
+def test_template_activities_lists_explicit_links(
+    client: TestClient,
+    user1_token: str,
+    user2_token: str,
+    user1_id: UUID,
+    activity_factory,
+) -> None:
+    headers = {"Authorization": f"Bearer {user1_token}"}
+    other = {"Authorization": f"Bearer {user2_token}"}
+    exercise_id = client.get("/strength_training/exercises", headers=headers).json()[
+        "data"
+    ][0]["id"]
+    entry = {"exercise_id": exercise_id}
+    plan_ids = [
+        client.post(
+            TEMPLATES, headers=headers, json={"name": str(uuid4()), "entries": [entry]}
+        ).json()["id"]
+        for _ in range(2)
+    ]
+    url = f"{TEMPLATES}/{plan_ids[0]}/activities"
+    assert client.get(url, headers=headers).json() == {"data": []}
+    original, edited, other_template, unlinked = (
+        activity_factory(user1_id) for _ in range(4)
+    )
+    for activity_id, plan_id in (
+        (original, plan_ids[0]),
+        (edited, plan_ids[0]),
+        (other_template, plan_ids[1]),
+    ):
+        assert (
+            client.post(
+                f"{PATH}/{activity_id}", headers=headers, params={"plan_id": plan_id}
+            ).status_code
+            == 201
+        )
+    assert (
+        client.patch(
+            f"{PATH}/{edited}", headers=headers, json={"entries": []}
+        ).status_code
+        == 200
+    )
+    assert (
+        client.post(
+            f"{PATH}/{unlinked}/exercises", headers=headers, json=entry
+        ).status_code
+        == 201
+    )
+    response = client.get(url, headers=headers)
+    assert response.status_code == 200
+    activities = response.json()["data"]
+    assert len(activities) == 2
+    assert {item["id"] for item in activities} == {str(original), str(edited)}
+    assert client.get(url, headers=other).status_code == 404
+    assert (
+        client.get(f"{TEMPLATES}/{uuid4()}/activities", headers=headers).status_code
+        == 404
+    )
