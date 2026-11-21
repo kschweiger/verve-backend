@@ -380,3 +380,201 @@ def test_remove_entry_only_affects_its_activity_plan(
         == 204
     )
     assert client.get(url, headers=headers).json()["entries"] == []
+
+
+def test_muscle_groups_follow_snapshot_and_distinct_exercises(
+    client: TestClient, user1_token: str, user1_id: UUID, activity_factory, db: Session
+) -> None:
+    headers = {"Authorization": f"Bearer {user1_token}"}
+    exercises = {
+        item["code"]: item["id"]
+        for item in client.get("/strength_training/exercises", headers=headers).json()[
+            "data"
+        ]
+    }
+    chest = exercises["chest_press_machine"]
+    shoulder = exercises["shoulder_press_machine"]
+    template = client.post(
+        TEMPLATES,
+        headers=headers,
+        json={
+            "name": str(uuid4()),
+            "entries": [
+                {"exercise_id": chest},
+                {"exercise_id": chest},
+                {"exercise_id": shoulder},
+            ],
+        },
+    ).json()
+    url = f"{PATH}/{activity_factory(user1_id)}"
+    assert (
+        client.post(
+            url, headers=headers, params={"plan_id": template["id"]}
+        ).status_code
+        == 201
+    )
+    exercise = db.get(Exercise, UUID(chest))
+    assert exercise is not None
+    exercise.is_active = False
+    db.commit()
+    try:
+        assert (
+            client.patch(
+                f"{TEMPLATES}/{template['id']}", headers=headers, json={"entries": []}
+            ).status_code
+            == 200
+        )
+        response = client.get(f"{url}/muscle_groups", headers=headers)
+        assert response.status_code == 200
+        groups = {group["code"]: group for group in response.json()["data"]}
+        assert len(groups) == len(response.json()["data"])
+        front = groups["front_shoulders"]
+        assert front["role"] == "primary"
+        assert front["exercise_count"] == 2
+        assert len(front["exercise_ids"]) == 2
+        assert set(front["exercise_ids"]) == {chest, shoulder}
+        assert (
+            client.patch(
+                url, headers=headers, json={"entries": [{"exercise_id": chest}]}
+            ).status_code
+            == 200
+        )
+        groups = {
+            group["code"]: group
+            for group in client.get(f"{url}/muscle_groups", headers=headers).json()[
+                "data"
+            ]
+        }
+        assert groups["front_shoulders"]["role"] == "secondary"
+        assert groups["front_shoulders"]["exercise_count"] == 1
+        assert groups["front_shoulders"]["exercise_ids"] == [chest]
+    finally:
+        exercise.is_active = True
+        db.commit()
+
+
+def test_muscle_groups_access_and_empty_plan(
+    client: TestClient,
+    user1_token: str,
+    user1_id: UUID,
+    user2_id: UUID,
+    activity_factory,
+) -> None:
+    headers = {"Authorization": f"Bearer {user1_token}"}
+    for activity_id in (uuid4(), activity_factory(user2_id)):
+        response = client.get(f"{PATH}/{activity_id}/muscle_groups", headers=headers)
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Activity not found"}
+    activity_id = activity_factory(user1_id)
+    url = f"{PATH}/{activity_id}"
+    response = client.get(f"{url}/muscle_groups", headers=headers)
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Activity exercise plan not found"}
+    template = client.post(
+        TEMPLATES, headers=headers, json={"name": str(uuid4())}
+    ).json()
+    assert (
+        client.post(
+            url, headers=headers, params={"plan_id": template["id"]}
+        ).status_code
+        == 201
+    )
+    response = client.get(f"{url}/muscle_groups", headers=headers)
+    assert response.status_code == 200
+    assert response.json() == {"data": []}
+
+
+def test_muscle_groups_locale_and_fallback(
+    client: TestClient,
+    temp_user_id: UUID,
+    temp_user_token: str,
+    activity_factory,
+    db: Session,
+    mocker,
+) -> None:
+    from verve_backend.api.common.locale import load_translations
+    from verve_backend.api.routes import strength_training
+    from verve_backend.models import SupportedLocale, UserSettings
+
+    settings = db.get(UserSettings, temp_user_id)
+    assert settings is not None
+    settings.locale = SupportedLocale.DE
+    db.commit()
+    headers = {"Authorization": f"Bearer {temp_user_token}"}
+    chest = next(
+        item["id"]
+        for item in client.get("/strength_training/exercises", headers=headers).json()[
+            "data"
+        ]
+        if item["code"] == "chest_press_machine"
+    )
+    url = f"{PATH}/{activity_factory(temp_user_id)}"
+    assert (
+        client.post(
+            f"{url}/exercises", headers=headers, json={"exercise_id": chest}
+        ).status_code
+        == 201
+    )
+
+    def groups(query: str = "") -> dict:
+        response = client.get(f"{url}/muscle_groups{query}", headers=headers)
+        assert response.status_code == 200
+        return {group["code"]: group for group in response.json()["data"]}
+
+    assert groups()["front_shoulders"]["name"] == "Vordere Schultern"
+    assert groups("?locale=en")["front_shoulders"]["name"] == "Front shoulders"
+
+    def translations(locale):
+        result = load_translations(locale)
+        result = {**result, "muscle_groups": {**result["muscle_groups"]}}
+        if locale == SupportedLocale.DE:
+            result["muscle_groups"].pop("front_shoulders", None)
+        return result
+
+    translation_mock = mocker.patch.object(
+        strength_training, "load_translations", side_effect=translations
+    )
+    assert groups("?locale=de")["front_shoulders"]["name"] == "Front shoulders"
+
+    def no_group_label(locale):
+        result = translations(locale)
+        result["muscle_groups"].pop("front_shoulders", None)
+        return result
+
+    translation_mock.side_effect = no_group_label
+    assert groups("?locale=de")["front_shoulders"]["name"] == "front_shoulders"
+
+
+def test_muscle_groups_openapi(client: TestClient) -> None:
+    document = client.get("/openapi.json").json()
+    operation = document["paths"]["/api/v1" + PATH + "/{activity_id}/muscle_groups"][
+        "get"
+    ]
+    responses = operation["responses"]
+    components = document["components"]["schemas"]
+    wrapper_ref = responses["200"]["content"]["application/json"]["schema"]["$ref"]
+    wrapper = components[wrapper_ref.rsplit("/", 1)[-1]]
+    assert wrapper["type"] == "object"
+    assert (
+        wrapper["properties"]["data"]["items"]["$ref"]
+        == "#/components/schemas/ActivityMuscleGroupPublic"
+    )
+    assert (
+        responses["404"]["content"]["application/json"]["schema"]["$ref"]
+        == "#/components/schemas/HTTPErrorResponse"
+    )
+    assert (
+        responses["422"]["content"]["application/json"]["schema"]["$ref"]
+        == "#/components/schemas/HTTPValidationError"
+    )
+    fields = document["components"]["schemas"]["ActivityMuscleGroupPublic"][
+        "properties"
+    ]
+    assert set(fields) == {
+        "id",
+        "code",
+        "name",
+        "role",
+        "exercise_count",
+        "exercise_ids",
+    }

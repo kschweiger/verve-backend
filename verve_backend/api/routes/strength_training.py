@@ -1,12 +1,13 @@
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import Annotated, Any, TypedDict, cast
 from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, HTTPException, Path, Query
 from psycopg.errors import UniqueViolation
-from sqlalchemy import delete
+from pydantic import Field
+from sqlalchemy import delete, distinct, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
 from sqlmodel import Session, col, select
@@ -29,6 +30,7 @@ from verve_backend.models import (
     Exercise,
     ExerciseMuscle,
     ExerciseMusclePublic,
+    ExerciseMuscleRole,
     ExercisePlan,
     ExercisePlanCreate,
     ExercisePlanEntry,
@@ -39,6 +41,7 @@ from verve_backend.models import (
     ExercisePublic,
     ListResponse,
     Muscle,
+    MuscleGroup,
     MuscleGroupMember,
     MuscleGroupPublic,
     SupportedLocale,
@@ -75,13 +78,9 @@ def _query_exercises(
     return session.exec(statement.order_by(Exercise.code)).all()
 
 
-def _load_exercises(
-    session: Session,
-    user_id: str,
-    locale: SupportedLocale | None,
-    *,
-    exercise_id: UUID | None = None,
-) -> list[ExercisePublic]:
+def _catalog_labeler(
+    session: Session, user_id: str, locale: SupportedLocale | None
+) -> Callable[[str, str], str]:
     settings = session.get(UserSettings, UUID(user_id)) if locale is None else None
     locale = locale or (settings.locale if settings else SupportedLocale.EN)
     translations = load_translations(locale)
@@ -94,6 +93,17 @@ def _load_exercises(
             or code
         )
 
+    return label
+
+
+def _load_exercises(
+    session: Session,
+    user_id: str,
+    locale: SupportedLocale | None,
+    *,
+    exercise_id: UUID | None = None,
+) -> list[ExercisePublic]:
+    label = _catalog_labeler(session, user_id, locale)
     exercises = _query_exercises(session, exercise_id=exercise_id)
     return [
         ExercisePublic(
@@ -587,6 +597,77 @@ def get_activity_exercise_plans(
     if plan is None:
         raise HTTPException(status_code=404, detail="Activity exercise plan not found")
     return plan
+
+
+class ActivityMuscleGroupPublic(MuscleGroupPublic):
+    role: ExerciseMuscleRole = Field(
+        description="Primary if any contributing muscle is primary; "
+        "otherwise secondary."
+    )
+    exercise_count: int = Field(description="Number of distinct catalog exercises.")
+    exercise_ids: list[UUID] = Field(
+        description="Distinct contributing catalog exercise IDs."
+    )
+
+
+@router.get(
+    "/activity_exercise_plans/{activity_id}/muscle_groups",
+    response_model=ListResponse[ActivityMuscleGroupPublic],
+    responses={
+        404: {"model": HTTPErrorResponse, "description": "Activity or plan not found"}
+    },
+    summary="Get muscle groups for an activity exercise plan",
+)
+def get_activity_muscle_groups(
+    user_session: UserSession,
+    activity_id: UUID,
+    locale: CatalogLocale = None,
+) -> Any:
+    user_id, session = user_session
+    _require_activity(session, activity_id)
+    plan_id = session.exec(
+        select(ActivityExercisePlan.id).where(
+            ActivityExercisePlan.activity_id == activity_id
+        )
+    ).first()
+    if plan_id is None:
+        raise HTTPException(status_code=404, detail="Activity exercise plan not found")
+
+    rows = session.exec(
+        select(
+            MuscleGroup,
+            func.bool_or(col(ExerciseMuscle.role) == ExerciseMuscleRole.PRIMARY),
+            func.array_agg(distinct(col(ActivityExercisePlanEntry.exercise_id))),
+        )
+        .join(MuscleGroupMember, col(MuscleGroupMember.group_id) == col(MuscleGroup.id))
+        .join(
+            ExerciseMuscle,
+            col(ExerciseMuscle.muscle_id) == col(MuscleGroupMember.muscle_id),
+        )
+        .join(
+            ActivityExercisePlanEntry,
+            col(ActivityExercisePlanEntry.exercise_id)
+            == col(ExerciseMuscle.exercise_id),
+        )
+        .where(ActivityExercisePlanEntry.activity_plan_id == plan_id)
+        .group_by(col(MuscleGroup.id))
+    ).all()
+    label = _catalog_labeler(session, user_id, locale)
+    return ListResponse[ActivityMuscleGroupPublic](
+        data=[
+            ActivityMuscleGroupPublic(
+                id=group.id,
+                code=group.code,
+                name=label("muscle_groups", group.code),
+                role=ExerciseMuscleRole.PRIMARY
+                if is_primary
+                else ExerciseMuscleRole.SECONDARY,
+                exercise_count=len(exercise_ids),
+                exercise_ids=exercise_ids,
+            )
+            for group, is_primary, exercise_ids in rows
+        ]
+    )
 
 
 @router.patch(
