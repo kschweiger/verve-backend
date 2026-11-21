@@ -22,6 +22,9 @@ from verve_backend.api.definitions import Tag
 from verve_backend.api.deps import UserSession
 from verve_backend.models import (
     Activity,
+    ActivityExercisePlan,
+    ActivityExercisePlanEntry,
+    ActivityExercisePlanPublic,
     Exercise,
     ExerciseMuscle,
     ExerciseMusclePublic,
@@ -238,23 +241,6 @@ def _add_entries(
         )
 
 
-# user specific
-@router.get(
-    "/exercise_plans/activity/{activity_id}",
-    # response_model=...,
-)
-def get_plans(
-    user_session: UserSession,
-    activity_id: UUID,
-) -> Any:
-    """Retrieve a plan"""
-    _, session = user_session
-    activity = session.get(Activity, activity_id)
-    if not activity:
-        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Activity not found")
-    raise HTTPException(status_code=HTTP_501_NOT_IMPLEMENTED)
-
-
 @router.get(
     "/exercise_plans/{plan_id}/activities",
     # response_model=...,
@@ -382,23 +368,57 @@ def create_plan(user_session: UserSession, data: ExercisePlanCreate) -> Any:
 
 @router.post(
     "/activity_exercise_plans/{activity_id}",
-    # response_model=...,
+    response_model=ActivityExercisePlanPublic,
+    status_code=201,
+    responses={
+        404: {"model": HTTPErrorResponse, "description": "Activity or plan not found"},
+        409: {"model": HTTPErrorResponse, "description": "Activity already has a plan"},
+    },
+    summary="Apply an exercise plan to an activity",
+    description="Create an independent snapshot of the template for this activity.",
 )
 def add_plan_to_activity(
     user_session: UserSession,
     activity_id: UUID,
     plan_id: UUID,
 ) -> Any:
-    """Link a plan to an activity, creating an ActivityExercisePlan."""
-    _, session = user_session
-
-    activity = session.get(Activity, activity_id)
-    if not activity:
-        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Activity not found")
-
-    # TODO: Check plan and return 409 if exists
-
-    raise HTTPException(status_code=HTTP_501_NOT_IMPLEMENTED)
+    user_id, session = user_session
+    activity = session.exec(
+        select(Activity).where(Activity.id == activity_id).with_for_update()
+    ).first()
+    if activity is None:
+        raise HTTPException(status_code=404, detail="Activity not found")
+    source = _lock_plan(session, plan_id)
+    entries = [
+        ExercisePlanEntryCreate.model_validate(entry) for entry in source.entries
+    ]
+    plan = ActivityExercisePlan(
+        user_id=UUID(user_id), activity_id=activity.id, source_plan_id=source.id
+    )
+    session.add(plan)
+    for entry in entries:
+        session.add(
+            ActivityExercisePlanEntry(
+                **entry.model_dump(), activity_plan_id=plan.id, user_id=plan.user_id
+            )
+        )
+    try:
+        session.flush()
+        session.expire(plan, ["entries"])
+        result = ActivityExercisePlanPublic.model_validate(plan)
+        session.commit()
+    except IntegrityError as exc:
+        session.rollback()
+        error = exc.orig
+        if (
+            isinstance(error, UniqueViolation)
+            and error.diag.constraint_name == "uix_activity_exercise_plans_activity"
+        ):
+            raise HTTPException(
+                status_code=409, detail="Activity already has an exercise plan"
+            ) from exc
+        raise
+    return result
 
 
 @router.post(
@@ -458,20 +478,30 @@ def update_template(
 
 @router.get(
     "/activity_exercise_plans/{activity_id}",
+    response_model=ActivityExercisePlanPublic,
+    responses={
+        404: {"model": HTTPErrorResponse, "description": "Activity plan not found"}
+    },
+    summary="Get an activity exercise plan",
+    description="Retrieve the exercise plan snapshot for an activity.",
 )
 def get_activity_exercise_plans(
     user_session: UserSession,
     activity_id: UUID,
 ) -> Any:
     _, session = user_session
-
-    activity = session.get(Activity, activity_id)
-    if not activity:
-        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Activity not found")
-
-    # TODO: Check if activity has a plan already -> 404
-
-    raise HTTPException(status_code=HTTP_501_NOT_IMPLEMENTED)
+    plan = (
+        session.exec(
+            select(ActivityExercisePlan)
+            .where(ActivityExercisePlan.activity_id == activity_id)
+            .options(joinedload(cast(Any, ActivityExercisePlan.entries)))
+        )
+        .unique()
+        .first()
+    )
+    if plan is None:
+        raise HTTPException(status_code=404, detail="Activity exercise plan not found")
+    return plan
 
 
 # TODO: Do we want additonal routes that delete certain exercises form a
