@@ -93,6 +93,7 @@
     "hip_adduction_machine": "Hip adduction (machine)",
     "calf_raise_machine_standing": "Calf raise (standing machine)",
     "calf_raise_machine_seated": "Calf raise (seated machine)",
+    "tibialis_raise_wall": "Tibialis raise (wall)",
     "crunch_machine": "Crunch (machine)",
     "crunch_floor": "Crunch (floor)",
     "plank": "Plank (forearms)",
@@ -132,6 +133,7 @@
     "tensor_fasciae_latae": "Tensor fasciae latae",
     "teres_major": "Teres major",
     "teres_minor": "Teres minor",
+    "tibialis_anterior": "Tibialis anterior",
     "transversus_abdominis": "Transversus abdominis",
     "trapezius_lower": "Lower trapezius",
     "trapezius_middle": "Middle trapezius",
@@ -160,6 +162,7 @@
     "front_thighs": "Front of thighs",
     "back_thighs": "Back of thighs",
     "inner_thighs": "Inner thighs",
-    "calves": "Calves"
+    "calves": "Calves",
+    "tibialis": "Shin muscles"
   }
 }

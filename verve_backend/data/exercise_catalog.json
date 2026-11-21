@@ -38,6 +38,7 @@
     "tensor_fasciae_latae",
     "teres_major",
     "teres_minor",
+    "tibialis_anterior",
     "transversus_abdominis",
     "trapezius_lower",
     "trapezius_middle",
@@ -187,6 +188,12 @@
       "muscles": [
         "gastrocnemius",
         "soleus"
+      ]
+    },
+    {
+      "code": "tibialis",
+      "muscles": [
+        "tibialis_anterior"
       ]
     }
   ],
@@ -785,6 +792,14 @@
         "gastrocnemius"
       ],
       "upstream_id": "Seated_Calf_Raise"
+    },
+    {
+      "code": "tibialis_raise_wall",
+      "is_active": true,
+      "primary_muscles": [
+        "tibialis_anterior"
+      ],
+      "secondary_muscles": []
     },
     {
       "code": "crunch_machine",

@@ -2,9 +2,10 @@
 
 [`exercise_catalog.json`](exercise_catalog.json) is the first bundled Verve
 catalog: the 50 selected exercise variants plus lateral band walks, monster walks,
-terminal knee extensions, machine lateral raises, and kneeling counterweight-assisted
-triceps dips and pull-ups. It contains 56 exercises, 34 muscle codes, and 22 default
-display groups. These counts describe this revision, not format limits.
+terminal knee extensions, machine lateral raises, wall tibialis raises, and kneeling
+counterweight-assisted triceps dips and pull-ups. It contains 57 exercises, 35 muscle
+codes, and 23 default display groups. These counts describe this revision, not format
+limits.
 
 Names are stored in the `exercises`, `muscles`, and `muscle_groups` sections of
 [`en.json`](../locales/en.json) and [`de.json`](../locales/de.json). The
@@ -17,7 +18,7 @@ synchronizes this catalog after Alembic during startup.
 The starting source is
 [free-exercise-db at `f00c92c`](https://github.com/yuhonas/free-exercise-db/tree/f00c92c7dcf1216a928a52c3706c7ce8e2f71ed5),
 released under the [Unlicense](LICENSE-free-exercise-db.txt). Its upstream IDs
-identify starting entries for 43 variants. Thirteen entries have no upstream ID
+identify starting entries for 43 variants. Fourteen entries have no upstream ID
 because they are independently specified variants or lack a sufficiently clear
 match. Labels and detailed muscle roles were curated for Verve. Images and
 exercise instructions are not copied into the catalog.
@@ -77,6 +78,8 @@ and [lower-limb muscles](https://openstax.org/books/anatomy-and-physiology-2e/pa
   primary. Hamstrings are not listed as main targets of these two-joint movements.
 - **Calf raises:** both gastrocnemius and soleus are primary with the knee
   extended. The seated variant puts soleus primary and gastrocnemius secondary.
+- **Wall tibialis raise:** wall-supported bodyweight ankle dorsiflexion. The
+  tibialis anterior is the primary target.
 - **Machine crunch:** resisted trunk flexion. A linked hip-flexion/leg-lift
   mechanism is not assumed.
 - **Planks:** forearm-supported holds. Holding muscles can be primary despite

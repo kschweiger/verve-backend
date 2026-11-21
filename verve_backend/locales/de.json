@@ -93,6 +93,7 @@
     "hip_adduction_machine": "Hüftadduktion (Maschine)",
     "calf_raise_machine_standing": "Wadenheben (Maschine, stehend)",
     "calf_raise_machine_seated": "Wadenheben (Maschine, sitzend)",
+    "tibialis_raise_wall": "Tibialisheben an der Wand",
     "crunch_machine": "Crunch (Maschine)",
     "crunch_floor": "Crunch (Boden)",
     "plank": "Unterarmstütz",
@@ -132,6 +133,7 @@
     "tensor_fasciae_latae": "Schenkelbindenspanner",
     "teres_major": "Großer Rundmuskel",
     "teres_minor": "Kleiner Rundmuskel",
+    "tibialis_anterior": "Vorderer Schienbeinmuskel",
     "transversus_abdominis": "Querer Bauchmuskel",
     "trapezius_lower": "Unterer Trapezmuskel",
     "trapezius_middle": "Mittlerer Trapezmuskel",
@@ -160,6 +162,7 @@
     "front_thighs": "Oberschenkel vorne",
     "back_thighs": "Oberschenkel hinten",
     "inner_thighs": "Oberschenkel innen",
-    "calves": "Waden"
+    "calves": "Waden",
+    "tibialis": "Schienbeinmuskulatur"
   }
 }
