@@ -156,17 +156,22 @@ def test_missing_and_foreign_activity_or_template(
         == 201
     )
     for missing_activity in (uuid4(), foreign_activity_id):
-        assert (
+        url = f"{PATH}/{missing_activity}"
+        for response in (
             client.post(
-                f"{PATH}/{missing_activity}",
+                url,
                 headers=headers,
                 params={"plan_id": template["id"]},
-            ).status_code
-            == 404
-        )
-        assert (
-            client.get(f"{PATH}/{missing_activity}", headers=headers).status_code == 404
-        )
+            ),
+            client.get(url, headers=headers),
+            client.post(
+                f"{url}/exercises", headers=headers, json={"exercise_id": str(uuid4())}
+            ),
+            client.patch(url, headers=headers, json={"entries": []}),
+            client.delete(f"{url}/entry", headers=headers, params={"entry_id": 1}),
+        ):
+            assert response.status_code == 404
+            assert response.json() == {"detail": "Activity not found"}
     for missing_template in (str(uuid4()), foreign_template["id"]):
         assert (
             client.post(
@@ -176,7 +181,9 @@ def test_missing_and_foreign_activity_or_template(
             ).status_code
             == 404
         )
-    assert client.get(f"{PATH}/{activity_id}", headers=headers).status_code == 404
+    no_plan = client.get(f"{PATH}/{activity_id}", headers=headers)
+    assert no_plan.status_code == 404
+    assert no_plan.json() == {"detail": "Activity exercise plan not found"}
     assert client.post(f"{PATH}/{activity_id}", headers=headers).status_code == 422
 
 
@@ -208,3 +215,168 @@ def test_activity_plan_openapi(client: TestClient) -> None:
             ]
             == "#/components/schemas/HTTPValidationError"
         )
+    prefix = "/api/v1" + PATH + "/{activity_id}"
+    for operation, status in (
+        (document["paths"][prefix + "/exercises"]["post"], "201"),
+        (detail["patch"], "200"),
+    ):
+        schema = operation["responses"][status]["content"]["application/json"]["schema"]
+        assert schema["$ref"] == "#/components/schemas/ActivityExercisePlanPublic"
+    removal = document["paths"][prefix + "/entry"]["delete"]
+    assert "content" not in removal["responses"]["204"]
+    entry_id = next(
+        param for param in removal["parameters"] if param["name"] == "entry_id"
+    )
+    assert entry_id["in"] == "query"
+    assert entry_id["schema"]["type"] == "integer"
+
+
+def test_add_entry_creates_or_extends_activity_plan(
+    client: TestClient,
+    user1_token: str,
+    user2_token: str,
+    user1_id: UUID,
+    activity_factory,
+) -> None:
+    headers = {"Authorization": f"Bearer {user1_token}"}
+    exercise_id = client.get("/strength_training/exercises", headers=headers).json()[
+        "data"
+    ][0]["id"]
+    activity_id = activity_factory(user1_id)
+    url = f"{PATH}/{activity_id}"
+    foreign = client.post(
+        f"{url}/exercises",
+        headers={"Authorization": f"Bearer {user2_token}"},
+        json={"exercise_id": exercise_id},
+    )
+    assert foreign.status_code == 404
+    invalid = client.post(
+        f"{url}/exercises", headers=headers, json={"exercise_id": str(uuid4())}
+    )
+    assert invalid.status_code == 404
+    assert client.get(url, headers=headers).status_code == 404
+
+    created = client.post(
+        f"{url}/exercises", headers=headers, json={"exercise_id": exercise_id}
+    )
+    assert created.status_code == 201
+    plan = created.json()
+    assert plan["activity_id"] == str(activity_id)
+    assert plan["source_plan_id"] is None
+    added = client.post(
+        f"{url}/exercises",
+        headers=headers,
+        json={"exercise_id": exercise_id, "weight": 12.5},
+    )
+    assert added.status_code == 201
+    assert added.json()["id"] == plan["id"]
+    entries = {entry["id"]: entry for entry in added.json()["entries"]}
+    original = plan["entries"][0]
+    assert entries[original["id"]] == original
+    assert len(entries) == 2
+    assert {entry["weight"] for entry in entries.values()} == {None, 12.5}
+
+
+def test_replace_activity_entries_preserves_template_and_link(
+    client: TestClient,
+    user1_token: str,
+    user2_token: str,
+    user1_id: UUID,
+    activity_factory,
+) -> None:
+    headers = {"Authorization": f"Bearer {user1_token}"}
+    exercise_id = client.get("/strength_training/exercises", headers=headers).json()[
+        "data"
+    ][0]["id"]
+    template = client.post(
+        TEMPLATES,
+        headers=headers,
+        json={
+            "name": str(uuid4()),
+            "entries": [{"exercise_id": exercise_id, "weight": 10}],
+        },
+    ).json()
+    url = f"{PATH}/{activity_factory(user1_id)}"
+    attached = client.post(
+        url, headers=headers, params={"plan_id": template["id"]}
+    ).json()
+    foreign = client.patch(
+        url, headers={"Authorization": f"Bearer {user2_token}"}, json={"entries": []}
+    )
+    assert foreign.status_code == 404
+    response = client.patch(
+        url,
+        headers=headers,
+        json={"entries": [{"exercise_id": exercise_id, "weight": 15, "sets": 3}]},
+    )
+    assert response.status_code == 200
+    replaced = response.json()
+    assert replaced["id"] == attached["id"]
+    assert replaced["source_plan_id"] == template["id"]
+    assert replaced["entries"][0]["id"] != attached["entries"][0]["id"]
+    assert replaced["entries"][0]["weight"] == 15
+    assert replaced["entries"][0]["sets"] == 3
+    assert client.patch(url, headers=headers, json={"entries": None}).status_code == 422
+    assert (
+        client.patch(
+            url, headers=headers, json={"entries": [{"exercise_id": str(uuid4())}]}
+        ).status_code
+        == 404
+    )
+    assert client.get(url, headers=headers).json() == replaced
+    assert (
+        client.get(f"{TEMPLATES}/{template['id']}", headers=headers).json() == template
+    )
+    cleared = client.patch(url, headers=headers, json={"entries": []})
+    assert cleared.status_code == 200
+    assert cleared.json()["entries"] == []
+
+
+def test_remove_entry_only_affects_its_activity_plan(
+    client: TestClient,
+    user1_token: str,
+    user2_token: str,
+    user1_id: UUID,
+    activity_factory,
+) -> None:
+    headers = {"Authorization": f"Bearer {user1_token}"}
+    other = {"Authorization": f"Bearer {user2_token}"}
+    exercise_id = client.get("/strength_training/exercises", headers=headers).json()[
+        "data"
+    ][0]["id"]
+    url = f"{PATH}/{activity_factory(user1_id)}"
+    other_url = f"{PATH}/{activity_factory(user1_id)}"
+    for plan_url in (url, other_url, url):
+        response = client.post(
+            f"{plan_url}/exercises", headers=headers, json={"exercise_id": exercise_id}
+        )
+        assert response.status_code == 201
+    entries = client.get(url, headers=headers).json()["entries"]
+    first, second = entries
+    foreign_entry = client.get(other_url, headers=headers).json()["entries"][0]
+    for auth, entry_id in ((other, first["id"]), (headers, foreign_entry["id"])):
+        response = client.delete(
+            f"{url}/entry", headers=auth, params={"entry_id": entry_id}
+        )
+        assert response.status_code == 404
+
+    deleted = client.delete(
+        f"{url}/entry", headers=headers, params={"entry_id": first["id"]}
+    )
+    assert deleted.status_code == 204
+    assert deleted.content == b""
+    assert client.get(url, headers=headers).json()["entries"] == [second]
+    assert client.get(other_url, headers=headers).json()["entries"] == [foreign_entry]
+    assert (
+        client.delete(
+            f"{url}/entry", headers=headers, params={"entry_id": first["id"]}
+        ).status_code
+        == 404
+    )
+    assert (
+        client.delete(
+            f"{url}/entry", headers=headers, params={"entry_id": second["id"]}
+        ).status_code
+        == 204
+    )
+    assert client.get(url, headers=headers).json()["entries"] == []

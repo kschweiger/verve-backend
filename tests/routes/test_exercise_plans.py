@@ -25,11 +25,14 @@ def test_create_read_and_list_plans(
     plan = created.json()
     assert plan["name"] == name
     assert len({entry["id"] for entry in plan["entries"]}) == 2
-    assert client.get(f"{PATH}/{plan['id']}", headers=headers).json() == plan
+    fetched = client.get(f"{PATH}/{plan['id']}", headers=headers).json()
     earlier = client.post(PATH, headers=headers, json={"name": f"A {name}"}).json()
     listing = client.get(PATH, headers=headers).json()["data"]
-    assert plan in listing
-    assert listing.index(earlier) < listing.index(plan)
+    listed = next(item for item in listing if item["id"] == plan["id"])
+    for item in (plan, fetched, listed):
+        item["entries"].sort(key=lambda entry: entry["id"])
+    assert fetched == listed == plan
+    assert listing.index(earlier) < listing.index(listed)
     assert [item["name"] for item in listing] == sorted(
         item["name"] for item in listing
     )
