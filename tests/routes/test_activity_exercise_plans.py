@@ -259,7 +259,6 @@ def test_activity_plan_openapi(client: TestClient) -> None:
     assert update_body["required"] == ["entry_id"]
     assert set(update_body["properties"]) == {
         "entry_id",
-        "exercise_id",
         "weight",
         "sets",
         "repetitions",
@@ -473,48 +472,30 @@ def test_update_entry_keeps_its_id_and_preserves_other_entries_and_template(
     }
 
 
-def test_update_entry_can_keep_an_inactive_exercise_or_switch_to_an_active_one(
+def test_update_entry_with_an_inactive_exercise(
     client: TestClient, user1_token: str, user1_id: UUID, activity_factory, db: Session
 ) -> None:
     headers = {"Authorization": f"Bearer {user1_token}"}
-    original, replacement = client.get(
-        "/strength_training/exercises", headers=headers
-    ).json()["data"][:2]
+    exercise_id = client.get("/strength_training/exercises", headers=headers).json()[
+        "data"
+    ][0]["id"]
     url = f"{PATH}/{activity_factory(user1_id)}"
     created = client.post(
-        f"{url}/exercises", headers=headers, json={"exercise_id": original["id"]}
+        f"{url}/exercises", headers=headers, json={"exercise_id": exercise_id}
     ).json()["entries"][0]
     target = {"entry_id": created["id"]}
-    exercise = db.get(Exercise, UUID(original["id"]))
+    exercise = db.get(Exercise, UUID(exercise_id))
     assert exercise is not None
     exercise.is_active = False
     db.commit()
     try:
-        retained = client.patch(
-            f"{url}/entry",
-            headers=headers,
-            json={**target, "exercise_id": None, "sets": 2},
-        )
-        assert retained.status_code == 200
-        assert retained.json()["exercise_id"] == original["id"]
         changed = client.patch(
             f"{url}/entry",
             headers=headers,
-            json={**target, "exercise_id": replacement["id"]},
+            json={**target, "sets": 2},
         )
         assert changed.status_code == 200
-        assert changed.json() == {
-            **created,
-            "exercise_id": replacement["id"],
-            "sets": 2,
-        }
-        for unavailable_id in (original["id"], str(uuid4())):
-            rejected = client.patch(
-                f"{url}/entry",
-                headers=headers,
-                json={**target, "exercise_id": unavailable_id},
-            )
-            assert rejected.status_code == 404
+        assert changed.json() == {**created, "sets": 2}
         for invalid in ({"sets": 0}, {"weight": -1}):
             assert (
                 client.patch(

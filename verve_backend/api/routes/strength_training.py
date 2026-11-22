@@ -422,7 +422,6 @@ class ActivityExercisePlanUpdate(TypedDict):
 
 class ActivityExercisePlanEntryUpdate(BaseModel):
     entry_id: int
-    exercise_id: UUID | None = None
     weight: ExercisePlanEntryWeight = None
     sets: ExercisePlanEntryCount = None
     repetitions: ExercisePlanEntryCount = None
@@ -587,15 +586,13 @@ def add_exercise_to_activity_plan(
     responses={
         404: {
             "model": HTTPErrorResponse,
-            "description": "Activity, plan, entry or replacement exercise not found",
+            "description": "Activity, plan or entry not found",
         }
     },
     summary="Update an entry in an activity plan",
     description=(
-        "Update the supplied fields and return the entry with its original ID. "
-        "Omitted fields keep their values. Send `null` to clear weight, sets or "
-        "repetitions. Set `exercise_id` to an active exercise to replace the "
-        "current exercise. Omitting it or sending `null` keeps the current exercise."
+        "Update weight, sets or repetitions and return the entry with its original ID. "
+        "Omitted fields keep their values. Send `null` to clear a value."
     ),
 )
 def update_entry_in_activity_plan(
@@ -605,13 +602,7 @@ def update_entry_in_activity_plan(
 ) -> Any:
     _, session = user_session
     entry = _lock_activity_plan_entry(session, activity_id, data.entry_id)
-    updates = data.model_dump(exclude_unset=True, exclude={"entry_id", "exercise_id"})
-    if data.exercise_id is not None and data.exercise_id != entry.exercise_id:
-        _validate_entries(
-            session, [ActivityExercisePlanEntryCreate(exercise_id=data.exercise_id)]
-        )
-        updates["exercise_id"] = data.exercise_id
-    entry.sqlmodel_update(updates)
+    entry.sqlmodel_update(data.model_dump(exclude_unset=True, exclude={"entry_id"}))
     result = ActivityExercisePlanEntryPublic.model_validate(entry)
     session.commit()
     return result
