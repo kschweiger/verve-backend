@@ -551,11 +551,17 @@ class Activity(ActivityBase, table=True):
     __table_args__ = (UniqueConstraint("id", "user_id", name="uix_activities_id_user"),)
 
 
+ExercisePlanEntryWeight = Annotated[
+    float | None, PydanticField(ge=0, allow_inf_nan=False)
+]
+ExercisePlanEntryCount = Annotated[int | None, PydanticField(gt=0, le=2_147_483_647)]
+
+
 class ExercisePlanEntryBase(SQLModel):
     exercise_id: uuid.UUID
-    weight: Annotated[float | None, PydanticField(ge=0, allow_inf_nan=False)] = None
-    sets: int | None = Field(default=None, gt=0, le=2_147_483_647)
-    repetitions: int | None = Field(default=None, gt=0, le=2_147_483_647)
+    weight: ExercisePlanEntryWeight = None
+    sets: ExercisePlanEntryCount = None
+    repetitions: ExercisePlanEntryCount = None
 
 
 class ExercisePlanEntryCreate(ExercisePlanEntryBase):

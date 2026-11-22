@@ -6,7 +6,7 @@ from uuid import UUID
 import structlog
 from fastapi import APIRouter, HTTPException, Path, Query
 from psycopg.errors import UniqueViolation
-from pydantic import Field
+from pydantic import BaseModel, Field
 from sqlalchemy import delete, distinct, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
@@ -25,6 +25,7 @@ from verve_backend.models import (
     ActivityExercisePlan,
     ActivityExercisePlanEntry,
     ActivityExercisePlanEntryCreate,
+    ActivityExercisePlanEntryPublic,
     ActivityExercisePlanPublic,
     ActivityPublic,
     Exercise,
@@ -36,7 +37,9 @@ from verve_backend.models import (
     ExercisePlanCreate,
     ExercisePlanEntry,
     ExercisePlanEntryBase,
+    ExercisePlanEntryCount,
     ExercisePlanEntryCreate,
+    ExercisePlanEntryWeight,
     ExercisePlanName,
     ExercisePlanPublic,
     ExercisePublic,
@@ -417,6 +420,14 @@ class ActivityExercisePlanUpdate(TypedDict):
     entries: list[ActivityExercisePlanEntryCreate]
 
 
+class ActivityExercisePlanEntryUpdate(BaseModel):
+    entry_id: int
+    exercise_id: UUID | None = None
+    weight: ExercisePlanEntryWeight = None
+    sets: ExercisePlanEntryCount = None
+    repetitions: ExercisePlanEntryCount = None
+
+
 def _require_activity(
     session: Session, activity_id: UUID, *, lock: bool = False
 ) -> None:
@@ -435,6 +446,26 @@ def _lock_activity_plan(
         .where(ActivityExercisePlan.activity_id == activity_id)
         .with_for_update()
     ).first()
+
+
+def _lock_activity_plan_entry(
+    session: Session, activity_id: UUID, entry_id: int
+) -> ActivityExercisePlanEntry:
+    _require_activity(session, activity_id, lock=True)
+    plan = _lock_activity_plan(session, activity_id)
+    if plan is None:
+        raise HTTPException(status_code=404, detail="Activity exercise plan not found")
+    entry = session.exec(
+        select(ActivityExercisePlanEntry).where(
+            ActivityExercisePlanEntry.activity_plan_id == plan.id,
+            ActivityExercisePlanEntry.id == entry_id,
+        )
+    ).first()
+    if entry is None:
+        raise HTTPException(
+            status_code=404, detail="Entry not found in activity exercise plan"
+        )
+    return entry
 
 
 def _activity_plan_for_template(
@@ -550,6 +581,42 @@ def add_exercise_to_activity_plan(
     return _save_activity_plan(session, plan)
 
 
+@router.patch(
+    "/activity_exercise_plans/{activity_id}/entry",
+    response_model=ActivityExercisePlanEntryPublic,
+    responses={
+        404: {
+            "model": HTTPErrorResponse,
+            "description": "Activity, plan, entry or replacement exercise not found",
+        }
+    },
+    summary="Update an entry in an activity plan",
+    description=(
+        "Update the supplied fields and return the entry with its original ID. "
+        "Omitted fields keep their values. Send `null` to clear weight, sets or "
+        "repetitions. Set `exercise_id` to an active exercise to replace the "
+        "current exercise. Omitting it or sending `null` keeps the current exercise."
+    ),
+)
+def update_entry_in_activity_plan(
+    user_session: UserSession,
+    activity_id: UUID,
+    data: ActivityExercisePlanEntryUpdate,
+) -> Any:
+    _, session = user_session
+    entry = _lock_activity_plan_entry(session, activity_id, data.entry_id)
+    updates = data.model_dump(exclude_unset=True, exclude={"entry_id", "exercise_id"})
+    if data.exercise_id is not None and data.exercise_id != entry.exercise_id:
+        _validate_entries(
+            session, [ActivityExercisePlanEntryCreate(exercise_id=data.exercise_id)]
+        )
+        updates["exercise_id"] = data.exercise_id
+    entry.sqlmodel_update(updates)
+    result = ActivityExercisePlanEntryPublic.model_validate(entry)
+    session.commit()
+    return result
+
+
 @router.delete(
     "/activity_exercise_plans/{activity_id}/entry",
     status_code=HTTP_204_NO_CONTENT,
@@ -567,20 +634,7 @@ def remove_entry_from_activity_plan(
     entry_id: int,
 ) -> None:
     _, session = user_session
-    _require_activity(session, activity_id, lock=True)
-    plan = _lock_activity_plan(session, activity_id)
-    if plan is None:
-        raise HTTPException(status_code=404, detail="Activity exercise plan not found")
-    entry = session.exec(
-        select(ActivityExercisePlanEntry).where(
-            ActivityExercisePlanEntry.activity_plan_id == plan.id,
-            ActivityExercisePlanEntry.id == entry_id,
-        )
-    ).first()
-    if entry is None:
-        raise HTTPException(
-            status_code=404, detail="Entry not found in activity exercise plan"
-        )
+    entry = _lock_activity_plan_entry(session, activity_id, entry_id)
     session.delete(entry)
     session.commit()
 

@@ -170,6 +170,11 @@ def test_missing_and_foreign_activity_or_template(
             client.patch(url, headers=headers, json={"entries": []}),
             client.delete(url, headers=headers),
             client.delete(f"{url}/entry", headers=headers, params={"entry_id": 1}),
+            client.patch(
+                f"{url}/entry",
+                headers=headers,
+                json={"entry_id": 1, "sets": 2},
+            ),
         ):
             assert response.status_code == 404
             assert response.json() == {"detail": "Activity not found"}
@@ -228,13 +233,37 @@ def test_activity_plan_openapi(client: TestClient) -> None:
     ):
         schema = operation["responses"][status]["content"]["application/json"]["schema"]
         assert schema["$ref"] == "#/components/schemas/ActivityExercisePlanPublic"
-    removal = document["paths"][prefix + "/entry"]["delete"]
+    entry_path = document["paths"][prefix + "/entry"]
+    removal = entry_path["delete"]
+    update_entry = entry_path["patch"]
     assert "content" not in removal["responses"]["204"]
     entry_id = next(
         param for param in removal["parameters"] if param["name"] == "entry_id"
     )
     assert entry_id["in"] == "query"
     assert entry_id["schema"]["type"] == "integer"
+    assert all(param["in"] != "query" for param in update_entry["parameters"])
+    assert (
+        update_entry["responses"]["200"]["content"]["application/json"]["schema"][
+            "$ref"
+        ]
+        == "#/components/schemas/ActivityExercisePlanEntryPublic"
+    )
+    assert (
+        update_entry["responses"]["404"]["content"]["application/json"]["schema"][
+            "$ref"
+        ]
+        == "#/components/schemas/HTTPErrorResponse"
+    )
+    update_body = schemas["ActivityExercisePlanEntryUpdate"]
+    assert update_body["required"] == ["entry_id"]
+    assert set(update_body["properties"]) == {
+        "entry_id",
+        "exercise_id",
+        "weight",
+        "sets",
+        "repetitions",
+    }
     deletion = detail["delete"]["responses"]
     assert "content" not in deletion["204"]
     assert (
@@ -394,6 +423,138 @@ def test_replace_activity_entries_preserves_template_and_link(
     cleared = client.patch(url, headers=headers, json={"entries": []})
     assert cleared.status_code == 200
     assert cleared.json()["entries"] == []
+
+
+def test_update_entry_keeps_its_id_and_preserves_other_entries_and_template(
+    client: TestClient, user1_token: str, user1_id: UUID, activity_factory
+) -> None:
+    headers = {"Authorization": f"Bearer {user1_token}"}
+    exercise_id = client.get("/strength_training/exercises", headers=headers).json()[
+        "data"
+    ][0]["id"]
+    template = client.post(
+        TEMPLATES,
+        headers=headers,
+        json={
+            "name": str(uuid4()),
+            "entries": [
+                {"exercise_id": exercise_id, "weight": 10, "sets": 3, "repetitions": 8},
+                {"exercise_id": exercise_id, "weight": 20},
+            ],
+        },
+    ).json()
+    url = f"{PATH}/{activity_factory(user1_id)}"
+    snapshot = client.post(
+        url, headers=headers, params={"plan_id": template["id"]}
+    ).json()
+    by_weight = {entry["weight"]: entry for entry in snapshot["entries"]}
+    entry, other_entry = by_weight[10], by_weight[20]
+
+    response = client.patch(
+        f"{url}/entry",
+        headers=headers,
+        json={"entry_id": entry["id"], "weight": 0, "sets": None},
+    )
+
+    assert response.status_code == 200
+    updated = response.json()
+    assert updated == {**entry, "weight": 0, "sets": None}
+    saved = client.get(url, headers=headers).json()
+    assert saved["source_plan_id"] == template["id"]
+    assert {item["id"]: item for item in saved["entries"]} == {
+        updated["id"]: updated,
+        other_entry["id"]: other_entry,
+    }
+    current_template = client.get(
+        f"{TEMPLATES}/{template['id']}", headers=headers
+    ).json()
+    assert {item["id"]: item for item in current_template["entries"]} == {
+        item["id"]: item for item in template["entries"]
+    }
+
+
+def test_update_entry_can_keep_an_inactive_exercise_or_switch_to_an_active_one(
+    client: TestClient, user1_token: str, user1_id: UUID, activity_factory, db: Session
+) -> None:
+    headers = {"Authorization": f"Bearer {user1_token}"}
+    original, replacement = client.get(
+        "/strength_training/exercises", headers=headers
+    ).json()["data"][:2]
+    url = f"{PATH}/{activity_factory(user1_id)}"
+    created = client.post(
+        f"{url}/exercises", headers=headers, json={"exercise_id": original["id"]}
+    ).json()["entries"][0]
+    target = {"entry_id": created["id"]}
+    exercise = db.get(Exercise, UUID(original["id"]))
+    assert exercise is not None
+    exercise.is_active = False
+    db.commit()
+    try:
+        retained = client.patch(
+            f"{url}/entry",
+            headers=headers,
+            json={**target, "exercise_id": None, "sets": 2},
+        )
+        assert retained.status_code == 200
+        assert retained.json()["exercise_id"] == original["id"]
+        changed = client.patch(
+            f"{url}/entry",
+            headers=headers,
+            json={**target, "exercise_id": replacement["id"]},
+        )
+        assert changed.status_code == 200
+        assert changed.json() == {
+            **created,
+            "exercise_id": replacement["id"],
+            "sets": 2,
+        }
+        for unavailable_id in (original["id"], str(uuid4())):
+            rejected = client.patch(
+                f"{url}/entry",
+                headers=headers,
+                json={**target, "exercise_id": unavailable_id},
+            )
+            assert rejected.status_code == 404
+        for invalid in ({"sets": 0}, {"weight": -1}):
+            assert (
+                client.patch(
+                    f"{url}/entry", headers=headers, json={**target, **invalid}
+                ).status_code
+                == 422
+            )
+        saved = client.get(url, headers=headers).json()["entries"]
+        assert {entry["id"]: entry for entry in saved} == {
+            created["id"]: changed.json()
+        }
+    finally:
+        exercise.is_active = True
+        db.commit()
+
+
+def test_update_entry_rejects_an_entry_from_another_activity(
+    client: TestClient, user1_token: str, user1_id: UUID, activity_factory
+) -> None:
+    headers = {"Authorization": f"Bearer {user1_token}"}
+    exercise_id = client.get("/strength_training/exercises", headers=headers).json()[
+        "data"
+    ][0]["id"]
+    url, other_url = (f"{PATH}/{activity_factory(user1_id)}" for _ in range(2))
+    for plan_url in (url, other_url):
+        response = client.post(
+            f"{plan_url}/exercises", headers=headers, json={"exercise_id": exercise_id}
+        )
+        assert response.status_code == 201
+    other_entry = response.json()["entries"][0]
+
+    rejected = client.patch(
+        f"{url}/entry",
+        headers=headers,
+        json={"entry_id": other_entry["id"], "sets": 2},
+    )
+
+    assert rejected.status_code == 404
+    saved = client.get(other_url, headers=headers).json()["entries"]
+    assert {entry["id"]: entry for entry in saved} == {other_entry["id"]: other_entry}
 
 
 def test_remove_entry_only_affects_its_activity_plan(
