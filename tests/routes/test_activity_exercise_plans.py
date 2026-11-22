@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from verve_backend.models import Activity, Exercise
+from verve_backend.models import Activity, ActivityExercisePlanEntry, Exercise
 
 PATH = "/strength_training/activity_exercise_plans"
 TEMPLATES = "/strength_training/exercise_plans"
@@ -168,6 +168,7 @@ def test_missing_and_foreign_activity_or_template(
                 f"{url}/exercises", headers=headers, json={"exercise_id": str(uuid4())}
             ),
             client.patch(url, headers=headers, json={"entries": []}),
+            client.delete(url, headers=headers),
             client.delete(f"{url}/entry", headers=headers, params={"entry_id": 1}),
         ):
             assert response.status_code == 404
@@ -184,6 +185,9 @@ def test_missing_and_foreign_activity_or_template(
     no_plan = client.get(f"{PATH}/{activity_id}", headers=headers)
     assert no_plan.status_code == 404
     assert no_plan.json() == {"detail": "Activity exercise plan not found"}
+    missing_delete = client.delete(f"{PATH}/{activity_id}", headers=headers)
+    assert missing_delete.status_code == 404
+    assert missing_delete.json() == {"detail": "Activity exercise plan not found"}
     assert client.post(f"{PATH}/{activity_id}", headers=headers).status_code == 422
 
 
@@ -231,6 +235,64 @@ def test_activity_plan_openapi(client: TestClient) -> None:
     )
     assert entry_id["in"] == "query"
     assert entry_id["schema"]["type"] == "integer"
+    deletion = detail["delete"]["responses"]
+    assert "content" not in deletion["204"]
+    assert (
+        deletion["404"]["content"]["application/json"]["schema"]["$ref"]
+        == "#/components/schemas/HTTPErrorResponse"
+    )
+
+
+def test_delete_activity_plan_preserves_activity_and_template(
+    client: TestClient, user1_token: str, user1_id: UUID, activity_factory, db: Session
+) -> None:
+    headers = {"Authorization": f"Bearer {user1_token}"}
+    exercise_id = client.get("/strength_training/exercises", headers=headers).json()[
+        "data"
+    ][0]["id"]
+    template = client.post(
+        TEMPLATES,
+        headers=headers,
+        json={"name": str(uuid4()), "entries": [{"exercise_id": exercise_id}]},
+    ).json()
+    activity_id = activity_factory(user1_id)
+    url = f"{PATH}/{activity_id}"
+    attached = client.post(
+        url, headers=headers, params={"plan_id": template["id"]}
+    ).json()
+    entry_ids = {entry["id"] for entry in attached["entries"]}
+    assert entry_ids
+    assert {
+        item["id"]
+        for item in client.get(
+            f"{TEMPLATES}/{template['id']}/activities", headers=headers
+        ).json()["data"]
+    } == {str(activity_id)}
+
+    response = client.delete(url, headers=headers)
+    assert response.status_code == 204
+    assert response.content == b""
+    assert client.get(url, headers=headers).status_code == 404
+    db.expire_all()
+    assert all(
+        db.get(ActivityExercisePlanEntry, entry_id) is None for entry_id in entry_ids
+    )
+    assert client.get(f"/activity/{activity_id}", headers=headers).status_code == 200
+    assert (
+        client.get(f"{TEMPLATES}/{template['id']}", headers=headers).json() == template
+    )
+    assert client.get(
+        f"{TEMPLATES}/{template['id']}/activities", headers=headers
+    ).json() == {"data": []}
+    repeated = client.delete(url, headers=headers)
+    assert repeated.status_code == 404
+    assert repeated.json() == {"detail": "Activity exercise plan not found"}
+    assert (
+        client.post(
+            url, headers=headers, params={"plan_id": template["id"]}
+        ).status_code
+        == 201
+    )
 
 
 def test_add_entry_creates_or_extends_activity_plan(

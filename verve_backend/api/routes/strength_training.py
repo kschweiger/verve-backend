@@ -671,6 +671,30 @@ def get_activity_exercise_plans(
     return plan
 
 
+@router.delete(
+    "/activity_exercise_plans/{activity_id}",
+    status_code=HTTP_204_NO_CONTENT,
+    responses={
+        404: {
+            "model": HTTPErrorResponse,
+            "description": "Activity or activity exercise plan not found",
+        }
+    },
+    summary="Remove an activity exercise plan",
+)
+def delete_activity_exercise_plan(
+    user_session: UserSession,
+    activity_id: UUID,
+) -> None:
+    _, session = user_session
+    _require_activity(session, activity_id, lock=True)
+    plan = _lock_activity_plan(session, activity_id)
+    if plan is None:
+        raise HTTPException(status_code=404, detail="Activity exercise plan not found")
+    session.delete(plan)
+    session.commit()
+
+
 class ActivityMuscleGroupPublic(MuscleGroupPublic):
     role: ExerciseMuscleRole = Field(
         description="Primary if any contributing muscle is primary; "
