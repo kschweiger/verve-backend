@@ -17,6 +17,7 @@ from verve_backend.api.routes import (
     media,
     resolver,
     statistics,
+    strength_training,
     tag,
     track,
     users,
@@ -40,6 +41,7 @@ api_router.include_router(equipment.router)
 api_router.include_router(highlights.router)
 api_router.include_router(location.router)
 api_router.include_router(tag.router)
+api_router.include_router(strength_training.router)
 
 if settings.ENVIRONMENT == "local":
     # api_router.include_router(private.router)

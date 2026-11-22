@@ -2,7 +2,7 @@ import re
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from enum import StrEnum, auto
-from typing import Annotated, Any, Generic, TypeVar
+from typing import Annotated, Any, Generic, Optional, TypeVar
 
 import sqlalchemy.types as types
 from geoalchemy2 import Geography, Geometry
@@ -10,9 +10,13 @@ from pydantic import (
     AfterValidator,
     BaseModel,
     EmailStr,
+    StringConstraints,
+)
+from pydantic import (
+    Field as PydanticField,
 )
 from pydantic_extra_types.timezone_name import TimeZoneName
-from sqlalchemy import JSON, Column
+from sqlalchemy import JSON, CheckConstraint, Column
 from sqlmodel import (
     Field,
     ForeignKeyConstraint,
@@ -62,6 +66,159 @@ class PydanticJSON(types.TypeDecorator):
         if value is None:
             return None
         return self.pydantic_model.model_validate(value)
+
+
+CatalogString = Annotated[str, StringConstraints(min_length=1, pattern=r"[^ ]")]
+
+
+class ExerciseMuscleRole(StrEnum):
+    PRIMARY = "primary"
+    SECONDARY = "secondary"
+
+
+class ExerciseCatalogSyncState(SQLModel, table=True):
+    __tablename__: str = "exercise_catalog_sync_state"
+
+    catalog_code: CatalogString = Field(primary_key=True)
+    content_hash: str = Field(nullable=False)
+    sync_version: int = Field(nullable=False)
+
+    __table_args__ = (
+        CheckConstraint(
+            "btrim(catalog_code) <> ''", name="ck_catalog_sync_code_not_empty"
+        ),
+        CheckConstraint("content_hash ~ '^[0-9a-f]{64}$'", name="ck_catalog_sync_hash"),
+        CheckConstraint("sync_version > 0", name="ck_catalog_sync_version_positive"),
+    )
+
+
+class ExerciseBase(SQLModel):
+    code: CatalogString = Field(
+        nullable=False, description="Stable code identifying the exercise."
+    )
+    is_active: bool = Field(
+        description="Whether the exercise is available for selection."
+    )
+
+
+class ExercisePublic(ExerciseBase):
+    id: uuid.UUID = Field(description="Unique identifier of the exercise.")
+    name: str = Field(description="Translated exercise name.")
+    muscles: list["ExerciseMusclePublic"] = Field(
+        description="Muscles used by the exercise, sorted by code."
+    )
+
+
+class Exercise(ExerciseBase, table=True):
+    __tablename__: str = "exercises"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    is_active: bool = Field(default=True, nullable=False)
+
+    muscle_links: list["ExerciseMuscle"] = Relationship(
+        back_populates="exercise", sa_relationship_kwargs={"passive_deletes": "all"}
+    )
+
+    __table_args__ = (
+        UniqueConstraint("code", name="uix_exercises_code"),
+        CheckConstraint("btrim(code) <> ''", name="ck_exercises_code_not_empty"),
+    )
+
+
+class MuscleBase(SQLModel):
+    code: CatalogString = Field(
+        nullable=False, description="Stable code identifying the muscle."
+    )
+
+
+class MusclePublic(MuscleBase):
+    id: uuid.UUID = Field(description="Unique identifier of the muscle.")
+    name: str = Field(description="Translated muscle name.")
+
+
+class Muscle(MuscleBase, table=True):
+    __tablename__: str = "muscles"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    exercise_links: list["ExerciseMuscle"] = Relationship(
+        back_populates="muscle", sa_relationship_kwargs={"passive_deletes": "all"}
+    )
+    group_links: list["MuscleGroupMember"] = Relationship(
+        back_populates="muscle", sa_relationship_kwargs={"passive_deletes": "all"}
+    )
+
+    __table_args__ = (
+        UniqueConstraint("code", name="uix_muscles_code"),
+        CheckConstraint("btrim(code) <> ''", name="ck_muscles_code_not_empty"),
+    )
+
+
+class MuscleGroupBase(SQLModel):
+    code: CatalogString = Field(
+        nullable=False, description="Stable code identifying the muscle display group."
+    )
+
+
+class MuscleGroupPublic(MuscleGroupBase):
+    id: uuid.UUID = Field(description="Unique identifier of the display group.")
+    name: str = Field(description="Translated display group name.")
+
+
+class MuscleGroup(MuscleGroupBase, table=True):
+    __tablename__: str = "muscle_groups"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    members: list["MuscleGroupMember"] = Relationship(
+        back_populates="group", sa_relationship_kwargs={"passive_deletes": "all"}
+    )
+
+    __table_args__ = (
+        UniqueConstraint("code", name="uix_muscle_groups_code"),
+        CheckConstraint("btrim(code) <> ''", name="ck_muscle_groups_code_not_empty"),
+    )
+
+
+class ExerciseMusclePublic(MusclePublic):
+    role: ExerciseMuscleRole = Field(
+        description="Whether the muscle is a primary target "
+        "or provides secondary assistance."
+    )
+    muscle_groups: list[MuscleGroupPublic] = Field(
+        description="Display groups containing this muscle, sorted by code."
+    )
+
+
+class ExerciseMuscle(SQLModel, table=True):
+    __tablename__: str = "exercise_muscles"
+
+    exercise_id: uuid.UUID = Field(
+        foreign_key="exercises.id",
+        primary_key=True,
+        nullable=False,
+        ondelete="RESTRICT",
+    )
+    muscle_id: uuid.UUID = Field(
+        foreign_key="muscles.id", primary_key=True, nullable=False, ondelete="RESTRICT"
+    )
+    role: ExerciseMuscleRole
+    exercise: Exercise = Relationship(back_populates="muscle_links")
+    muscle: Muscle = Relationship(back_populates="exercise_links")
+
+
+class MuscleGroupMember(SQLModel, table=True):
+    __tablename__: str = "muscle_group_members"
+
+    group_id: uuid.UUID = Field(
+        foreign_key="muscle_groups.id",
+        primary_key=True,
+        nullable=False,
+        ondelete="RESTRICT",
+    )
+    muscle_id: uuid.UUID = Field(
+        foreign_key="muscles.id", primary_key=True, nullable=False, ondelete="RESTRICT"
+    )
+    group: MuscleGroup = Relationship(back_populates="members")
+    muscle: Muscle = Relationship(back_populates="group_links")
 
 
 class SupportedLocale(StrEnum):
@@ -372,12 +529,251 @@ class Activity(ActivityBase, table=True):
             "lazy": "select",
         },
     )
+    exercise_plan: Optional["ActivityExercisePlan"] = Relationship(
+        back_populates="activity",
+        sa_relationship_kwargs={
+            "passive_deletes": "all",
+            "uselist": False,
+            "primaryjoin": (
+                "and_(Activity.id == foreign(ActivityExercisePlan.activity_id), "
+                "Activity.user_id == ActivityExercisePlan.user_id)"
+            ),
+        },
+    )
     collections: list["ActivityCollection"] = Relationship(
         back_populates="activities",
         link_model=ActivityCollectionLink,
         sa_relationship_kwargs={
             "lazy": "select",
         },
+    )
+
+    __table_args__ = (UniqueConstraint("id", "user_id", name="uix_activities_id_user"),)
+
+
+ExercisePlanEntryWeight = Annotated[
+    float | None, PydanticField(ge=0, allow_inf_nan=False)
+]
+ExercisePlanEntryCount = Annotated[int | None, PydanticField(gt=0, le=2_147_483_647)]
+
+
+class ExercisePlanEntryBase(SQLModel):
+    exercise_id: uuid.UUID
+    weight: ExercisePlanEntryWeight = None
+    sets: ExercisePlanEntryCount = None
+    repetitions: ExercisePlanEntryCount = None
+
+
+class ExercisePlanEntryCreate(ExercisePlanEntryBase):
+    pass
+
+
+class ExercisePlanEntryPublic(ExercisePlanEntryBase):
+    id: int
+
+
+ExercisePlanName = Annotated[
+    str, StringConstraints(min_length=1, pattern=r"^[^\x00]*[^\s\x00][^\x00]*$")
+]
+
+
+class ExercisePlanBase(SQLModel):
+    name: ExercisePlanName
+
+
+class ExercisePlanCreate(ExercisePlanBase):
+    entries: list[ExercisePlanEntryCreate] = Field(default_factory=list)
+
+
+class ExercisePlanPublic(ExercisePlanBase):
+    id: uuid.UUID
+    entries: list[ExercisePlanEntryPublic]
+
+
+class ActivityExercisePlanEntryBase(ExercisePlanEntryBase):
+    pass
+
+
+class ActivityExercisePlanEntryCreate(ActivityExercisePlanEntryBase):
+    pass
+
+
+class ActivityExercisePlanEntryPublic(ActivityExercisePlanEntryBase):
+    id: int
+
+
+class ActivityExercisePlanBase(SQLModel):
+    activity_id: uuid.UUID
+    source_plan_id: uuid.UUID | None = None
+
+
+class ActivityExercisePlanCreate(ActivityExercisePlanBase):
+    entries: list[ActivityExercisePlanEntryCreate] = Field(default_factory=list)
+
+
+class ActivityExercisePlanPublic(ActivityExercisePlanBase):
+    id: uuid.UUID
+    entries: list[ActivityExercisePlanEntryPublic]
+
+
+# Plan relationships join on ownership, but only write the referenced object ID.
+# The foreign key constraint checks ownership without reassigning user_id.
+class ExercisePlan(ExercisePlanBase, table=True):
+    __tablename__: str = "exercise_plans"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", nullable=False, ondelete="CASCADE", index=True
+    )
+    entries: list["ExercisePlanEntry"] = Relationship(
+        back_populates="plan",
+        sa_relationship_kwargs={
+            "passive_deletes": "all",
+            "primaryjoin": (
+                "and_(ExercisePlan.id == foreign(ExercisePlanEntry.plan_id), "
+                "ExercisePlan.user_id == ExercisePlanEntry.user_id)"
+            ),
+        },
+    )
+    activity_plans: list["ActivityExercisePlan"] = Relationship(
+        back_populates="source_plan",
+        sa_relationship_kwargs={
+            "passive_deletes": "all",
+            "primaryjoin": (
+                "and_(ExercisePlan.id == foreign(ActivityExercisePlan.source_plan_id), "
+                "ExercisePlan.user_id == ActivityExercisePlan.user_id)"
+            ),
+        },
+    )
+    __table_args__ = (
+        UniqueConstraint("id", "user_id", name="uix_exercise_plans_id_user"),
+        UniqueConstraint("user_id", "name", name="uix_exercise_plans_user_name"),
+        CheckConstraint("name ~ '[^[:space:]]'", name="ck_exercise_plans_name"),
+    )
+
+
+class ExercisePlanEntry(ExercisePlanEntryBase, table=True):
+    __tablename__: str = "exercise_plan_entries"
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", nullable=False, ondelete="CASCADE", index=True
+    )
+    plan_id: uuid.UUID = Field(index=True, nullable=False)
+    exercise_id: uuid.UUID = Field(
+        foreign_key="exercises.id", nullable=False, ondelete="RESTRICT"
+    )
+    plan: ExercisePlan = Relationship(
+        back_populates="entries",
+        sa_relationship_kwargs={
+            "primaryjoin": (
+                "and_(ExercisePlan.id == foreign(ExercisePlanEntry.plan_id), "
+                "ExercisePlan.user_id == ExercisePlanEntry.user_id)"
+            )
+        },
+    )
+    exercise: Exercise = Relationship()
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["plan_id", "user_id"],
+            ["exercise_plans.id", "exercise_plans.user_id"],
+            ondelete="CASCADE",
+        ),
+        CheckConstraint(
+            "weight >= 0 AND weight < 'Infinity'::float8",
+            name="ck_exercise_plan_entries_weight",
+        ),
+        CheckConstraint("sets > 0", name="ck_exercise_plan_entries_sets"),
+        CheckConstraint("repetitions > 0", name="ck_exercise_plan_entries_repetitions"),
+    )
+
+
+class ActivityExercisePlan(ActivityExercisePlanBase, table=True):
+    __tablename__: str = "activity_exercise_plans"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", nullable=False, ondelete="CASCADE", index=True
+    )
+    activity_id: uuid.UUID = Field(nullable=False)
+    source_plan_id: uuid.UUID | None = Field(default=None, index=True)
+    activity: Activity = Relationship(
+        back_populates="exercise_plan",
+        sa_relationship_kwargs={
+            "primaryjoin": (
+                "and_(Activity.id == foreign(ActivityExercisePlan.activity_id), "
+                "Activity.user_id == ActivityExercisePlan.user_id)"
+            )
+        },
+    )
+    source_plan: ExercisePlan | None = Relationship(
+        back_populates="activity_plans",
+        sa_relationship_kwargs={
+            "primaryjoin": (
+                "and_(ExercisePlan.id == foreign(ActivityExercisePlan.source_plan_id), "
+                "ExercisePlan.user_id == ActivityExercisePlan.user_id)"
+            )
+        },
+    )
+    entries: list["ActivityExercisePlanEntry"] = Relationship(
+        back_populates="activity_plan",
+        sa_relationship_kwargs={
+            "passive_deletes": "all",
+            "primaryjoin": (
+                "and_(ActivityExercisePlan.id == "
+                "foreign(ActivityExercisePlanEntry.activity_plan_id), "
+                "ActivityExercisePlan.user_id == ActivityExercisePlanEntry.user_id)"
+            ),
+        },
+    )
+    __table_args__ = (
+        UniqueConstraint("id", "user_id", name="uix_activity_exercise_plans_id_user"),
+        UniqueConstraint("activity_id", name="uix_activity_exercise_plans_activity"),
+        ForeignKeyConstraint(
+            ["activity_id", "user_id"],
+            ["activities.id", "activities.user_id"],
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["source_plan_id", "user_id"],
+            ["exercise_plans.id", "exercise_plans.user_id"],
+            ondelete="SET NULL (source_plan_id)",
+        ),
+    )
+
+
+class ActivityExercisePlanEntry(ActivityExercisePlanEntryBase, table=True):
+    __tablename__: str = "activity_exercise_plan_entries"
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", nullable=False, ondelete="CASCADE", index=True
+    )
+    activity_plan_id: uuid.UUID = Field(index=True, nullable=False)
+    exercise_id: uuid.UUID = Field(
+        foreign_key="exercises.id", nullable=False, ondelete="RESTRICT"
+    )
+    activity_plan: ActivityExercisePlan = Relationship(
+        back_populates="entries",
+        sa_relationship_kwargs={
+            "primaryjoin": (
+                "and_(ActivityExercisePlan.id == "
+                "foreign(ActivityExercisePlanEntry.activity_plan_id), "
+                "ActivityExercisePlan.user_id == ActivityExercisePlanEntry.user_id)"
+            )
+        },
+    )
+    exercise: Exercise = Relationship()
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["activity_plan_id", "user_id"],
+            ["activity_exercise_plans.id", "activity_exercise_plans.user_id"],
+            ondelete="CASCADE",
+        ),
+        CheckConstraint(
+            "weight >= 0 AND weight < 'Infinity'::float8",
+            name="ck_activity_exercise_plan_entries_weight",
+        ),
+        CheckConstraint("sets > 0", name="ck_activity_exercise_plan_entries_sets"),
+        CheckConstraint(
+            "repetitions > 0", name="ck_activity_exercise_plan_entries_repetitions"
+        ),
     )
 
 

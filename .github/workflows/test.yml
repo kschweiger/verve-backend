@@ -55,6 +55,7 @@ jobs:
           PGPASSWORD: testpassword
         run: |
           psql -h localhost -U testuser -d testdb -c "CREATE SCHEMA api;"
+          psql -h localhost -U testuser -d testdb -c "CREATE SCHEMA catalog_import_tests;"
 
       - name: Enable PostGIS Extension
         env:

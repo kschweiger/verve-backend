@@ -1,0 +1,18 @@
+{
+  "exercises": {
+    "chest_press_machine": "Chest press (machine)",
+    "dead_hang": "Dead hang"
+  },
+  "muscles": {
+    "pectoralis_major": "Pectoralis major",
+    "anterior_deltoid": "Anterior deltoid",
+    "triceps_brachii": "Triceps brachii",
+    "forearm_flexors": "Forearm flexors"
+  },
+  "muscle_groups": {
+    "chest": "Chest",
+    "front_shoulders": "Front shoulders",
+    "back_upper_arms": "Back of upper arms",
+    "forearms": "Forearms"
+  }
+}
