@@ -223,40 +223,51 @@ def _validate_entries(
         raise HTTPException(status_code=404, detail="Exercise not found or unavailable")
 
 
-def _save_plan(session: Session, plan: ExercisePlan) -> ExercisePlanPublic:
+def _save_plan(
+    session: Session, plan: ExercisePlan | ActivityExercisePlan
+) -> ExercisePlanPublic | ActivityExercisePlanPublic:
+    if isinstance(plan, ActivityExercisePlan):
+        response_model = ActivityExercisePlanPublic
+        constraint = "uix_activity_exercise_plans_activity"
+        conflict = "Activity already has an exercise plan"
+    else:
+        response_model = ExercisePlanPublic
+        constraint = "uix_exercise_plans_user_name"
+        conflict = "Exercise plan name already exists"
+
     try:
         session.flush()
         session.expire(plan, ["entries"])
-        result = ExercisePlanPublic.model_validate(plan)
+        result = response_model.model_validate(plan)
         session.commit()
     except IntegrityError as exc:
         session.rollback()
         error = exc.orig
         if (
             isinstance(error, UniqueViolation)
-            and error.diag.constraint_name == "uix_exercise_plans_user_name"
+            and error.diag.constraint_name == constraint
         ):
-            raise HTTPException(
-                status_code=409, detail="Exercise plan name already exists"
-            ) from exc
+            raise HTTPException(status_code=409, detail=conflict) from exc
         raise
     return result
 
 
 def _add_entries(
-    session: Session, plan: ExercisePlan, entries: Sequence[ExercisePlanEntryBase]
+    session: Session,
+    plan: ExercisePlan | ActivityExercisePlan,
+    entries: Sequence[ExercisePlanEntryBase],
 ) -> None:
     for entry in entries:
-        session.add(
-            ExercisePlanEntry(
-                plan_id=plan.id,
-                user_id=plan.user_id,
-                exercise_id=entry.exercise_id,
-                weight=entry.weight,
-                sets=entry.sets,
-                repetitions=entry.repetitions,
+        fields = {
+            name: getattr(entry, name) for name in ExercisePlanEntryBase.model_fields
+        }
+        if isinstance(plan, ActivityExercisePlan):
+            row = ActivityExercisePlanEntry(
+                activity_plan_id=plan.id, user_id=plan.user_id, **fields
             )
-        )
+        else:
+            row = ExercisePlanEntry(plan_id=plan.id, user_id=plan.user_id, **fields)
+        session.add(row)
 
 
 def _replace_plan_entries(
@@ -447,13 +458,20 @@ def _lock_activity_plan(
     ).first()
 
 
-def _lock_activity_plan_entry(
-    session: Session, activity_id: UUID, entry_id: int
-) -> ActivityExercisePlanEntry:
+def _require_locked_activity_plan(
+    session: Session, activity_id: UUID
+) -> ActivityExercisePlan:
     _require_activity(session, activity_id, lock=True)
     plan = _lock_activity_plan(session, activity_id)
     if plan is None:
         raise HTTPException(status_code=404, detail="Activity exercise plan not found")
+    return plan
+
+
+def _lock_activity_plan_entry(
+    session: Session, activity_id: UUID, entry_id: int
+) -> ActivityExercisePlanEntry:
+    plan = _require_locked_activity_plan(session, activity_id)
     entry = session.exec(
         select(ActivityExercisePlanEntry).where(
             ActivityExercisePlanEntry.activity_plan_id == plan.id,
@@ -483,46 +501,6 @@ def _activity_plan_for_template(
     return plan
 
 
-def _add_activity_entries(
-    session: Session,
-    plan: ActivityExercisePlan,
-    entries: Sequence[ExercisePlanEntryBase],
-) -> None:
-    for entry in entries:
-        session.add(
-            ActivityExercisePlanEntry(
-                activity_plan_id=plan.id,
-                user_id=plan.user_id,
-                exercise_id=entry.exercise_id,
-                weight=entry.weight,
-                sets=entry.sets,
-                repetitions=entry.repetitions,
-            )
-        )
-
-
-def _save_activity_plan(
-    session: Session, plan: ActivityExercisePlan
-) -> ActivityExercisePlanPublic:
-    try:
-        session.flush()
-        session.expire(plan, ["entries"])
-        result = ActivityExercisePlanPublic.model_validate(plan)
-        session.commit()
-    except IntegrityError as exc:
-        session.rollback()
-        error = exc.orig
-        if (
-            isinstance(error, UniqueViolation)
-            and error.diag.constraint_name == "uix_activity_exercise_plans_activity"
-        ):
-            raise HTTPException(
-                status_code=409, detail="Activity already has an exercise plan"
-            ) from exc
-        raise
-    return result
-
-
 @router.post(
     "/activity_exercise_plans/{activity_id}",
     response_model=ActivityExercisePlanPublic,
@@ -547,8 +525,8 @@ def add_plan_to_activity(
         user_id=UUID(user_id), activity_id=activity_id, source_plan_id=source.id
     )
     session.add(plan)
-    _add_activity_entries(session, plan, entries)
-    return _save_activity_plan(session, plan)
+    _add_entries(session, plan, entries)
+    return _save_plan(session, plan)
 
 
 @router.post(
@@ -576,8 +554,8 @@ def add_exercise_to_activity_plan(
     if plan is None:
         plan = ActivityExercisePlan(user_id=UUID(user_id), activity_id=activity_id)
         session.add(plan)
-    _add_activity_entries(session, plan, [data])
-    return _save_activity_plan(session, plan)
+    _add_entries(session, plan, [data])
+    return _save_plan(session, plan)
 
 
 @router.patch(
@@ -732,10 +710,7 @@ def delete_activity_exercise_plan(
     activity_id: UUID,
 ) -> None:
     _, session = user_session
-    _require_activity(session, activity_id, lock=True)
-    plan = _lock_activity_plan(session, activity_id)
-    if plan is None:
-        raise HTTPException(status_code=404, detail="Activity exercise plan not found")
+    plan = _require_locked_activity_plan(session, activity_id)
     session.delete(plan)
     session.commit()
 
@@ -829,10 +804,7 @@ def update_activity_exercise_plan(
     data: ActivityExercisePlanUpdate,
 ) -> Any:
     _, session = user_session
-    _require_activity(session, activity_id, lock=True)
-    plan = _lock_activity_plan(session, activity_id)
-    if plan is None:
-        raise HTTPException(status_code=404, detail="Activity exercise plan not found")
+    plan = _require_locked_activity_plan(session, activity_id)
     entries = data["entries"]
     _validate_entries(session, entries, plan.entries)
     session.exec(
@@ -840,5 +812,5 @@ def update_activity_exercise_plan(
             col(ActivityExercisePlanEntry.activity_plan_id) == plan.id
         )
     )
-    _add_activity_entries(session, plan, entries)
-    return _save_activity_plan(session, plan)
+    _add_entries(session, plan, entries)
+    return _save_plan(session, plan)

@@ -127,6 +127,11 @@ def catalog_revision(document: dict[str, Any]) -> str:
     return hashlib.sha256(canonical).hexdigest()
 
 
+def _require_known_muscles(code: str, references: set[str], muscles: set[str]) -> None:
+    if unknown := references - muscles:
+        raise ValueError(f"Unknown muscles for {code}: {sorted(unknown)}")
+
+
 def load_catalog(input_path: Path | None = None) -> CatalogSnapshot:
     resources = files("verve_backend").joinpath("data")
     raw = (
@@ -140,55 +145,50 @@ def load_catalog(input_path: Path | None = None) -> CatalogSnapshot:
     parsed = CatalogInput.model_validate(document)
     if any(item.upstream_id for item in parsed.exercises) and parsed.upstream is None:
         raise ValueError("upstream is required when an exercise has upstream_id")
-    # Use the validated shape below, but hash the original input without defaults.
-    validated = parsed.model_dump(by_alias=True, exclude_none=True)
-    muscles_list = validated["muscles"]
-    if len(muscles_list) != len(set(muscles_list)):
+    muscles = set(parsed.muscles)
+    if len(muscles) != len(parsed.muscles):
         raise ValueError("Duplicate muscle codes")
-    muscles = set(muscles_list)
-    for section in ("exercises", "muscle_groups"):
-        codes = set()
-        for item in validated[section]:
-            code = item["code"]
-            if code in codes:
-                raise ValueError(f"Duplicate {section} code: {code}")
-            codes.add(code)
-            if section == "exercises":
-                primary, secondary = item["primary_muscles"], item["secondary_muscles"]
-                if len(primary) != len(set(primary)) or len(secondary) != len(
-                    set(secondary)
-                ):
-                    raise ValueError(f"Duplicate muscle assignment: {code}")
-                if set(primary) & set(secondary):
-                    raise ValueError(f"Muscle has both roles: {code}")
-                references = set(primary) | set(secondary)
-            else:
-                references = set(item["muscles"])
-                if len(references) != len(item["muscles"]):
-                    raise ValueError(f"Duplicate group member: {code}")
-            if unknown := references - muscles:
-                raise ValueError(f"Unknown muscles for {code}: {sorted(unknown)}")
+
+    exercises: dict[str, CatalogExercise] = {}
+    for exercise in parsed.exercises:
+        code = exercise.code
+        if code in exercises:
+            raise ValueError(f"Duplicate exercises code: {code}")
+        primary = set(exercise.primary_muscles)
+        secondary = set(exercise.secondary_muscles)
+        if len(primary) != len(exercise.primary_muscles) or len(secondary) != len(
+            exercise.secondary_muscles
+        ):
+            raise ValueError(f"Duplicate muscle assignment: {code}")
+        if primary & secondary:
+            raise ValueError(f"Muscle has both roles: {code}")
+        _require_known_muscles(code, primary | secondary, muscles)
+        exercises[code] = CatalogExercise(
+            code=code,
+            is_active=exercise.is_active,
+            muscles={
+                **dict.fromkeys(exercise.primary_muscles, ExerciseMuscleRole.PRIMARY),
+                **dict.fromkeys(
+                    exercise.secondary_muscles, ExerciseMuscleRole.SECONDARY
+                ),
+            },
+        )
+
+    groups: dict[str, CatalogGroup] = {}
+    for group in parsed.muscle_groups:
+        code = group.code
+        if code in groups:
+            raise ValueError(f"Duplicate muscle_groups code: {code}")
+        members = set(group.muscles)
+        if len(members) != len(group.muscles):
+            raise ValueError(f"Duplicate group member: {code}")
+        _require_known_muscles(code, members, muscles)
+        groups[code] = CatalogGroup(code, tuple(group.muscles))
+
     return CatalogSnapshot(
         catalog_code=parsed.source,
         content_hash=catalog_revision(document),
         muscles=tuple(parsed.muscles),
-        groups=tuple(
-            CatalogGroup(item["code"], tuple(item["muscles"]))
-            for item in validated["muscle_groups"]
-        ),
-        exercises=tuple(
-            CatalogExercise(
-                code=item["code"],
-                is_active=item.get("is_active", True),
-                muscles={
-                    **dict.fromkeys(
-                        item["primary_muscles"], ExerciseMuscleRole.PRIMARY
-                    ),
-                    **dict.fromkeys(
-                        item["secondary_muscles"], ExerciseMuscleRole.SECONDARY
-                    ),
-                },
-            )
-            for item in validated["exercises"]
-        ),
+        groups=tuple(groups.values()),
+        exercises=tuple(exercises.values()),
     )

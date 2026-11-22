@@ -42,21 +42,33 @@ def activity_factory(db: Session) -> Generator[Callable[[UUID], UUID]]:
 
 
 def test_apply_copies_entries_independently(
-    client: TestClient, user1_token: str, user1_id: UUID, activity_factory, db: Session
+    client: TestClient,
+    user1_token: str,
+    user1_id: UUID,
+    activity_factory,
+    db: Session,
+    active_exercise_id: str,
 ) -> None:
     headers = {"Authorization": f"Bearer {user1_token}"}
-    exercise_id = client.get("/strength_training/exercises", headers=headers).json()[
-        "data"
-    ][0]["id"]
     entries = [
-        {"exercise_id": exercise_id, "weight": 10.5, "sets": 3, "repetitions": 8},
-        {"exercise_id": exercise_id, "weight": None, "sets": None, "repetitions": None},
+        {
+            "exercise_id": active_exercise_id,
+            "weight": 10.5,
+            "sets": 3,
+            "repetitions": 8,
+        },
+        {
+            "exercise_id": active_exercise_id,
+            "weight": None,
+            "sets": None,
+            "repetitions": None,
+        },
     ]
     template = client.post(
         TEMPLATES, headers=headers, json={"name": str(uuid4()), "entries": entries}
     ).json()
     activity_id = activity_factory(user1_id)
-    exercise = db.get(Exercise, UUID(exercise_id))
+    exercise = db.get(Exercise, UUID(active_exercise_id))
     assert exercise is not None
     exercise.is_active = False
     db.commit()
@@ -81,7 +93,9 @@ def test_apply_copies_entries_independently(
             and entry["repetitions"] is None
             for entry in snapshot["entries"]
         )
-        assert {entry["exercise_id"] for entry in snapshot["entries"]} == {exercise_id}
+        assert {entry["exercise_id"] for entry in snapshot["entries"]} == {
+            active_exercise_id
+        }
         updated = client.patch(
             f"{TEMPLATES}/{template['id']}", headers=headers, json={"entries": []}
         )
@@ -272,16 +286,18 @@ def test_activity_plan_openapi(client: TestClient) -> None:
 
 
 def test_delete_activity_plan_preserves_activity_and_template(
-    client: TestClient, user1_token: str, user1_id: UUID, activity_factory, db: Session
+    client: TestClient,
+    user1_token: str,
+    user1_id: UUID,
+    activity_factory,
+    db: Session,
+    active_exercise_id: str,
 ) -> None:
     headers = {"Authorization": f"Bearer {user1_token}"}
-    exercise_id = client.get("/strength_training/exercises", headers=headers).json()[
-        "data"
-    ][0]["id"]
     template = client.post(
         TEMPLATES,
         headers=headers,
-        json={"name": str(uuid4()), "entries": [{"exercise_id": exercise_id}]},
+        json={"name": str(uuid4()), "entries": [{"exercise_id": active_exercise_id}]},
     ).json()
     activity_id = activity_factory(user1_id)
     url = f"{PATH}/{activity_id}"
@@ -329,17 +345,15 @@ def test_add_entry_creates_or_extends_activity_plan(
     user2_token: str,
     user1_id: UUID,
     activity_factory,
+    active_exercise_id: str,
 ) -> None:
     headers = {"Authorization": f"Bearer {user1_token}"}
-    exercise_id = client.get("/strength_training/exercises", headers=headers).json()[
-        "data"
-    ][0]["id"]
     activity_id = activity_factory(user1_id)
     url = f"{PATH}/{activity_id}"
     foreign = client.post(
         f"{url}/exercises",
         headers={"Authorization": f"Bearer {user2_token}"},
-        json={"exercise_id": exercise_id},
+        json={"exercise_id": active_exercise_id},
     )
     assert foreign.status_code == 404
     invalid = client.post(
@@ -349,7 +363,7 @@ def test_add_entry_creates_or_extends_activity_plan(
     assert client.get(url, headers=headers).status_code == 404
 
     created = client.post(
-        f"{url}/exercises", headers=headers, json={"exercise_id": exercise_id}
+        f"{url}/exercises", headers=headers, json={"exercise_id": active_exercise_id}
     )
     assert created.status_code == 201
     plan = created.json()
@@ -358,7 +372,7 @@ def test_add_entry_creates_or_extends_activity_plan(
     added = client.post(
         f"{url}/exercises",
         headers=headers,
-        json={"exercise_id": exercise_id, "weight": 12.5},
+        json={"exercise_id": active_exercise_id, "weight": 12.5},
     )
     assert added.status_code == 201
     assert added.json()["id"] == plan["id"]
@@ -375,17 +389,15 @@ def test_replace_activity_entries_preserves_template_and_link(
     user2_token: str,
     user1_id: UUID,
     activity_factory,
+    active_exercise_id: str,
 ) -> None:
     headers = {"Authorization": f"Bearer {user1_token}"}
-    exercise_id = client.get("/strength_training/exercises", headers=headers).json()[
-        "data"
-    ][0]["id"]
     template = client.post(
         TEMPLATES,
         headers=headers,
         json={
             "name": str(uuid4()),
-            "entries": [{"exercise_id": exercise_id, "weight": 10}],
+            "entries": [{"exercise_id": active_exercise_id, "weight": 10}],
         },
     ).json()
     url = f"{PATH}/{activity_factory(user1_id)}"
@@ -399,7 +411,9 @@ def test_replace_activity_entries_preserves_template_and_link(
     response = client.patch(
         url,
         headers=headers,
-        json={"entries": [{"exercise_id": exercise_id, "weight": 15, "sets": 3}]},
+        json={
+            "entries": [{"exercise_id": active_exercise_id, "weight": 15, "sets": 3}]
+        },
     )
     assert response.status_code == 200
     replaced = response.json()
@@ -425,20 +439,26 @@ def test_replace_activity_entries_preserves_template_and_link(
 
 
 def test_update_entry_keeps_its_id_and_preserves_other_entries_and_template(
-    client: TestClient, user1_token: str, user1_id: UUID, activity_factory
+    client: TestClient,
+    user1_token: str,
+    user1_id: UUID,
+    activity_factory,
+    active_exercise_id: str,
 ) -> None:
     headers = {"Authorization": f"Bearer {user1_token}"}
-    exercise_id = client.get("/strength_training/exercises", headers=headers).json()[
-        "data"
-    ][0]["id"]
     template = client.post(
         TEMPLATES,
         headers=headers,
         json={
             "name": str(uuid4()),
             "entries": [
-                {"exercise_id": exercise_id, "weight": 10, "sets": 3, "repetitions": 8},
-                {"exercise_id": exercise_id, "weight": 20},
+                {
+                    "exercise_id": active_exercise_id,
+                    "weight": 10,
+                    "sets": 3,
+                    "repetitions": 8,
+                },
+                {"exercise_id": active_exercise_id, "weight": 20},
             ],
         },
     ).json()
@@ -473,18 +493,20 @@ def test_update_entry_keeps_its_id_and_preserves_other_entries_and_template(
 
 
 def test_update_entry_with_an_inactive_exercise(
-    client: TestClient, user1_token: str, user1_id: UUID, activity_factory, db: Session
+    client: TestClient,
+    user1_token: str,
+    user1_id: UUID,
+    activity_factory,
+    db: Session,
+    active_exercise_id: str,
 ) -> None:
     headers = {"Authorization": f"Bearer {user1_token}"}
-    exercise_id = client.get("/strength_training/exercises", headers=headers).json()[
-        "data"
-    ][0]["id"]
     url = f"{PATH}/{activity_factory(user1_id)}"
     created = client.post(
-        f"{url}/exercises", headers=headers, json={"exercise_id": exercise_id}
+        f"{url}/exercises", headers=headers, json={"exercise_id": active_exercise_id}
     ).json()["entries"][0]
     target = {"entry_id": created["id"]}
-    exercise = db.get(Exercise, UUID(exercise_id))
+    exercise = db.get(Exercise, UUID(active_exercise_id))
     assert exercise is not None
     exercise.is_active = False
     db.commit()
@@ -513,16 +535,19 @@ def test_update_entry_with_an_inactive_exercise(
 
 
 def test_update_entry_rejects_an_entry_from_another_activity(
-    client: TestClient, user1_token: str, user1_id: UUID, activity_factory
+    client: TestClient,
+    user1_token: str,
+    user1_id: UUID,
+    activity_factory,
+    active_exercise_id: str,
 ) -> None:
     headers = {"Authorization": f"Bearer {user1_token}"}
-    exercise_id = client.get("/strength_training/exercises", headers=headers).json()[
-        "data"
-    ][0]["id"]
     url, other_url = (f"{PATH}/{activity_factory(user1_id)}" for _ in range(2))
     for plan_url in (url, other_url):
         response = client.post(
-            f"{plan_url}/exercises", headers=headers, json={"exercise_id": exercise_id}
+            f"{plan_url}/exercises",
+            headers=headers,
+            json={"exercise_id": active_exercise_id},
         )
         assert response.status_code == 201
     other_entry = response.json()["entries"][0]
@@ -544,17 +569,17 @@ def test_remove_entry_only_affects_its_activity_plan(
     user2_token: str,
     user1_id: UUID,
     activity_factory,
+    active_exercise_id: str,
 ) -> None:
     headers = {"Authorization": f"Bearer {user1_token}"}
     other = {"Authorization": f"Bearer {user2_token}"}
-    exercise_id = client.get("/strength_training/exercises", headers=headers).json()[
-        "data"
-    ][0]["id"]
     url = f"{PATH}/{activity_factory(user1_id)}"
     other_url = f"{PATH}/{activity_factory(user1_id)}"
     for plan_url in (url, other_url, url):
         response = client.post(
-            f"{plan_url}/exercises", headers=headers, json={"exercise_id": exercise_id}
+            f"{plan_url}/exercises",
+            headers=headers,
+            json={"exercise_id": active_exercise_id},
         )
         assert response.status_code == 201
     entries = client.get(url, headers=headers).json()["entries"]
@@ -792,12 +817,10 @@ def test_save_activity_as_new_template(
     user2_token: str,
     user1_id: UUID,
     activity_factory,
+    active_exercise_id: str,
 ) -> None:
     headers = {"Authorization": f"Bearer {user1_token}"}
     other = {"Authorization": f"Bearer {user2_token}"}
-    exercise_id = client.get("/strength_training/exercises", headers=headers).json()[
-        "data"
-    ][0]["id"]
     name = str(uuid4())
     original = client.post(TEMPLATES, headers=headers, json={"name": name}).json()
     url = f"{PATH}/{activity_factory(user1_id)}"
@@ -811,7 +834,12 @@ def test_save_activity_as_new_template(
         ).status_code
         == 201
     )
-    entry = {"exercise_id": exercise_id, "weight": 12.5, "sets": 3, "repetitions": None}
+    entry = {
+        "exercise_id": active_exercise_id,
+        "weight": 12.5,
+        "sets": 3,
+        "repetitions": None,
+    }
     added = client.post(f"{url}/exercises", headers=headers, json=entry)
     assert added.status_code == 201
     activity_plan = added.json()
@@ -852,18 +880,16 @@ def test_update_linked_template_keeps_other_activity_entries(
     user2_token: str,
     user1_id: UUID,
     activity_factory,
+    active_exercise_id: str,
 ) -> None:
     headers = {"Authorization": f"Bearer {user1_token}"}
     other = {"Authorization": f"Bearer {user2_token}"}
-    exercise_id = client.get("/strength_training/exercises", headers=headers).json()[
-        "data"
-    ][0]["id"]
     template = client.post(
         TEMPLATES,
         headers=headers,
         json={
             "name": str(uuid4()),
-            "entries": [{"exercise_id": exercise_id, "weight": 10}],
+            "entries": [{"exercise_id": active_exercise_id, "weight": 10}],
         },
     ).json()
     url = f"{PATH}/{activity_factory(user1_id)}"
@@ -881,7 +907,7 @@ def test_update_linked_template_keeps_other_activity_entries(
         client.post(
             f"{unlinked_url}/exercises",
             headers=headers,
-            json={"exercise_id": exercise_id},
+            json={"exercise_id": active_exercise_id},
         ).status_code
         == 201
     )
@@ -891,7 +917,12 @@ def test_update_linked_template_keeps_other_activity_entries(
     )
     assert client.post(f"{url}/update_template", headers=other).status_code == 404
 
-    entry = {"exercise_id": exercise_id, "weight": 20, "sets": None, "repetitions": 8}
+    entry = {
+        "exercise_id": active_exercise_id,
+        "weight": 20,
+        "sets": None,
+        "repetitions": 8,
+    }
     updated = client.patch(url, headers=headers, json={"entries": [entry]})
     assert updated.status_code == 200
     response = client.post(f"{url}/update_template", headers=headers)
@@ -913,13 +944,11 @@ def test_template_activities_lists_explicit_links(
     user2_token: str,
     user1_id: UUID,
     activity_factory,
+    active_exercise_id: str,
 ) -> None:
     headers = {"Authorization": f"Bearer {user1_token}"}
     other = {"Authorization": f"Bearer {user2_token}"}
-    exercise_id = client.get("/strength_training/exercises", headers=headers).json()[
-        "data"
-    ][0]["id"]
-    entry = {"exercise_id": exercise_id}
+    entry = {"exercise_id": active_exercise_id}
     plan_ids = [
         client.post(
             TEMPLATES, headers=headers, json={"name": str(uuid4()), "entries": [entry]}

@@ -6,17 +6,17 @@ PATH = "/strength_training/exercise_plans"
 
 
 def test_create_read_and_list_plans(
-    client: TestClient, user1_token: str, user2_token: str
+    client: TestClient,
+    user1_token: str,
+    user2_token: str,
+    active_exercise_id: str,
 ) -> None:
     headers = {"Authorization": f"Bearer {user1_token}"}
     other = {"Authorization": f"Bearer {user2_token}"}
-    exercise = client.get("/strength_training/exercises", headers=headers).json()[
-        "data"
-    ][0]
     name = f"Plan {uuid4()}"
     entries = [
-        {"exercise_id": exercise["id"], "weight": 10},
-        {"exercise_id": exercise["id"]},
+        {"exercise_id": active_exercise_id, "weight": 10},
+        {"exercise_id": active_exercise_id},
     ]
     created = client.post(
         PATH, headers=headers, json={"name": name, "entries": entries}
@@ -92,17 +92,17 @@ def test_plan_response_openapi(client: TestClient) -> None:
 
 
 def test_update_replace_clear_and_rollback(
-    client: TestClient, user1_token: str, user2_token: str
+    client: TestClient,
+    user1_token: str,
+    user2_token: str,
+    active_exercise_id: str,
 ) -> None:
     headers = {"Authorization": f"Bearer {user1_token}"}
     other = {"Authorization": f"Bearer {user2_token}"}
-    exercise = client.get("/strength_training/exercises", headers=headers).json()[
-        "data"
-    ][0]["id"]
     plan = client.post(
         PATH,
         headers=headers,
-        json={"name": str(uuid4()), "entries": [{"exercise_id": exercise}]},
+        json={"name": str(uuid4()), "entries": [{"exercise_id": active_exercise_id}]},
     ).json()
     url = f"{PATH}/{plan['id']}"
     new_name = str(uuid4())
@@ -111,7 +111,9 @@ def test_update_replace_clear_and_rollback(
     assert renamed.json()["name"] == new_name
     assert renamed.json()["entries"] == plan["entries"]
     replaced = client.patch(
-        url, headers=headers, json={"entries": [{"exercise_id": exercise, "sets": 3}]}
+        url,
+        headers=headers,
+        json={"entries": [{"exercise_id": active_exercise_id, "sets": 3}]},
     )
     assert replaced.status_code == 200
     assert replaced.json()["entries"][0]["id"] != plan["entries"][0]["id"]
@@ -144,20 +146,25 @@ def test_update_replace_clear_and_rollback(
 
 
 def test_duplicate_and_delete_plan(
-    client: TestClient, user1_token: str, user2_token: str
+    client: TestClient,
+    user1_token: str,
+    user2_token: str,
+    active_exercise_id: str,
 ) -> None:
     headers = {"Authorization": f"Bearer {user1_token}"}
     other = {"Authorization": f"Bearer {user2_token}"}
-    exercise = client.get("/strength_training/exercises", headers=headers).json()[
-        "data"
-    ][0]["id"]
     plan = client.post(
         PATH,
         headers=headers,
         json={
             "name": str(uuid4()),
             "entries": [
-                {"exercise_id": exercise, "weight": 4, "sets": 2, "repetitions": 8}
+                {
+                    "exercise_id": active_exercise_id,
+                    "weight": 4,
+                    "sets": 2,
+                    "repetitions": 8,
+                }
             ],
         },
     ).json()
@@ -183,26 +190,26 @@ def test_duplicate_and_delete_plan(
 
 
 def test_inactive_exercises_can_be_retained_and_copied(
-    client: TestClient, user1_token: str, db
+    client: TestClient,
+    user1_token: str,
+    db,
+    active_exercise_id: str,
 ) -> None:
     from uuid import UUID
 
     from verve_backend.models import Exercise
 
     headers = {"Authorization": f"Bearer {user1_token}"}
-    exercise_id = client.get("/strength_training/exercises", headers=headers).json()[
-        "data"
-    ][0]["id"]
     plan = client.post(
         PATH,
         headers=headers,
-        json={"name": str(uuid4()), "entries": [{"exercise_id": exercise_id}]},
+        json={"name": str(uuid4()), "entries": [{"exercise_id": active_exercise_id}]},
     ).json()
-    exercise = db.get(Exercise, UUID(exercise_id))
+    exercise = db.get(Exercise, UUID(active_exercise_id))
     exercise.is_active = False
     db.commit()
     try:
-        entry = {"exercise_id": exercise_id, "weight": 12}
+        entry = {"exercise_id": active_exercise_id, "weight": 12}
         url = f"{PATH}/{plan['id']}"
         assert (
             client.post(
@@ -229,7 +236,11 @@ def test_inactive_exercises_can_be_retained_and_copied(
 
 
 def test_deleting_linked_plan_preserves_snapshot(
-    client: TestClient, user1_token: str, user1_id, db
+    client: TestClient,
+    user1_token: str,
+    user1_id,
+    db,
+    active_exercise_id: str,
 ) -> None:
     from uuid import UUID
 
@@ -243,13 +254,10 @@ def test_deleting_linked_plan_preserves_snapshot(
     )
 
     headers = {"Authorization": f"Bearer {user1_token}"}
-    exercise_id = client.get("/strength_training/exercises", headers=headers).json()[
-        "data"
-    ][0]["id"]
     plan = client.post(
         PATH,
         headers=headers,
-        json={"name": str(uuid4()), "entries": [{"exercise_id": exercise_id}]},
+        json={"name": str(uuid4()), "entries": [{"exercise_id": active_exercise_id}]},
     ).json()
     activity = db.exec(select(Activity).where(Activity.user_id == user1_id)).first()
     snapshot = ActivityExercisePlan(
@@ -261,7 +269,7 @@ def test_deleting_linked_plan_preserves_snapshot(
         ActivityExercisePlanEntry(
             user_id=user1_id,
             activity_plan_id=snapshot.id,
-            exercise_id=UUID(exercise_id),
+            exercise_id=UUID(active_exercise_id),
             weight=30,
         )
     )
@@ -303,15 +311,14 @@ def test_plan_names_reject_nul(client: TestClient, user1_token: str) -> None:
 
 
 def test_plan_entries_reject_integer_overflow(
-    client: TestClient, user1_token: str
+    client: TestClient,
+    user1_token: str,
+    active_exercise_id: str,
 ) -> None:
     headers = {"Authorization": f"Bearer {user1_token}"}
-    exercise = client.get("/strength_training/exercises", headers=headers).json()[
-        "data"
-    ][0]["id"]
     plan = client.post(PATH, headers=headers, json={"name": str(uuid4())}).json()
     for field in ("sets", "repetitions"):
-        entries = [{"exercise_id": exercise, field: 2_147_483_648}]
+        entries = [{"exercise_id": active_exercise_id, field: 2_147_483_648}]
         assert (
             client.post(
                 PATH, headers=headers, json={"name": str(uuid4()), "entries": entries}
