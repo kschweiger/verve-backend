@@ -1,4 +1,14 @@
 <!-- insertion marker -->
+<a name="2.3.0"></a>
+
+## [2.3.0](https://github.com/kschweiger/verve-backend/compare/2.2.0...2.3.0) (2026-11-22)
+
+### Features
+
+- exercise catalog and improved strength workout tracking (#285) ([458bd99](https://github.com/kschweiger/verve-backend/commit/458bd99bab11e709c6f4390df919a82ca21239b8))
+- **goals:** add active-day aggregation (#279) ([6421934](https://github.com/kschweiger/verve-backend/commit/642193455dbe4ef2f740387e3c5754d8cda68bb0))
+- add route to check if an activity is exportable (#278) ([96f945d](https://github.com/kschweiger/verve-backend/commit/96f945de4c24b5a96862b7d837ec7eb114802c0b))
+
 <a name="2.2.0"></a>
 
 ## [2.2.0](https://github.com/kschweiger/verve-backend/compare/2.1.0...2.2.0) (2026-11-13)
