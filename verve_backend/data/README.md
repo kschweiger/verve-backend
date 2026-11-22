@@ -2,10 +2,9 @@
 
 [`exercise_catalog.json`](exercise_catalog.json) is the first bundled Verve
 catalog: the 50 selected exercise variants plus lateral band walks, monster walks,
-terminal knee extensions, machine lateral raises, wall tibialis raises, and kneeling
-counterweight-assisted triceps dips and pull-ups. It contains 57 exercises, 35 muscle
-codes, and 23 default display groups. These counts describe this revision, not format
-limits.
+terminal knee extensions, machine lateral raises, wall tibialis raises, kneeling
+counterweight-assisted triceps dips and pull-ups, and hip-hinge machine back
+extensions. It contains 58 exercises, 35 muscle codes, and 23 default display groups.
 
 Names are stored in the `exercises`, `muscles`, and `muscle_groups` sections of
 [`en.json`](../locales/en.json) and [`de.json`](../locales/de.json). The
@@ -18,7 +17,7 @@ synchronizes this catalog after Alembic during startup.
 The starting source is
 [free-exercise-db at `f00c92c`](https://github.com/yuhonas/free-exercise-db/tree/f00c92c7dcf1216a928a52c3706c7ce8e2f71ed5),
 released under the [Unlicense](LICENSE-free-exercise-db.txt). Its upstream IDs
-identify starting entries for 43 variants. Fourteen entries have no upstream ID
+identify starting entries for 43 variants. Fifteen entries have no upstream ID
 because they are independently specified variants or lack a sufficiently clear
 match. Labels and detailed muscle roles were curated for Verve. Images and
 exercise instructions are not copied into the catalog.
@@ -54,6 +53,9 @@ and [lower-limb muscles](https://openstax.org/books/anatomy-and-physiology-2e/pa
 - **Seated back-extension machine:** resisted trunk/lumbar extension with a back
   pad. It is separate from a hip-hinge hyperextension bench. Erector spinae is
   primary; no generic hamstring/glute assignment is inferred from the name.
+- **Hip-hinge back-extension machine:** standing hip extension with a hip pad
+  and resistance through a handle. Gluteus maximus and hamstrings are primary.
+  The spinal erectors support the trunk. [Booty Builder Selectorized Back Extension](https://bootybuilder.com/product/booty-builder-selectorized-back-extension/)
 - **Face pull:** a rope pull toward the face with hand separation and an
   outward-rotation finish. The external-rotator assignments refer to that finish.
 - **Dips:** parallel bars with an upright torso and a triceps emphasis. A
@@ -118,7 +120,7 @@ medialis/VMO claim.
 
 ## Display groups
 
-The 22 groups are a proposed default mapping for the future body map, including
+The groups are a proposed default mapping for the future body map, including
 separate front, side, and rear shoulders. Every current muscle has one default
 group. The format also permits overlapping groups and unmapped muscles.
 
@@ -134,5 +136,5 @@ after direct database edits.
 
 The data is checked against the agreed JSON Schema, with additional checks for
 unique codes, known muscle references, disjoint roles, upstream-ID existence,
-coverage of the 56 selected variants, and English/German label coverage.
+coverage of the selected variants, and English/German label coverage.
 Existing activity and tag translations are preserved.

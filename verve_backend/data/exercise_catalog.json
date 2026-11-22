@@ -418,6 +418,17 @@
       "secondary_muscles": []
     },
     {
+      "code": "back_extension_machine_hip_hinge",
+      "is_active": true,
+      "primary_muscles": [
+        "gluteus_maximus",
+        "hamstrings"
+      ],
+      "secondary_muscles": [
+        "erector_spinae"
+      ]
+    },
+    {
       "code": "shoulder_press_dumbbell_seated",
       "is_active": true,
       "primary_muscles": [
