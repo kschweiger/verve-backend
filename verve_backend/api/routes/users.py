@@ -25,6 +25,7 @@ from verve_backend.models import (
     Goal,
     HeatmapSettings,
     RecordsSettings,
+    SupportedLocale,
     User,
     UserCreate,
     UserMe,
@@ -169,8 +170,20 @@ def get_user_settings(
     )
 
 
+@router.patch("/me/locale")
+def replace_locale(*, user_session: UserSession, locale: SupportedLocale) -> Any:
+    _user_id, session = user_session
+    user_settings = session.get(UserSettings, UUID(_user_id))
+    assert user_settings is not None
+
+    user_settings.locale = locale
+
+    session.add(user_settings)
+    session.commit()
+
+
 @router.patch("/me/heatmap_settings")
-async def replace_heatmap_settings(
+def replace_heatmap_settings(
     *, user_session: UserSession, data: HeatmapSettings
 ) -> Any:
     _user_id, session = user_session
