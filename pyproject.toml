@@ -8,7 +8,7 @@ requires-python = ">=3.14,<3.15"
 dependencies = [
   "alembic==1.20.1",
   "bcrypt==4.3.0",
-  "boto3==1.44.3",
+  "boto3==1.44.4",
   "boto3-stubs[s3]==1.44.3",
   "celery==5.7.0",
   "click==8.5.1",
@@ -24,7 +24,7 @@ dependencies = [
   "pyproj==3.8.0",
   "redis==7.4.1",
   "shapely==2.2.0",
-  "sqlalchemy==2.1.8",
+  "sqlalchemy==2.1.9",
   "sqlmodel==0.0.50",
   "structlog==26.1.0",
   "timezonefinder==9.2.0",
