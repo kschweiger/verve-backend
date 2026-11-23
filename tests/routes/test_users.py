@@ -412,3 +412,45 @@ def test_timezone_update_preserves_cache_without_valid_change(
     assert settings.timezone == timezone_before
     assert goal.current == 2
     assert goal.current_updated == updated_before
+
+
+def test_replace_locale(
+    client: TestClient,
+    temp_user_token: UUID,
+) -> None:
+    new_locale = "de"
+
+    response = client.get(
+        "/users/me/settings",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+    assert response.status_code == 200
+    settings_pre = UserSettingsPublic.model_validate(response.json()["settings"])
+
+    assert settings_pre.locale != new_locale
+
+    response = client.patch(
+        "/users/me/locale",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        params={"locale": new_locale},
+    )
+    assert response.status_code == 200
+    response = client.get(
+        "/users/me/settings",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+    )
+    assert response.status_code == 200
+    settings_post = UserSettingsPublic.model_validate(response.json()["settings"])
+    assert settings_post.locale == new_locale
+
+
+def test_replace_locale_invalid(
+    client: TestClient,
+    temp_user_token: UUID,
+) -> None:
+    response = client.patch(
+        "/users/me/locale",
+        headers={"Authorization": f"Bearer {temp_user_token}"},
+        params={"locale": "fr"},
+    )
+    assert response.status_code == 422
