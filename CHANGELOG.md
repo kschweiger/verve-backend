@@ -1,4 +1,13 @@
 <!-- insertion marker -->
+<a name="2.4.0"></a>
+
+## [2.4.0](https://github.com/kschweiger/verve-backend/compare/2.3.0...2.4.0) (2026-11-24)
+
+### Features
+
+- localize type resolution (#293) ([f47b59f](https://github.com/kschweiger/verve-backend/commit/f47b59f103a8d6e36a141fc9c121176e6319b3f7))
+- **users:** add route to update locale setting (#291) ([06973a0](https://github.com/kschweiger/verve-backend/commit/06973a00e99ba6f9bc67e9bebc025d8bf4a993f1))
+
 <a name="2.3.0"></a>
 
 ## [2.3.0](https://github.com/kschweiger/verve-backend/compare/2.2.0...2.3.0) (2026-11-22)
