@@ -165,5 +165,136 @@
     "inner_thighs": "Inner thighs",
     "calves": "Calves",
     "tibialis": "Shin muscles"
+  },
+  "activity_types": {
+    "Cycling": {
+      "name": "Cycling",
+      "sub_types": {
+        "Road": "Road",
+        "Mountain Bike": "Mountain Bike",
+        "Gravel": "Gravel",
+        "Cyclocross": "Cyclocross",
+        "Indoor": "Indoor",
+        "E-Mountain Bike": "E-Mountain Bike"
+      }
+    },
+    "Foot Sports": {
+      "name": "Foot Sports",
+      "sub_types": {
+        "Walk": "Walk",
+        "Run": "Run",
+        "Hike": "Hike",
+        "Trail Run": "Trail Run",
+        "Nordic Walking": "Nordic Walking",
+        "Treadmill": "Treadmill"
+      }
+    },
+    "Winter Sports": {
+      "name": "Winter Sports",
+      "sub_types": {
+        "Cross-country Skiing": "Cross-country Skiing",
+        "Snowshoeing": "Snowshoeing",
+        "Downhill Skiing": "Downhill Skiing"
+      }
+    },
+    "Swimming": {
+      "name": "Swimming",
+      "sub_types": {
+        "Indoor": "Indoor",
+        "Outdoor Pool": "Outdoor Pool",
+        "Open Water": "Open Water"
+      }
+    },
+    "Strength Training": {
+      "name": "Strength Training",
+      "sub_types": {
+        "Weight Training": "Weight Training",
+        "Bodyweight": "Bodyweight",
+        "Powerlifting": "Powerlifting",
+        "CrossFit": "CrossFit",
+        "Circuit Training": "Circuit Training"
+      }
+    },
+    "Indoor Cardio": {
+      "name": "Indoor Cardio",
+      "sub_types": {
+        "Elliptical": "Elliptical",
+        "Stair Stepper": "Stair Stepper",
+        "Indoor Rowing": "Indoor Rowing"
+      }
+    },
+    "Fitness & Flexibility": {
+      "name": "Fitness & Flexibility",
+      "sub_types": {
+        "Yoga": "Yoga",
+        "Pilates": "Pilates",
+        "HIIT": "HIIT"
+      }
+    },
+    "Climbing": {
+      "name": "Climbing",
+      "sub_types": {
+        "Bouldering": "Bouldering",
+        "Sport Climbing": "Sport Climbing",
+        "Indoor Climbing": "Indoor Climbing",
+        "Outdoor Climbing": "Outdoor Climbing"
+      }
+    },
+    "Other": {
+      "name": "Other",
+      "sub_types": {
+        "Skateboarding": "Skateboarding",
+        "Other": "Other"
+      }
+    }
+  },
+  "location_types": {
+    "Nature & Adventure": {
+      "name": "Nature & Adventure",
+      "sub_types": {
+        "Peak": "Peak",
+        "Mountain Pass": "Mountain Pass",
+        "Lake": "Lake",
+        "Alpine Hut": "Alpine Hut",
+        "Climbing Crag": "Climbing Crag",
+        "Trailhead": "Trailhead",
+        "Viewpoint": "Viewpoint"
+      }
+    },
+    "Facilities": {
+      "name": "Facilities",
+      "sub_types": {
+        "Gym": "Gym",
+        "Swimming Pool": "Swimming Pool",
+        "Climbing Gym": "Climbing Gym",
+        "Sports Center": "Sports Center",
+        "Ski Resort": "Ski Resort",
+        "Bike Park": "Bike Park",
+        "Stadium": "Stadium"
+      }
+    },
+    "Travel & Logistics": {
+      "name": "Travel & Logistics",
+      "sub_types": {
+        "Train Station": "Train Station",
+        "Bus Stop": "Bus Stop",
+        "Parking": "Parking",
+        "Hotel / Lodging": "Hotel / Lodging"
+      }
+    },
+    "Personal": {
+      "name": "Personal",
+      "sub_types": {
+        "Home": "Home",
+        "Work": "Work"
+      }
+    },
+    "Point of Interest": {
+      "name": "Point of Interest",
+      "sub_types": {
+        "Landmark": "Landmark",
+        "Other": "Other"
+      }
+    }
   }
 }
