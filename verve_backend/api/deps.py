@@ -34,6 +34,9 @@ def get_db() -> Generator[Session, None, None]:
 
 SessionDep = Annotated[Session, Depends(get_db)]
 TokenDep = Annotated[str, Depends(reusable_oauth2)]
+optional_oauth2 = OAuth2PasswordBearer(
+    tokenUrl=f"{settings.API_V1_STR}/login/access_token", auto_error=False
+)
 
 
 async def get_current_user(
@@ -67,6 +70,19 @@ async def get_current_user(
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+async def get_optional_current_user(
+    request: Request,
+    session: SessionDep,
+    token: Annotated[str | None, Depends(optional_oauth2)],
+) -> User | None:
+    if token is None:
+        return None
+    return await get_current_user(request, session, token)
+
+
+OptionalCurrentUser = Annotated[User | None, Depends(get_optional_current_user)]
 
 
 def _create_rls_session(user_id: UUID) -> Session:

@@ -165,5 +165,136 @@
     "inner_thighs": "Oberschenkel innen",
     "calves": "Waden",
     "tibialis": "Schienbeinmuskulatur"
+  },
+  "activity_types": {
+    "Cycling": {
+      "name": "Radfahren",
+      "sub_types": {
+        "Road": "Rennrad",
+        "Mountain Bike": "Mountainbike",
+        "Gravel": "Gravel",
+        "Cyclocross": "Cyclocross",
+        "Indoor": "Indoor",
+        "E-Mountain Bike": "E-Mountainbike"
+      }
+    },
+    "Foot Sports": {
+      "name": "Laufsport",
+      "sub_types": {
+        "Walk": "Gehen",
+        "Run": "Laufen",
+        "Hike": "Wandern",
+        "Trail Run": "Traillauf",
+        "Nordic Walking": "Nordic Walking",
+        "Treadmill": "Laufband"
+      }
+    },
+    "Winter Sports": {
+      "name": "Wintersport",
+      "sub_types": {
+        "Cross-country Skiing": "Skilanglauf",
+        "Snowshoeing": "Schneeschuhwandern",
+        "Downhill Skiing": "Abfahrtsski"
+      }
+    },
+    "Swimming": {
+      "name": "Schwimmen",
+      "sub_types": {
+        "Indoor": "Hallenbad",
+        "Outdoor Pool": "Freibad",
+        "Open Water": "Freiwasser"
+      }
+    },
+    "Strength Training": {
+      "name": "Krafttraining",
+      "sub_types": {
+        "Weight Training": "Gewichtstraining",
+        "Bodyweight": "Eigengewicht",
+        "Powerlifting": "Kraftdreikampf",
+        "CrossFit": "CrossFit",
+        "Circuit Training": "Zirkeltraining"
+      }
+    },
+    "Indoor Cardio": {
+      "name": "Indoor-Ausdauer",
+      "sub_types": {
+        "Elliptical": "Crosstrainer",
+        "Stair Stepper": "Treppensteiger",
+        "Indoor Rowing": "Indoor-Rudern"
+      }
+    },
+    "Fitness & Flexibility": {
+      "name": "Fitness & Beweglichkeit",
+      "sub_types": {
+        "Yoga": "Yoga",
+        "Pilates": "Pilates",
+        "HIIT": "HIIT"
+      }
+    },
+    "Climbing": {
+      "name": "Klettern",
+      "sub_types": {
+        "Bouldering": "Bouldern",
+        "Sport Climbing": "Sportklettern",
+        "Indoor Climbing": "Hallenklettern",
+        "Outdoor Climbing": "Outdoorklettern"
+      }
+    },
+    "Other": {
+      "name": "Sonstiges",
+      "sub_types": {
+        "Skateboarding": "Skateboarden",
+        "Other": "Sonstiges"
+      }
+    }
+  },
+  "location_types": {
+    "Nature & Adventure": {
+      "name": "Natur & Abenteuer",
+      "sub_types": {
+        "Peak": "Gipfel",
+        "Mountain Pass": "Gebirgspass",
+        "Lake": "See",
+        "Alpine Hut": "Alpenhütte",
+        "Climbing Crag": "Kletterfelsen",
+        "Trailhead": "Wanderparkplatz",
+        "Viewpoint": "Aussichtspunkt"
+      }
+    },
+    "Facilities": {
+      "name": "Einrichtungen",
+      "sub_types": {
+        "Gym": "Fitnessstudio",
+        "Swimming Pool": "Schwimmbad",
+        "Climbing Gym": "Kletterhalle",
+        "Sports Center": "Sportzentrum",
+        "Ski Resort": "Skigebiet",
+        "Bike Park": "Bikepark",
+        "Stadium": "Stadion"
+      }
+    },
+    "Travel & Logistics": {
+      "name": "Reise & Logistik",
+      "sub_types": {
+        "Train Station": "Bahnhof",
+        "Bus Stop": "Bushaltestelle",
+        "Parking": "Parkplatz",
+        "Hotel / Lodging": "Hotel / Unterkunft"
+      }
+    },
+    "Personal": {
+      "name": "Persönlich",
+      "sub_types": {
+        "Home": "Zuhause",
+        "Work": "Arbeit"
+      }
+    },
+    "Point of Interest": {
+      "name": "Sehenswürdigkeit",
+      "sub_types": {
+        "Landmark": "Wahrzeichen",
+        "Other": "Sonstiges"
+      }
+    }
   }
 }
